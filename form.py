@@ -3,7 +3,7 @@
 import sys
 sys.path.append('/Users/ilanashapiro/Documents/msaf0_1_80')
 
-import msaf0_1_80
+import msaf
 from midi2audio import FluidSynth
 import os
 
@@ -22,14 +22,15 @@ def segment_audio_MSAF():
   # 1. Select audio file
   audio_filepath = "LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.wav"
 
-  # 2. Segment the file using the default MSAF parameters (this might take a few seconds)
-  boundaries, labels = msaf0_1_80.process(audio_filepath, boundaries_id="olda", labels_id="cnmf", hier=True)
+  # hierarchical: scluster, olda (boundaries only, use with fmc2d), vmo
+  # sf (flat, boundaries only) has best performance
+  boundaries, labels = msaf.process(audio_filepath, boundaries_id="scluster", labels_id="scluster", hier=True)
   print(boundaries)
   print(labels)
-  # 3. Save segments using the MIREX format
-  # out_file = audio_filepath[:-4] + '_segments1.txt'
-  # print('Saving output to %s' % out_file)
-  # msaf0_1_80.io.write_mirex(boundaries, labels, out_file)
+
+  out_file = audio_filepath[:-4] + '_segments.txt'
+  print('Saving output to %s' % out_file)
+  msaf.io.write_mirex_hierarchical(boundaries, labels, out_file)
 
   # 4. Evaluate the results
   # evals = msaf.eval.process(audio_file)
