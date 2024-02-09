@@ -42,9 +42,11 @@ def midi_to_csv_in_ticks():
 				new_row = pd.DataFrame([[start_time, msg.note, duration]], columns=["onset", "pitch", "duration"]) 
 				df = pd.concat([df, new_row], axis=0) 
 
-	df.to_csv(output_filename, index=False)
+	df.to_csv(output_filename, index=False) # if I use ticks, TODO: need to add staff numbers
 	print(f"Data has been written to {output_filename} in ticks")
 
+# CSV format from https://github.com/Wiilly07/Beethoven_motif 
+# code modified from https://github.com/andrewchenk/midi-csv/blob/master/midi_to_csv.py
 def midi_to_csv_in_crochets():
 	filename = "LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.mid" # for now
 	output_filename = filename[:-4] + ".csv"
@@ -75,6 +77,7 @@ def midi_to_csv_in_crochets():
 	df.to_csv(output_filename, index=False)
 	print(f"Data has been written to {output_filename} in crochets")
 
+# code modified from https://github.com/Tsung-Ping/motif_discovery/blob/main/experiments.py 
 def load_notes_csv(filename):
 	dt = [
 		('onset', float), # onset (in crotchet beats)
@@ -96,9 +99,10 @@ def load_notes_csv(filename):
 	notes = notes[notes['duration'] > 0]
 	return np.sort(notes, order=['onset', 'pitch'])
 
-midi_to_csv_in_crochets()
-notes = load_notes_csv("LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.csv")
-print(SIA.find_motives(notes))
+# midi_to_csv_in_crochets()
+def get_motives():
+	notes = load_notes_csv("LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.csv") # for now
+	print(SIA.find_motives(notes))
 
 def convert_dataset_midi_to_wav():
 	soundfont_filepath = "GeneralUser GS 1.471/GeneralUser GS v1.471.sf2"
