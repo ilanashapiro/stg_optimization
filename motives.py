@@ -39,7 +39,7 @@ def midi_to_csv_in_ticks(): # DONT USE THIS ONE FOR NOW
 # CSV format from https://github.com/Wiilly07/Beethoven_motif 
 # code modified from https://github.com/andrewchenk/midi-csv/blob/master/midi_to_csv.py
 def midi_to_csv_in_crochets():
-	directory = "LOP_database_06_09_17"
+	directory = "/Users/ilanashapiro/Documents/constraints_project/LOP_database_06_09_17/liszt_classical_archives"
 	def process_midi(file_path):
 		output_filepath = file_path[:-4] + "_data.csv"
 		print("Converting " + file_path + " to " + output_filepath)
@@ -74,7 +74,7 @@ def midi_to_csv_in_crochets():
 		for root, _, files in os.walk(directory):
 			for filename in files:
 				# and we haven't already made the CSV file (_data extension since LOP already has CSV files with metadata and we don't want to overwrite)
-				if filename.endswith("_solo.mid") and not any("_data.csv" in file for file in files): 
+				if filename.endswith("_solo_short.mid") and not any("_data.csv" in file for file in files): 
 					file_path = os.path.join(root, filename) # can use LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.mid for now
 					process_midi(file_path)
 					future = executor.submit(process_midi, file_path)
@@ -103,23 +103,38 @@ def load_notes_csv(filename):
 	notes = notes[notes['duration'] > 0]
 	return np.sort(notes, order=['onset', 'pitch'])
 
-midi_to_csv_in_crochets()
+# midi_to_csv_in_crochets()
+
+# as per https://www.music-ir.org/mirex/wiki/2017:Discovery_of_Repeated_Themes_%26_Sections
+def write_mirex_motives(motives, out_file):
+	out_str = ""
+	for idx_p, pattern in enumerate(motives):
+		out_str += "pattern" + str(idx_p+1) + "\n" # + 1 because of zero-indexing
+		for idx_o, occurrence in enumerate(pattern):
+			out_str += "occurrence" + str(idx_o+1) + "\n"
+			for ontime, pitch in occurrence:
+				out_str += format(ontime, '.5f') + ", " + format(pitch, '.5f') + "\n"
+	with open(out_file, "w") as f:
+			f.write(out_str[:-1])
 
 def get_motives():
-	directory = "LOP_database_06_09_17"
+	directory = "/Users/ilanashapiro/Documents/constraints_project/LOP_database_06_09_17/liszt_classical_archives/0_short_test"
 	futures = []
 	def process_file(file_path):
-		notes = load_notes_csv(file_path) # can use LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.csv for now
-		return SIA.find_motives(notes)
+		notes = load_notes_csv(file_path)
+		motives = SIA.find_motives(notes)
+		# motives_test = [[[(174., 84.), (174.5, 57.), (175., 52.), (175.5, 54.)], [(178., 79.), (178.5, 52.), (179., 50.), (179.5, 48.)], [(186., 79.), (186.5, 52.), (187., 50.), (187.5, 48.)], [(194., 79.), (194.5, 52.), (195., 50.), (195.5, 48.)], [(198., 79.), (198.5, 52.), (199., 50.), (199.5, 48.)]], [[(174.5, 57.), (175., 52.), (175.5, 54.), (176., 55.)], [(180., 83.), (180.5, 79.), (181., 79.), (181.5, 79.)], [(188., 83.), (188.5, 79.), (189., 79.), (189.5, 79.)]]]
+		write_mirex_motives(motives, file_path[:-9] + "_motives.csv") # "_data.csv" has length 9
 	
 	with ThreadPoolExecutor() as executor:
 		for root, _, files in os.walk(directory):
 			for filename in files:
-				if filename.endswith("_solo.csv"):
+				if filename.endswith("_data.csv"):
 					file_path = os.path.join(root, filename)
 					future = executor.submit(process_file, file_path)
 					futures.append(future)
 		# as_completed() provides a generator that yields futures as they complete
-		for future in as_completed(futures):
-				result = future.result()
-				print(result)
+		# for future in as_completed(futures):
+		# 		motives = future.result()
+				
+get_motives()
