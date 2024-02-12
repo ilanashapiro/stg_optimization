@@ -51,7 +51,7 @@ def midi_to_csv_in_ticks():
 
 	df.to_csv(output_filename, index=False) 
 	print(f"Data has been written to {output_filename} in ticks")
-midi_to_csv_in_ticks()
+# midi_to_csv_in_ticks()
 
 # CSV format from https://github.com/Wiilly07/Beethoven_motif 
 # code modified from https://github.com/andrewchenk/midi-csv/blob/master/midi_to_csv.py
@@ -111,9 +111,7 @@ def load_notes_csv(filename):
 	# Format data as structured array
 	with open(filename, 'r') as f:
 		reader = csv.reader(f, delimiter=',')
-		# print("HERE")
 		notes = np.array([tuple([float(x) for x in row]) for i, row in enumerate(reader) if i > 0], dtype=dt)
-		print("HERE")
 	
 	# Get unique notes irrespective of 'staffNum'
 	_, unique_indices = np.unique(notes[['onset', 'pitch']], return_index=True)
@@ -131,8 +129,9 @@ def write_mirex_motives(motives, out_file):
 			out_str += "occurrence" + str(idx_o+1) + "\n"
 			for ontime, pitch in occurrence:
 				out_str += format(ontime, '.5f') + ", " + format(pitch, '.5f') + "\n"
+		out_str += "\n"
 	with open(out_file, "w") as f:
-			f.write(out_str[:-1])
+			f.write(out_str[:-2])
 
 def get_motives():
 	directory = "/Users/ilanashapiro/Documents/constraints_project/LOP_database_06_09_17/liszt_classical_archives/0_short_test"
@@ -146,7 +145,7 @@ def get_motives():
 	with ThreadPoolExecutor() as executor:
 		for root, _, files in os.walk(directory):
 			for filename in files:
-				if filename.endswith("_data.csv"):
+				if filename.endswith(".csv"):
 					file_path = os.path.join(root, filename)
 					future = executor.submit(process_file, file_path)
 					futures.append(future)
@@ -154,4 +153,4 @@ def get_motives():
 		# for future in as_completed(futures):
 		# 		motives = future.result()
 				
-# get_motives()
+get_motives()
