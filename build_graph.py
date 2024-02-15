@@ -51,7 +51,6 @@ def parse_motives_file(file_path):
           time, _ = line.split(',', 1)
           if start is None:
             start = time  # First line of occurrence sets the start time
-            print(start)
           end = time  # Update end time with each line
       # Don't forget to add the last occurrence in the chunk
       if start is not None and end is not None:
@@ -89,6 +88,11 @@ def visualize_k_partite_graph(G, layers, label_mapping):
   for i, layer in enumerate(layers):
     # Adjust y-coordinate to start from the top
     y = 1 - (i + 1) * layer_height  # Inverting y-coordinate
+
+    # Sort the last layer by the 'start' value of the nodes
+    if i == len(layers) - 1:
+      layer = sorted(layer, key=lambda node: node['start'])
+
     x_step = 1.0 / (len(layer) + 1)
     for j, node in enumerate(layer):
       x = (j + 1) * x_step  # x-coordinate based on position within the layer
@@ -99,7 +103,7 @@ def visualize_k_partite_graph(G, layers, label_mapping):
   plt.show()
 
 structure_layers, structure_label_mapping = parse_form_file('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt')
-motive_layers, motive_label_mapping = parse_motives_file('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo__motives_seconds.txt')
+motive_layers, motive_label_mapping = parse_motives_file('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 label_mapping = {**structure_label_mapping, **motive_label_mapping}
 layers = structure_layers + motive_layers
 G = create_graph(layers)

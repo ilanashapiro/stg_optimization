@@ -1,6 +1,5 @@
 import sys
 
-from cycler import V
 sys.path.append('/Users/ilanashapiro/Documents/msaf0_1_80')
 sys.path.append('/Users/ilanashapiro/Library/musicaiz-0.1.2')
 
