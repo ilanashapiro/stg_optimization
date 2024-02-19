@@ -2,18 +2,17 @@ import sys
 sys.path.append('/Users/ilanashapiro/Documents/motif_discovery') # https://github.com/Tsung-Ping/motif_discovery
 
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import mido
 import music21
 import csv
 import numpy as np
 import SIA
-import pretty_midi
 
 # CSV format from https://github.com/Wiilly07/Beethoven_motif 
 def midi_to_csv_mido():
-	filename = "LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short.mid" # for now
+	filename = "LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short.mid" # for now
 	output_filename = filename[:-4] + ".csv"
 
 	print("Converting " + filename + " to " + output_filename)
@@ -63,7 +62,7 @@ def midi_to_csv_mido():
 
 	df.to_csv(output_filename, index=False) 
 	print(f"Data has been written to {output_filename}")
-# midi_to_csv_mido()
+midi_to_csv_mido()
 
 # CSV format from https://github.com/Wiilly07/Beethoven_motif 
 # code modified from https://github.com/andrewchenk/midi-csv/blob/master/midi_to_csv.py
@@ -153,7 +152,7 @@ def write_mirex_motives(motives, out_file, csv_file):
 			f.write(out_str[:-2])
 
 def get_motives():
-	directory = "/Users/ilanashapiro/Documents/constraints_project/LOP_database_06_09_17/liszt_classical_archives/0_short_test"
+	directory = "LOP_database_06_09_17/liszt_classical_archives/1_short_test"
 	futures = []
 	def process_file(file_path):
 		notes = load_notes_csv(file_path)

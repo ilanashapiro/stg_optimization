@@ -11,7 +11,7 @@ from pydub import AudioSegment
 def convert_dataset_midi_to_mp3():
 	soundfont_filepath = "GeneralUser GS 1.471/GeneralUser GS v1.471.sf2"
 	fs = FluidSynth(sound_font=soundfont_filepath)
-	directory = "LOP_database_06_09_17/liszt_classical_archives/0_short_test"
+	directory = "LOP_database_06_09_17/liszt_classical_archives/1_short_test"
 	for root, _, files in os.walk(directory):
 		for filename in files:
 			if filename.endswith("_solo_short.mid"):
@@ -25,13 +25,13 @@ def convert_dataset_midi_to_mp3():
 				audio.export(mp3_path, format="mp3", bitrate="192k", parameters=["-ar", "44100", "-ac", "2"])
 				print("Converted", wav_path, "to MP3")
 
-				# os.remove(wav_path)
-				# print("Removed", wav_path)
+				os.remove(wav_path)
+				print("Removed", wav_path)
 
-# convert_dataset_midi_to_mp3()
+convert_dataset_midi_to_mp3()
 
 def segment_audio_MSAF():
-	audio_filepath = "LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short.mp3"
+	audio_filepath = "LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short.mp3"
 
 	# hierarchical: scluster, olda (boundaries only, use with fmc2d), vmo
 	# sf (flat, boundaries only) has best performance

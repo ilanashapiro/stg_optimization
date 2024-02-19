@@ -1,9 +1,8 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+import math 
 
 def parse_form_file(file_path):
-  label_mapping = {}  # Mapping: node id -> label
-
   with open(file_path, 'r') as file:
     data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
@@ -15,15 +14,12 @@ def parse_form_file(file_path):
       start, end, id = line.split('\t')
       node_label = f"S{id}L{index + 1}"
       node_id = f"{node_label}I({start},{end})"
-      label_mapping[node_id] = node_label
-      layer.append({'start': float(start), 'end': float(end), 'id': node_id})
+      layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
     layers.append(layer)
   
-  return (layers, label_mapping)
+  return layers
 
 def parse_motives_file(file_path):
-  label_mapping = {}  # Mapping: node id -> label
-
   with open(file_path, 'r') as file:
     data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
@@ -43,8 +39,7 @@ def parse_motives_file(file_path):
             # Save the previous occurrence before starting a new one
             node_label = f"P{pattern_num}O{occurrence_num}"
             node_id = f"{node_label}I({start},{end})"
-            label_mapping[node_id] = node_label
-            pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id})
+            pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
           occurrence_num += 1
           start, end = None, None  # Reset start and end for the new occurrence
         else:
@@ -56,55 +51,83 @@ def parse_motives_file(file_path):
       if start is not None and end is not None:
         node_label = f"P{pattern_num}O{occurrence_num}"
         node_id = f"{node_label}I({start},{end})"
-        label_mapping[node_id] = node_label
-        pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id})
+        pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
 
   # Append the pattern layer as the new bottom-most layer
   layers.append(pattern_layer)
 
-  return layers, label_mapping
+  return layers
 
 def create_graph(layers):
   G = nx.DiGraph()
 
   for layer in layers:
     for node in layer:
-      G.add_node(node['id'], start=node['start'], end=node['end'])
+      G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'])
 
   for i in range(len(layers) - 1):
     for node_a in layers[i]:
       for node_b in layers[i + 1]:
         start_a, end_a = node_a['start'], node_a['end']
         start_b, end_b = node_b['start'], node_b['end']
-        if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
-          G.add_edge(node_a['id'], node_b['id'])
+        # node has edge to parent if its interval overlaps with that parent's interval
+        if (start_a <= start_b <= end_a) or (start_a <= end_b <= end_a):
+          G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
   
   return G
 
-def visualize_k_partite_graph(G, layers, label_mapping):
-  # Calculate positions: each layer will have its own X (or Y) coordinate for a top-down layout.
-  pos = {}  # Positions dictionary: node -> (x, y)
-  layer_height = 1.0 / (len(layers) + 1)
-  for i, layer in enumerate(layers):
-    # Adjust y-coordinate to start from the top
-    y = 1 - (i + 1) * layer_height  # Inverting y-coordinate
-
-    # Sort the last layer by the 'start' value of the nodes
-    if i == len(layers) - 1:
-      layer = sorted(layer, key=lambda node: node['start'])
-
-    x_step = 1.0 / (len(layer) + 1)
-    for j, node in enumerate(layer):
-      x = (j + 1) * x_step  # x-coordinate based on position within the layer
-      pos[node['id']] = (x, y)
-
-  plt.figure(figsize=(8, 12))  # Adjusted figure size for vertical layout
-  nx.draw(G, pos, labels=label_mapping, with_labels=True, node_size=500, node_color="lightblue", font_size=8, edge_color="gray", arrows=True)
+def visualize(graph_list, layers_list, label_dicts):
+  n = len(graph_list)
+  
+  # Determine grid size (rows x cols) for subplots
+  cols = int(math.ceil(math.sqrt(n)))
+  rows = int(math.ceil(n / cols))
+  
+  # Create a figure with subplots arranged in the calculated grid
+  _, axes = plt.subplots(rows, cols, figsize=(8 * cols, 12 * rows))
+  
+  # Flatten axes array for easy iteration if it's 2D (which happens with multiple rows and columns)
+  axes_flat = axes.flatten() if n > 1 else [axes]
+  
+  for idx, G in enumerate(graph_list):
+    layers = layers_list[idx]
+    label_dict = label_dicts[idx]
+    
+    pos = {}  # Positions dictionary: node -> (x, y)
+    layer_height = 1.0 / (len(layers) + 1)
+    for i, layer in enumerate(layers):
+      y = 1 - (i + 1) * layer_height  # Adjust y-coordinate
+      
+      # Sort nodes if necessary (e.g., last layer based on some attribute)
+      if i == len(layers) - 1 and 'start' in layer[0]:
+        layer = sorted(layer, key=lambda node: node['start'])
+          
+      x_step = 1.0 / (len(layer) + 1)
+      for j, node in enumerate(layer):
+        x = (j + 1) * x_step
+        pos[node['id']] = (x, y)
+    
+    ax = axes_flat[idx]
+    nx.draw(G, pos, labels=label_dict, with_labels=True, node_size=500, node_color="lightblue", font_size=8, edge_color="gray", arrows=True, ax=ax)
+    ax.set_title(f"Graph {idx + 1}")
+  
+  # Hide any unused subplots in the grid
+  for ax in axes_flat[n:]:
+      ax.axis('off')
+  
+  plt.tight_layout()
   plt.show()
 
-structure_layers, structure_label_mapping = parse_form_file('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt')
-motive_layers, motive_label_mapping = parse_motives_file('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-label_mapping = {**structure_label_mapping, **motive_label_mapping}
-layers = structure_layers + motive_layers
-G = create_graph(layers)
-visualize_k_partite_graph(G, layers, label_mapping)
+def generate_graph(structure_filepath, motives_filepath):
+  structure_layers = parse_form_file(structure_filepath)
+  structure_label_dict = {d['id']: d['label'] for structure_layer in structure_layers for d in structure_layer}
+  motive_layers = parse_motives_file(motives_filepath)
+  motive_layers_dict = {d['id']: d['label'] for motive_layer in motive_layers for d in motive_layer}
+  label_dict = {**structure_label_dict, **motive_layers_dict}
+  layers = structure_layers + motive_layers
+  G = create_graph(layers)
+  return (G, layers, label_dict)
+
+if __name__ == "__main__":
+  G, layers, label_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+  visualize([G], [layers], [label_dict])
