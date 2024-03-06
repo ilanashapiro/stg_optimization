@@ -7,14 +7,15 @@ def parse_form_file(file_path):
     data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
   layers = []
-  for index, chunk in enumerate(data):
+  for layer_idx, chunk in enumerate(data):
     lines = chunk.split('\n')
     layer = []
-    for line in lines:
+    for idx, line in enumerate(lines):
       start, end, id = line.split('\t')
-      node_label = f"S{id}L{index + 1}"
-      node_id = f"{node_label}I({start},{end})"
-      layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
+      node_name = f"S{id}L{layer_idx + 1}"
+      node_label = f"{node_name}N{idx}"
+      node_id = f"{node_name}I({start},{end})"
+      layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
     layers.append(layer)
   
   return layers
@@ -39,7 +40,7 @@ def parse_motives_file(file_path):
             # Save the previous occurrence before starting a new one
             node_label = f"P{pattern_num}O{occurrence_num}"
             node_id = f"{node_label}I({start},{end})"
-            pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
+            pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
           occurrence_num += 1
           start, end = None, None  # Reset start and end for the new occurrence
         else:
@@ -51,7 +52,7 @@ def parse_motives_file(file_path):
       if start is not None and end is not None:
         node_label = f"P{pattern_num}O{occurrence_num}"
         node_id = f"{node_label}I({start},{end})"
-        pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
+        pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
 
   # Append the pattern layer as the new bottom-most layer
   layers.append(pattern_layer)
