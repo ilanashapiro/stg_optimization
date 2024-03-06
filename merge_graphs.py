@@ -126,26 +126,26 @@ def metropolis_hastings_step(R_curr, T):
   accept_prob = local_accept_prob(R_curr, R_new, T, t)
   u = np.random.uniform()
   if u <= accept_prob:
-      value = proposed_x
+      R = R_new
       accepted = True
   else:
-      value = x
+      R = R_curr
       accepted = False
-  return {'value': value, 'accepted': accepted}
+  return {'rewrite': R, 'accepted': accepted}
 
-def metropolis_hastings_sampler(initial_value, target, n=1000, sigma=1, burnin=0, lag=1):
-    results = []
-    current_state = initial_value
-    # Burn-in period
-    for _ in range(burnin):
-        step_result = metropolis_hastings_step(current_state, sigma, target)
-        current_state = step_result['value']
-    # Sampling period
-    for _ in range(n):
-        for _ in range(lag):
-            step_result = metropolis_hastings_step(current_state, sigma, target)
-            current_state = step_result['value']
-        results.append(step_result)
-    # Convert results to a DataFrame for easy handling
-    results_df = pd.DataFrame(results)
-    return results_df
+def metropolis_hastings_sampler(initial_value, target, n=1000, burnin=0, lag=1):
+  results = []
+  current_state = initial_value
+  # Burn-in period
+  for _ in range(burnin):
+    step_result = metropolis_hastings_step(current_state, target)
+    current_state = step_result['rewrite']
+  # Sampling period
+  for _ in range(n):
+    for _ in range(lag):
+      step_result = metropolis_hastings_step(current_state, target)
+      current_state = step_result['rewrite']
+    results.append(step_result)
+  # Convert results to a DataFrame for easy handling
+  results_df = pd.DataFrame(results)
+  return results_df
