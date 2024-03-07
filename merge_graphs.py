@@ -2,18 +2,15 @@ import build_graph
 import networkx as nx
 import numpy as np
 import pandas as pd
-
-# import sys
-# sys.path.append('/Users/ilanashapiro/Documents/GMatch4py') 
 import gmatch4py as gm
-
-(G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-(G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 
 def subst_cost(attr_dict1, attr_dict2):
 	if attr_dict1['label'] == attr_dict2['label']:
 		return 1
 	return 0
+
+(G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 
 # ged=gm.GreedyEditDistance(1,1,1,1) # all edit costs are equal to 1
 # ged.set_attr_graph_used("label", "label")
@@ -110,7 +107,8 @@ def cost(R, T):
 
   # p depends on the corpus, because p is a fitness function from my current thing to the 
   # rest of the corpus. i.e. p involves the value of the cost function. but q does NOT
-  return sum(next(nx.optimize_graph_edit_distance(R, g)) for g in T)
+  # optimize_graph_edit_distance is about 7.5 seconds per graph based on experiment
+  return sum(next(nx.optimize_graph_edit_distance(R, g, node_subst_cost=subst_cost, edge_subst_cost=subst_cost)) for g in T)
 
 # T: target (i.e. corpus of graphs)
 # R: rewrite (i.e. the canonical graph proposal)
@@ -134,15 +132,16 @@ def p(R, T):
 # https://theory.stanford.edu/~aiken/publications/papers/cacm16.pdf eqn 4 page 116
 # Metropolis Hastings local acceptance probability 
 def local_accept_prob(R_curr, R_new, T, t):
-  t_inv = transform_inverses[t]
-  return min(1, (p(R_new, T) * q(t_inv))/(p(R_curr, T) * q(t)))
+  # t_inv = transform_inverses[t]
+  # return min(1, (p(R_new, T) * q(t_inv))/(p(R_curr, T) * q(t)))
+  return np.exp(-beta*(cost(R_new, T)-cost(R_curr, T)))  # assuming q is symmetric (simplified from original, see stanford paper)
 
 # t: the proposal transform
-def q(t):
-  return transform_dist[t]
+# def q(t):
+#   return transform_dist[t]
 
 def metropolis_hastings_step(R_curr, T):
-  (R_new, t) = None
+  (R_new, t) = (None, None) # FIX
   accept_prob = local_accept_prob(R_curr, R_new, T, t)
   u = np.random.uniform()
   if u <= accept_prob:
@@ -153,9 +152,9 @@ def metropolis_hastings_step(R_curr, T):
       accepted = False
   return {'rewrite': R, 'accepted': accepted}
 
-def metropolis_hastings_sampler(initial_value, target, n=1000, burnin=0, lag=1):
+def metropolis_hastings_sampler(initial_graph, initial_proposal_dist, target, n=1000, burnin=0, lag=1):
   results = []
-  current_state = initial_value
+  current_state = initial_graph
   # Burn-in period
   for _ in range(burnin):
     step_result = metropolis_hastings_step(current_state, target)

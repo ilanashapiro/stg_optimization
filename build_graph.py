@@ -72,9 +72,9 @@ def create_graph(layers):
         start_a, end_a = node_a['start'], node_a['end']
         start_b, end_b = node_b['start'], node_b['end']
         # node has edge to parent if its interval overlaps with that parent's interval
-        if (start_a <= start_b <= end_a) or (start_a <= end_b <= end_a):
+        if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
           G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
-  
+
   return G
 
 def visualize(graph_list, layers_list, label_dicts):
