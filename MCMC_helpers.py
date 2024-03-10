@@ -7,6 +7,9 @@ def node_subst_cost(attr_dict1, attr_dict2):
 		return 1
 	return 0
 
+def edge_match(attr_dict1, attr_dict2):
+	return attr_dict1['label'] == attr_dict2['label']
+
 def is_invalid_proposal_type(t):
 	# since we set edge substitution to be zero-cost, so subbing an edge can't possibly decreast the cost
 	# substituting an edge should have cost 2, which is taken care of by 2 node substitutions 

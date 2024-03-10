@@ -24,7 +24,7 @@ def cost(R, T, need_new_proposal_dist, proposal_dist):
 	
 	for g in T:
 		# edge substitution/relabeling is redudant once the nodes are relabeled so we keep at cost 0
-		node_edit_path, edge_edit_path, approx_edit_dist = next(nx.optimize_edit_paths(R, g, node_subst_cost=MCMC_helpers.node_subst_cost)) 
+		node_edit_path, edge_edit_path, approx_edit_dist = next(nx.optimize_edit_paths(R, g, node_subst_cost=MCMC_helpers.node_subst_cost, edge_match=MCMC_helpers.edge_match)) 
 		if need_new_proposal_dist: # i.e. we want a new distribution because we just accepted/added a new transform in the prev step, and thus R has changed
 			transform_counts += MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path)
 		total_approx_edit_dist += approx_edit_dist
@@ -112,4 +112,6 @@ def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus,
 (G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 (_, initial_proposal_dist) = cost(G0, [G0, G1], True, {})
-nx.draw(run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1]))
+G_centroid = run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1])
+layers_centroid = build_graph.get_layers_from_graph(G0)
+build_graph.visualize_with_index([G0], [layers_centroid])

@@ -57,7 +57,7 @@ G2.add_edge('4', '1', label='(4, 1)')
 # (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 
 start = time.perf_counter()
-node_edit_path, edge_edit_path, cost = next(nx.optimize_edit_paths(G1, G1a, node_subst_cost=MCMC_helpers.node_subst_cost))
+node_edit_path, edge_edit_path, cost = next(nx.optimize_edit_paths(G1, G1a, node_subst_cost=MCMC_helpers.node_subst_cost, edge_match=MCMC_helpers.edge_match))
 end = time.perf_counter()
 transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
 print(node_edit_path, edge_edit_path, end-start, cost, transform_dist)
