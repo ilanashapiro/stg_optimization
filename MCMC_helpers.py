@@ -35,6 +35,16 @@ def is_invalid_proposal_application(R_curr, t):
 
 	return nonzero_arity_node_del or is_deleting_nonexist_node or is_deleting_nonexist_edge
 
+def combine_counters(c1, c2):
+	result = Counter()
+	all_keys = set(c1.keys()) | set(c2.keys())
+	
+	for key in all_keys:
+		new_count = c1[key] + c2[key]
+		result[key] = new_count # explicitly include zero counts)
+	
+	return result
+
 def get_transform_inverse(elem):
 	return (elem[1], elem[0])
 
@@ -64,11 +74,12 @@ def generate_proposal(proposal_dist):
 	return random.choices(transforms, weights, k=1)[0]
 
 def apply_transform(R, t):
+	print(t)
 	match t:
 		case (str(a), None): # node insertion
 			R.add_node(a)
 		case (None, str(b)): # node deletion
-			R = R.remove_node(b)
+			R.remove_node(b)
 		case (str(a), str(b)): # node substitution
 			R = nx.relabel_nodes(R, {a:b})
 		case ((str(a), str(b)), None): # edge insertion
@@ -77,3 +88,4 @@ def apply_transform(R, t):
 			R.remove_edge(a, b)
 		case _:
 			return ValueError("Invalid transform proposal")
+	return R

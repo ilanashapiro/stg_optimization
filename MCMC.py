@@ -5,7 +5,7 @@ from collections import Counter
 import MCMC_helpers
 
 # Stoke uses beta=1 so I'm doing that for now: https://github.com/StanfordPL/stoke/blob/98d8a0f028f2daf2052bfe607dbc32ec8d55ba9e/tools/args/search.inc#L29
-beta = 1 # temperature/annealing param 
+beta = 2/3 # temperature/annealing param 
 
 # R: rewrite (i.e. the canonical graph proposal)
 # T: target (i.e. corpus of graphs)
@@ -21,12 +21,11 @@ def cost(R, T, need_new_proposal_dist, proposal_dist):
 	# optimize_graph_edit_distance is about 7.5 seconds per graph based on experiment
 	total_approx_edit_dist = 0
 	transform_counts = Counter()
-	
 	for g in T:
 		# edge substitution/relabeling is redudant once the nodes are relabeled so we keep at cost 0
 		node_edit_path, edge_edit_path, approx_edit_dist = next(nx.optimize_edit_paths(R, g, node_subst_cost=MCMC_helpers.node_subst_cost, edge_match=MCMC_helpers.edge_match)) 
 		if need_new_proposal_dist: # i.e. we want a new distribution because we just accepted/added a new transform in the prev step, and thus R has changed
-			transform_counts += MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path)
+			transform_counts = MCMC_helpers.combine_counters(transform_counts, MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
 		total_approx_edit_dist += approx_edit_dist
 	
 	proposal_dist = MCMC_helpers.additive_smooth(transform_counts) if need_new_proposal_dist else proposal_dist
@@ -46,10 +45,10 @@ def p(R, T, prev_t_was_accepted, proposal_dist):
 	Thus, we omit it.
 	"""
 	t_cost, new_proposal_dist = cost(R, T, prev_t_was_accepted, proposal_dist)
+	print("COST", t_cost)
 	return (np.exp(-beta * t_cost), new_proposal_dist) 
 
 def q(proposal_dist, t):
-	print(proposal_dist)
 	return proposal_dist[t]
 
 # R_curr: current rewrite (i.e. R)
@@ -58,11 +57,11 @@ def q(proposal_dist, t):
 # t: the proposal transform that creates R_new from R_curr
 # https://theory.stanford.edu/~aiken/publications/papers/cacm16.pdf eqn 4 page 116
 # Metropolis Hastings local acceptance probability 
-def local_accept_prob(R_curr, T, t, need_new_proposal_dist, proposal_dist):
+def local_accept_prob(R_curr, R_new, T, t, need_new_proposal_dist, proposal_dist):
 	t_inv = MCMC_helpers.get_transform_inverse(t)
-	p_new, new_proposal_dist = p(R_curr, T, need_new_proposal_dist, proposal_dist)
+	p_new, new_proposal_dist = p(R_new, T, need_new_proposal_dist, proposal_dist)
 	p_curr, _ = p(R_curr, T, False, proposal_dist)
-	accept_prob = min(1, (p_new * q(proposal_dist, t_inv))/(p_curr * q(proposal_dist, t)))
+	accept_prob = min(1, (p_new * q(proposal_dist, t_inv)) / (p_curr * q(proposal_dist, t)))
 	return (accept_prob, new_proposal_dist)
 
 	# assuming q i.e. proposal distribution is symmetric, we can do this instead (simplified from original equation, see stanford paper)
@@ -77,7 +76,7 @@ def metropolis_hastings_step(R_curr, T, need_new_proposal_dist, proposal_dist):
 		transform_is_ok = not MCMC_helpers.is_invalid_proposal_application(R_curr, t)
 
 	R_new = MCMC_helpers.apply_transform(R_curr, t)
-	(accept_prob, new_proposal_dist) = local_accept_prob(R_curr, T, t, need_new_proposal_dist, proposal_dist)
+	(accept_prob, new_proposal_dist) = local_accept_prob(R_curr, R_new, T, t, need_new_proposal_dist, proposal_dist)
 	u = np.random.uniform()
 	if u <= accept_prob:
 		R = R_new
@@ -88,7 +87,7 @@ def metropolis_hastings_step(R_curr, T, need_new_proposal_dist, proposal_dist):
 		accepted = False
 	return {'rewrite': R, 'accepted': accepted, 'proposal_dist': proposal_dist}
 
-def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus, n=10, burnin=0, lag=1):
+def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus, n=1000, burnin=0, lag=1):
 	centroid_graph = initial_graph
 	results = [initial_graph]
 	need_new_proposal_dist = False # Since we already have an initial proposal dist
@@ -101,8 +100,8 @@ def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus,
 		need_new_proposal_dist = step_result['accepted']
 		proposal_dist = step_result['proposal_dist']
 	# Sampling period
-	for _ in range(n):
-		for i in range(lag):
+	for i in range(n):
+		for _ in range(lag):
 			print(i)
 			step_result = metropolis_hastings_step(centroid_graph, target_corpus, need_new_proposal_dist, proposal_dist)
 			centroid_graph = step_result['rewrite']
@@ -116,6 +115,6 @@ def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus,
 (G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 (_, initial_proposal_dist) = cost(G0, [G0, G1], True, {})
-G_centroid, results = run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1])
+G_centroid, results = run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1], n=1)
 layers_centroid = build_graph.get_layers_from_graph(G_centroid)
-build_graph.visualize_with_index([G0], [layers_centroid])
+build_graph.visualize_with_index([G0, G_centroid], [layers0, layers_centroid])

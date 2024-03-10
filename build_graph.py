@@ -65,12 +65,12 @@ def create_graph(layers):
     # Extract start values, labels, and original node IDs
     node_starts = {}
     for node in G.nodes():
-        # Assuming the start value is encapsulated within the label string
-        match = re.search(r"^P\d+O\d+I\((\d+\.\d+),(\d+\.\d+)\)$", node)
-        if match:
-            start, _ = match.groups()
-            start = float(start)  # Convert start to float
-            node_starts[node] = start
+      # Assuming the start value is encapsulated within the label string
+      match = re.search(r"^P(\d+)O(\d+)I\((\d+\.\d+),(\d+\.\d+)\)$", node)
+      if match:
+        start, _, _, _ = match.groups()
+        start = float(start)  # Convert start to float
+        node_starts[node] = start
 
     # Sort nodes by 'start' extracted from their label
     sorted_nodes = sorted(node_starts.items(), key=lambda x: x[1])
@@ -78,16 +78,16 @@ def create_graph(layers):
     # Prepare a mapping for node relabeling
     relabel_mapping = {}
     for idx, (node_id, _) in enumerate(sorted_nodes, start=1):
-        current_label = G.nodes[node_id]['label']
-        new_label = f"{current_label}N{idx}"
-        
-        # Update the 'label' attribute
-        G.nodes[node_id]['label'] = new_label
-        
-        # Generate new node ID without "I(start, end)" and with "N{idx}" instead
-        id_without_I = re.sub(r"I\(\d+\.\d+,\d+\.\d+\)", "", node_id)
-        new_node_id = f"{id_without_I}N{idx}"
-        relabel_mapping[node_id] = new_node_id
+      current_label = G.nodes[node_id]['label']
+      new_label = f"{current_label}N{idx}"
+      
+      # Update the 'label' attribute
+      G.nodes[node_id]['label'] = new_label
+      
+      # Generate new node ID without "I(start, end)" and with "N{idx}" instead
+      id_without_I = re.sub(r"I\(\d+\.\d+,\d+\.\d+\)", "", node_id)
+      new_node_id = f"{id_without_I}N{idx}"
+      relabel_mapping[node_id] = new_node_id
 
     # Relabel nodes in the graph according to the mapping
     G = nx.relabel_nodes(G, relabel_mapping)
@@ -164,7 +164,7 @@ def get_layers_from_graph(G):
   partition_motives = []
   for node, data in G.nodes(data=True):
       label = data['label']
-      print(label)
+      # print(label)
       if structure_pattern.match(label):
           result = structure_pattern.search(label)
           if result:
@@ -191,7 +191,7 @@ def get_layers_from_graph(G):
   # Convert the grouped dictionary into a list of nested lists
   layers = list(partition_structure_grouped.values())
   layers.append(partition_motives)
-  print(partition_motives)
+  # print(partition_motives)
   return layers
 
 def visualize_with_index(graph_list, layers_list):
@@ -220,6 +220,7 @@ def visualize_with_index(graph_list, layers_list):
             x_step = 1.0 / (len(layer) + 1)
             for j, node in enumerate(layer):
                 x = (j + 1) * x_step
+                print("HERE", node)
                 pos[node['id']] = (x, y)
         
         ax = axes_flat[idx]
@@ -241,6 +242,7 @@ def generate_graph(structure_filepath, motives_filepath):
   label_dict = {**structure_label_dict, **motive_layers_dict}
   layers = structure_layers + motive_layers
   G = create_graph(layers)
+  layers = get_layers_from_graph(G) # FIX THIS TO BE DIRECT PARSE FROM THE DICTS
   return (G, layers, label_dict)
 
 if __name__ == "__main__":
