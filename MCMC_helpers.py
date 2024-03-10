@@ -1,0 +1,65 @@
+import networkx as nx
+from collections import Counter
+import random
+
+def node_subst_cost(attr_dict1, attr_dict2):
+	if attr_dict1['label'] != attr_dict2['label']:
+		return 1
+	return 0
+
+def is_invalid_proposal(t):
+	# since we set edge substitution to be zero-cost, so subbing an edge can't possibly decreast the cost
+	# substituting an edge should have cost 2, which is taken care of by 2 node substitutions 
+	# we don't worry about the case where an edge direction is flipped, which could be an issue
+	# since we're dealing with a directed graph, because all possible edge subs will be in the same direction
+	# (i.e. pointing "down" the hierarchy) due to the structure of the graph
+	is_edge_subst = (isinstance(t[0], tuple) and all(isinstance(sub_t, str) for sub_t in t[0]) and
+									isinstance(t[1], tuple) and all(isinstance(sub_t, str) for sub_t in t[1]))
+	
+	# node substitutions where the labels are the same also give zero cost
+	is_identical_node_subst = all(isinstance(sub_t, str) for sub_t in t) and t[0] == t[1]
+
+	return is_edge_subst or is_identical_node_subst
+
+def get_transform_inverse(elem):
+	return (elem[1], elem[0])
+
+def build_transform_counts(transforms):
+	transform_counts = Counter()
+	for transform in transforms:
+		if is_invalid_proposal(transform):
+			continue
+		
+		transform_counts[transform] += 1
+		transform_counts[get_transform_inverse(transform)] += 0
+
+	return transform_counts
+
+# Additive/Laplace smoothing
+# alpha of 1 corresponds to traditional Laplace smoothing, but any positive value can be used
+def additive_smooth(transform_counts, alpha=0.01):
+	smoothed_dict = {}
+	total_count = sum(transform_counts.values())
+	total_count_adjusted = total_count + alpha * len(transform_counts) 
+	smoothed_dict = {transform: (count + alpha) / total_count_adjusted for transform, count in transform_counts.items()}
+	return smoothed_dict
+
+def generate_proposal(proposal_dist):
+	transforms = list(proposal_dist.keys())
+	weights = list(proposal_dist.values())
+	return random.choices(transforms, weights, k=1)[0]
+
+def apply_transform(R, t):
+	match t:
+		case (str(a), None): # node insertion
+			R.add_node(a)
+		case (None, str(b)): # node deletion
+			R = R.remove_node(b)
+		case (str(a), str(b)): # node substitution
+			R = nx.relabel_nodes(R, {a:b})
+		case ((str(a), str(b)), None): # edge insertion
+			R.add_edge(a, b)
+		case (None, (str(a), str(b))): # edge deletion
+			R.remove_edge(a, b)
+		case _:
+			return ValueError("Invalid transform proposal")
