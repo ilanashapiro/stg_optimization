@@ -7,7 +7,7 @@ def node_subst_cost(attr_dict1, attr_dict2):
 		return 1
 	return 0
 
-def is_invalid_proposal(t):
+def is_invalid_proposal_type(t):
 	# since we set edge substitution to be zero-cost, so subbing an edge can't possibly decreast the cost
 	# substituting an edge should have cost 2, which is taken care of by 2 node substitutions 
 	# we don't worry about the case where an edge direction is flipped, which could be an issue
@@ -21,13 +21,24 @@ def is_invalid_proposal(t):
 
 	return is_edge_subst or is_identical_node_subst
 
+def is_invalid_proposal_application(R_curr, t):
+	is_node_del = t[0] is None and isinstance(t[1], str)
+	# only delete node if (total, i.e. in- and out-degree) arity is zero, otherwise we end up with 1-2 edge deletions as well
+	nonzero_arity_node_del = is_node_del and R_curr.degree(t[1]) != 0
+	is_deleting_nonexist_node = is_node_del and not R_curr.has_node(t[1])
+
+	is_edge_del = t[0] is None and isinstance(t[1], tuple)
+	is_deleting_nonexist_edge = is_edge_del and not R_curr.has_edge(t[1][0], t[1][1])
+
+	return nonzero_arity_node_del or is_deleting_nonexist_node or is_deleting_nonexist_edge
+
 def get_transform_inverse(elem):
 	return (elem[1], elem[0])
 
 def build_transform_counts(transforms):
 	transform_counts = Counter()
 	for transform in transforms:
-		if is_invalid_proposal(transform):
+		if is_invalid_proposal_type(transform):
 			continue
 		
 		transform_counts[transform] += 1

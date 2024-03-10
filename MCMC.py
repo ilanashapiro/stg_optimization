@@ -1,4 +1,4 @@
-# import build_graph
+import build_graph
 import networkx as nx
 import numpy as np
 from collections import Counter
@@ -45,8 +45,8 @@ def p(R, T, prev_t_was_accepted, proposal_dist):
 	Z directly (i.e. it gets divided by itself to 1). 
 	Thus, we omit it.
 	"""
-	t_cost, _ = cost(R, T, prev_t_was_accepted, proposal_dist)
-	return np.exp(-beta * t_cost) 
+	t_cost, new_proposal_dist = cost(R, T, prev_t_was_accepted, proposal_dist)
+	return (np.exp(-beta * t_cost), new_proposal_dist) 
 
 def q(proposal_dist, t):
 	return proposal_dist[t]
@@ -57,9 +57,9 @@ def q(proposal_dist, t):
 # t: the proposal transform that creates R_new from R_curr
 # https://theory.stanford.edu/~aiken/publications/papers/cacm16.pdf eqn 4 page 116
 # Metropolis Hastings local acceptance probability 
-def local_accept_prob(R_curr, R_new, T, t, need_new_proposal_dist, proposal_dist):
+def local_accept_prob(R_curr, T, t, need_new_proposal_dist, proposal_dist):
 	t_inv = MCMC_helpers.get_transform_inverse(t)
-	p_new, new_proposal_dist = p(R_new, T, need_new_proposal_dist, proposal_dist)
+	p_new, new_proposal_dist = p(R_curr, T, need_new_proposal_dist, proposal_dist)
 	p_curr, _ = p(R_curr, T, False, proposal_dist)
 	accept_prob = min(1, (p_new * q(proposal_dist, t_inv))/(p_curr * q(proposal_dist, t)))
 	return (accept_prob, new_proposal_dist)
@@ -73,12 +73,10 @@ def metropolis_hastings_step(R_curr, T, need_new_proposal_dist, proposal_dist):
 	transform_is_ok = False
 	while not transform_is_ok:
 		t = MCMC_helpers.generate_proposal(proposal_dist)
-		is_edge_del = t[0] is None and isinstance(t[1], tuple)
-    # Check if the second element is a tuple with exactly two string elements
-    
+		transform_is_ok = not MCMC_helpers.is_invalid_proposal_application(R_curr, t)
 
 	R_new = MCMC_helpers.apply_transform(R_curr, t)
-	(accept_prob, new_proposal_dist) = local_accept_prob(R_curr, R_new, T, t, need_new_proposal_dist, proposal_dist)
+	(accept_prob, new_proposal_dist) = local_accept_prob(R_curr, T, t, need_new_proposal_dist, proposal_dist)
 	u = np.random.uniform()
 	if u <= accept_prob:
 		R = R_new
@@ -103,7 +101,6 @@ def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus,
 	# Sampling period
 	for _ in range(n):
 		for i in range(lag):
-			print(i)
 			step_result = metropolis_hastings_step(centroid_graph, target_corpus, need_new_proposal_dist, proposal_dist)
 			centroid_graph = step_result['rewrite']
 			need_new_proposal_dist = step_result['accepted']
@@ -111,7 +108,8 @@ def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus,
 	
 	return centroid_graph
 
+
+(G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 (_, initial_proposal_dist) = cost(G0, [G0, G1], True, {})
-# (G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-# (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
-# nx.draw(run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1]))
+nx.draw(run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1]))
