@@ -61,6 +61,40 @@ def parse_motives_file(file_path):
   return layers
 
 def create_graph(layers):
+  def relabel_motive_nodes_with_index(G):
+    # Extract start values, labels, and original node IDs
+    node_starts = {}
+    for node in G.nodes():
+        # Assuming the start value is encapsulated within the label string
+        match = re.search(r"^P\d+O\d+I\((\d+\.\d+),(\d+\.\d+)\)$", node)
+        if match:
+            start, _ = match.groups()
+            start = float(start)  # Convert start to float
+            node_starts[node] = start
+
+    # Sort nodes by 'start' extracted from their label
+    sorted_nodes = sorted(node_starts.items(), key=lambda x: x[1])
+
+    # Prepare a mapping for node relabeling
+    relabel_mapping = {}
+    for idx, (node_id, _) in enumerate(sorted_nodes, start=1):
+        current_label = G.nodes[node_id]['label']
+        new_label = f"{current_label}N{idx}"
+        
+        # Update the 'label' attribute
+        G.nodes[node_id]['label'] = new_label
+        
+        # Generate new node ID without "I(start, end)" and with "N{idx}" instead
+        id_without_I = re.sub(r"I\(\d+\.\d+,\d+\.\d+\)", "", node_id)
+        new_node_id = f"{id_without_I}N{idx}"
+        relabel_mapping[node_id] = new_node_id
+
+    # Relabel nodes in the graph according to the mapping
+    G = nx.relabel_nodes(G, relabel_mapping)
+
+    # Return the modified graph
+    return G
+
   G = nx.DiGraph()
 
   for layer in layers:
@@ -76,7 +110,7 @@ def create_graph(layers):
         if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
           G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
 
-  return G
+  return relabel_motive_nodes_with_index(G)
 
 def visualize_with_intervals(graph_list, layers_list, label_dicts):
   n = len(graph_list)
@@ -121,27 +155,6 @@ def visualize_with_intervals(graph_list, layers_list, label_dicts):
   plt.show()
 
 def get_layers_from_graph(G):
-  def relabel_motive_nodes_with_index(G):
-    # Extract start values, labels, and original node IDs
-    node_starts = {}
-    for node in G.nodes():
-        # Assuming the start value is encapsulated within the label string
-        match = re.search(r"^P\d+O\d+I\((\d+\.\d+),(\d+\.\d+)\)$", node)
-        if match:
-            start, _ = match.groups()
-            start = float(start)  # Convert start to float
-            node_starts[node] = start
-
-    # Sort nodes by 'start' extracted from their label
-    sorted_nodes = sorted(node_starts.items(), key=lambda x: x[1])
-    # Update the 'label' attribute by appending "N{index}" based on sorted order
-    for idx, (node_id, _) in enumerate(sorted_nodes, start=1):
-        current_label = G.nodes[node_id]['label']
-        new_label = f"{current_label}N{idx}"
-        G.nodes[node_id]['label'] = new_label
-  
-  relabel_motive_nodes_with_index(G)
-  
   # Regular expressions to match the ID/label formats
   structure_pattern = re.compile(r"^S(\d+)L(\d+)N(\d+)$")
   motive_pattern = re.compile(r"^P(\d+)O(\d+)N(\d+)$")

@@ -49,6 +49,7 @@ def p(R, T, prev_t_was_accepted, proposal_dist):
 	return (np.exp(-beta * t_cost), new_proposal_dist) 
 
 def q(proposal_dist, t):
+	print(proposal_dist)
 	return proposal_dist[t]
 
 # R_curr: current rewrite (i.e. R)
@@ -87,8 +88,9 @@ def metropolis_hastings_step(R_curr, T, need_new_proposal_dist, proposal_dist):
 		accepted = False
 	return {'rewrite': R, 'accepted': accepted, 'proposal_dist': proposal_dist}
 
-def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus, n=1000, burnin=0, lag=1):
+def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus, n=10, burnin=0, lag=1):
 	centroid_graph = initial_graph
+	results = [initial_graph]
 	need_new_proposal_dist = False # Since we already have an initial proposal dist
 	proposal_dist = initial_proposal_dist
 
@@ -101,17 +103,19 @@ def run_metropolis_hastings(initial_graph, initial_proposal_dist, target_corpus,
 	# Sampling period
 	for _ in range(n):
 		for i in range(lag):
+			print(i)
 			step_result = metropolis_hastings_step(centroid_graph, target_corpus, need_new_proposal_dist, proposal_dist)
 			centroid_graph = step_result['rewrite']
+			results.append(centroid_graph)
 			need_new_proposal_dist = step_result['accepted']
 			proposal_dist = step_result['proposal_dist']
 	
-	return centroid_graph
+	return (centroid_graph, results)
 
 
 (G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 (_, initial_proposal_dist) = cost(G0, [G0, G1], True, {})
-G_centroid = run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1])
-layers_centroid = build_graph.get_layers_from_graph(G0)
+G_centroid, results = run_metropolis_hastings(G0, initial_proposal_dist, [G0, G1])
+layers_centroid = build_graph.get_layers_from_graph(G_centroid)
 build_graph.visualize_with_index([G0], [layers_centroid])
