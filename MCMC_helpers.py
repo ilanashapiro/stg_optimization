@@ -55,7 +55,7 @@ def build_transform_counts(transforms):
 			continue
 		
 		transform_counts[transform] += 1
-		transform_counts[get_transform_inverse(transform)] += 0
+		# transform_counts[get_transform_inverse(transform)] += 0
 
 	return transform_counts
 

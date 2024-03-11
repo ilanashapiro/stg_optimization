@@ -109,7 +109,7 @@ def create_graph(layers):
         # node has edge to parent if its interval overlaps with that parent's interval
         if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
           G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
-
+  # return G
   return relabel_motive_nodes_with_index(G)
 
 def visualize_with_intervals(graph_list, layers_list, label_dicts):
@@ -220,7 +220,6 @@ def visualize_with_index(graph_list, layers_list):
             x_step = 1.0 / (len(layer) + 1)
             for j, node in enumerate(layer):
                 x = (j + 1) * x_step
-                print("HERE", node)
                 pos[node['id']] = (x, y)
         
         ax = axes_flat[idx]
@@ -246,5 +245,5 @@ def generate_graph(structure_filepath, motives_filepath):
   return (G, layers, label_dict)
 
 if __name__ == "__main__":
-  G, layers, label_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+  G, layers, label_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
   visualize_with_intervals([G], [layers], [label_dict])

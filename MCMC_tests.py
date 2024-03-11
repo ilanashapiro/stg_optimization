@@ -1,8 +1,11 @@
 # import build_graph
+import matplotlib.pyplot as plt
 import networkx as nx
 # import gmatch4py as gm
-import sys, time
+import time
 import MCMC_helpers
+import random 
+import build_graph
 
 # ged=gm.GreedyEditDistance(1,1,1,1) # all edit costs are equal to 1
 # ged.set_attr_graph_used("label", "label")
@@ -30,17 +33,6 @@ G0.add_edge('1', '2', label='(1, 2)')
 G0.add_edge('1', '3', label='(1, 3)')
 G0.add_edge('5', '1', label='(5, 1)')
 
-# test graph 2
-G1 = nx.Graph()
-G1.add_node('A', label='A')
-G1.add_node('B', label='B')
-G1.add_edge('A', 'B', label='(A, B)')
-
-# test graph 2
-G1a = nx.Graph()
-G1a.add_node('A', label='A')
-# G1a.add_node('C', label='C')
-# G1a.add_edge('A', 'C', label='(A, C)')
 
 # test graph 3
 G2 = nx.Graph()
@@ -53,14 +45,34 @@ G2.add_edge('1', '2', label='(1, 2)')
 G2.add_edge('1', '3', label='(1, 3)')
 G2.add_edge('4', '1', label='(4, 1)')
 
-# (G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-# (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+# test graph 2
+G1 = nx.Graph()
+G1.add_node('A', label='A')
+G1.add_node('B', label='B')
+G1.add_edge('A', 'B', label='(A, B)')
+
+# test graph 2
+G1a = nx.Graph()
+G1a.add_node('A', label='A')
+G1a.add_node('B', label='B')
+G1a.add_node('C', label='C')
+G1a.add_edge('A', 'C', label='(A, C)')
+
+(G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 
 start = time.perf_counter()
-node_edit_path, edge_edit_path, cost = next(nx.optimize_edit_paths(G1, G1a, node_subst_cost=MCMC_helpers.node_subst_cost, edge_match=MCMC_helpers.edge_match))
+node_edit_path, edge_edit_path, cost = next(nx.optimize_edit_paths(G0, G1, node_subst_cost=MCMC_helpers.node_subst_cost, edge_match=MCMC_helpers.edge_match))
 end = time.perf_counter()
-transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
-print(node_edit_path, edge_edit_path, end-start, cost, transform_dist)
+# transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
+# t = MCMC_helpers.generate_proposal(transform_dist)
+# print(t)
+# G1 = nx.relabel_nodes(G1, {t[0]:t[1]})
+# G1 = MCMC_helpers.apply_transform(G1, t)
+print(cost)
+nx.draw(G1, with_labels=True, node_color='lightblue', edge_color='gray')
+plt.show()
+
 
 # TEST VALUES
 # node_edit_path = [('S1L1N0', None), ('S0L1N1', 'S1L1N0'), ('S1L1N2', 'S2L2N0'), ('S2L2N0', 'S1L1N2'), ('S0L2N1', 'S1L2N1'), ('S1L2N2', 'S0L2N2'), ('S0L2N3', 'S1L2N3'), ('S1L2N4', 'S0L2N4'), ('S0L2N5', 'S1L2N5'), ('S1L2N6', 'S0L2N6'), ('S2L2N7', 'S1L2N7'), ('S3L3N0', 'S0L2N8'), ('S0L3N1', 'S1L2N9'), ('S1L3N2', 'S0L2N10'), ('S0L3N3', 'S1L2N11'), ('S1L3N4', 'S0L2N12'), ('S0L3N5', 'S1L2N13'), ('S2L3N6', 'S0L2N14'), ('S1L3N7', 'S1L2N15'), ('S2L3N8', 'S0L2N16'), ('S3L3N9', 'S1L2N17'), ('S4L4N0', 'S0L2N18'), ('S0L4N1', 'S1L2N19'), ('S2L4N2', 'S0L2N20'), ('S0L4N3', 'S1L2N21'), ('S2L4N4', 'S0L2N22'), ('S1L4N5', 'S2L2N23'), ('S0L4N6', 'S3L3N0'), ('S2L4N7', 'S1L3N1'), ('S1L4N8', 'S2L3N2'), ('S0L4N9', 'S1L3N3'), ('S2L4N10', 'S2L3N4'), ('S0L4N11', 'S1L3N5'), ('S3L4N12', 'S2L3N6'), ('S1L4N13', 'S1L3N7'), ('S3L4N14', 'S2L3N8'), ('S4L4N15', 'S1L3N9'), ('S5L5N0', 'S2L3N10'), ('S0L5N1', 'S1L3N11'), ('S3L5N2', 'S2L3N12'), ('S0L5N3', 'S1L3N13'), ('S3L5N4', 'S2L3N14'), ('S4L5N5', 'S0L3N15'), ('S1L5N6', 'S2L3N16'), ('S0L5N7', 'S1L3N17'), ('S3L5N8', 'S2L3N18'), ('S4L5N9', 'S0L3N19'), ('S1L5N10', 'S2L3N20'), ('S0L5N11', 'S1L3N21'), ('S3L5N12', 'S2L3N22'), ('S0L5N13', 'S1L3N23'), ('S1L5N14', 'S0L3N24'), ('S2L5N15', 'S2L3N25'), ('S4L5N16', 'S1L3N26'), ('S2L5N17', 'S2L3N27'), ('S5L5N18', 'S3L3N28'), ('S6L6N0', 'S4L4N0'), ('S3L6N1', 'S0L4N1'), ('S1L6N2', 'S2L4N2'), ('S3L6N3', 'S1L4N3'), ('S1L6N4', 'S0L4N4'), ('S0L6N5', 'S2L4N5'), ('S5L6N6', 'S0L4N6'), ('S3L6N7', 'S2L4N7'), ('S1L6N8', 'S1L4N8'), ('S0L6N9', 'S0L4N9'), ('S5L6N10', 'S1L4N10'), ('S3L6N11', 'S2L4N11'), ('S1L6N12', 'S1L4N12'), ('S3L6N13', 'S0L4N13'), ('S5L6N14', 'S2L4N14'), ('S2L6N15', 'S1L4N15'), ('S4L6N16', 'S2L4N16'), ('S0L6N17', 'S0L4N17'), ('S2L6N18', 'S2L4N18'), ('S6L6N19', 'S3L4N19'), ('S7L7N0', 'S2L4N20'), ('S3L7N1', 'S1L4N21'), ('S6L7N2', 'S0L4N22'), ('S3L7N3', 'S1L4N23'), ('S6L7N4', 'S2L4N24'), ('S0L7N5', 'S0L4N25'), ('S2L7N6', 'S1L4N26'), ('S5L7N7', 'S2L4N27'), ('S3L7N8', 'S0L4N28'), ('S6L7N9', 'S3L4N29'), ('S0L7N10', 'S1L4N30'), ('S2L7N11', 'S0L4N31'), ('S5L7N12', 'S1L4N32'), ('S3L7N13', 'S4L4N33'), ('S6L7N14', 'S5L5N0'), ('S0L7N15', 'S1L5N1'), ('S3L7N16', 'S4L5N2'), ('S5L7N17', 'S2L5N3'), ('S1L7N18', 'S1L5N4'), ('S4L7N19', 'S0L5N5'), ('S2L7N20', 'S1L5N6'), ('S1L7N21', 'S0L5N7'), ('S7L7N22', 'S2L5N8'), ('S8L8N0', 'S1L5N9'), ('S4L8N1', 'S2L5N10'), ('S2L8N2', 'S0L5N11'), ('S4L8N3', 'S2L5N12'), ('S2L8N4', 'S1L5N13'), ('S0L8N5', 'S4L5N14'), ('S7L8N6', 'S1L5N15'), ('S4L8N7', 'S0L5N16'), ('S2L8N8', 'S3L5N17'), ('S5L8N9', 'S0L5N18'), ('S1L8N10', 'S2L5N19'), ('S7L8N11', 'S1L5N20'), ('S4L8N12', 'S2L5N21'), ('S2L8N13', 'S4L5N22'), ('S5L8N14', 'S0L5N23'), ('S1L8N15', 'S1L5N24'), ('S3L8N16', 'S4L5N25'), ('S6L8N17', 'S2L5N26'), ('S0L8N18', 'S0L5N27'), ('S3L8N19', 'S1L5N28'), ('S8L8N20', 'S3L5N29'), ('S9L9N0', 'S4L5N30'), ('S5L9N1', 'S1L5N31'), ('S0L9N2', 'S4L5N32'), ('S5L9N3', 'S5L5N33'), ('S0L9N4', 'S6L6N0'), ('S1L9N5', 'S2L6N1'), ('S6L9N6', 'S4L6N2'), ('S5L9N7', 'S1L6N3'), ('S0L9N8', 'S0L6N4'), ('S7L9N9', 'S2L6N5'), ('S6L9N10', 'S0L6N6'), ('S5L9N11', 'S1L6N7'), ('S0L9N12', 'S0L6N8'), ('S3L9N13', 'S1L6N9'), ('S7L9N14', 'S2L6N10'), ('S2L9N15', 'S4L6N11'), ('S4L9N16', 'S2L6N12'), ('S8L9N17', 'S0L6N13'), ('S1L9N18', 'S5L6N14'), ('S2L9N19', 'S0L6N15'), ('S9L9N20', 'S1L6N16'), ('S10L10N0', 'S0L6N17'), ('S2L10N1', 'S2L6N18'), ('S6L10N2', 'S1L6N19'), ('S2L10N3', 'S3L6N20'), ('S6L10N4', 'S0L6N21'), ('S0L10N5', 'S2L6N22'), ('S7L10N6', 'S1L6N23'), ('S2L10N7', 'S5L6N24'), ('S6L10N8', 'S4L6N25'), ('S9L10N9', 'S6L6N26'), ('S7L10N10', 'S7L7N0'), ('S2L10N11', 'S1L7N1'), ('S6L10N12', 'S2L7N2'), ('S1L10N13', 'S0L7N3'), ('S9L10N14', 'S3L7N4'), ('S3L10N15', 'S1L7N5'), ('S4L10N16', 'S3L7N6'), ('S8L10N17', 'S0L7N7'), ('S0L10N18', 'S3L7N8'), ('S5L10N19', 'S0L7N9'), ('S3L10N20', 'S1L7N10'), ('S10L10N21', 'S2L7N11'), ('P2O1', 'S1L7N12'), ('P2O2', 'S3L7N13'), ('P3O1', 'S6L7N14'), ('P3O2', 'S3L7N15'), ('P3O3', 'S0L7N16'), ('P3O4', 'S3L7N17'), ('P4O1', 'S1L7N18'), ('P4O2', 'S0L7N19'), ('P5O1', 'S4L7N20'), ('P5O2', 'S3L7N21'), ('P6O1', 'S1L7N22'), ('P6O2', 'S0L7N23'), ('P7O1', 'S6L7N24'), ('P7O2', 'S5L7N25'), ('P8O1', 'S2L7N26'), ('P8O2', 'S5L7N27'), ('P9O1', 'S7L7N28'), ('P9O2', 'S8L8N0'), ('P10O1', 'S1L8N1'), ('P10O2', 'S3L8N2'), ('P10O3', 'S2L8N3'), ('P10O4', 'S7L8N4'), ('P10O5', 'S0L8N5'), ('P10O6', 'S1L8N6'), ('P10O7', 'S0L8N7'), ('P10O8', 'S2L8N8'), ('P10O9', 'S3L8N9'), ('P10O10', 'S0L8N10'), ('P10O11', 'S2L8N11'), ('P10O12', 'S1L8N12'), ('P10O13', 'S6L8N13'), ('P10O14', 'S1L8N14'), ('P10O15', 'S0L8N15'), ('P10O16', 'S5L8N16'), ('P10O17', 'S0L8N17'), ('P11O1', 'S2L8N18'), ('P11O2', 'S3L8N19'), ('P11O3', 'S0L8N20'), ('P11O4', 'S1L8N21'), ('P11O5', 'S2L8N22'), ('P11O6', 'S4L8N23'), ('P11O7', 'S0L8N24'), ('P11O8', 'S1L8N25'), ('P11O9', 'S2L8N26'), ('P11O10', 'S5L8N27'), ('P11O11', 'S6L8N28'), ('P11O12', 'S8L8N29'), ('P11O13', 'S9L9N0'), ('P11O14', 'S0L9N1'), ('P11O15', 'S3L9N2'), ('P11O16', 'S1L9N3'), ('P11O17', 'S5L9N4'), ('P11O18', 'S2L9N5'), ('P11O19', 'S0L9N6'), ('P11O20', 'S2L9N7'), ('P11O21', 'S1L9N8'), ('P11O22', 'S3L9N9'), ('P11O23', 'S2L9N10'), ('P11O24', 'S1L9N11'), ('P11O25', 'S0L9N12'), ('P11O26', 'S6L9N13'), ('P11O27', 'S0L9N14'), ('P11O28', 'S2L9N15'), ('P11O29', 'S8L9N16'), ('P12O1', 'S2L9N17'), ('P12O2', 'S1L9N18'), ('P13O1', 'S3L9N19'), ('P13O2', 'S2L9N20'), ('P14O1', 'S0L9N21'), ('P14O2', 'S1L9N22'), ('P14O3', 'S4L9N23'), ('P15O1', 'S2L9N24'), ('P15O2', 'S0L9N25'), ('P16O1', 'S1L9N26'), ('P16O2', 'S8L9N27'), ('P17O1', 'S7L9N28'), ('P17O2', 'S6L9N29'), ('P17O3', 'S7L9N30'), ('P17O4', 'S9L9N31'), ('P18O1', 'S10L10N0'), ('P18O2', 'S2L10N1'), ('P18O3', 'S6L10N2'), ('P19O1', 'S3L10N3'), ('P19O2', 'S1L10N4'), ('P19O3', 'S4L10N5'), ('P20O1', 'S7L10N6'), ('P20O2', 'S0L10N7'), ('P21O1', 'S2L10N8'), ('P21O2', 'S0L10N9'), ('P21O3', 'S1L10N10'), ('P21O4', 'S3L10N11'), ('P21O5', 'S0L10N12'), ('P21O6', 'S1L10N13'), ('P21O7', 'S2L10N14'), ('P21O8', 'S6L10N15'), ('P22O1', 'S2L10N16'), ('P22O2', 'S6L10N17'), ('P22O3', 'S0L10N18'), ('P22O4', 'S9L10N19'), ('P22O5', 'S0L10N20'), ('P22O6', 'S1L10N21'), ('P22O7', 'S3L10N22'), ('P22O8', 'S0L10N23'), ('P22O9', 'S7L10N24'), ('P22O10', 'S2L10N25'), ('P22O11', 'S1L10N26'), ('P22O12', 'S5L10N27'), ('P22O13', 'S0L10N28'), ('P22O14', 'S2L10N29'), ('P22O15', 'S1L10N30'), ('P22O16', 'S9L10N31'), ('P22O17', 'S6L10N32'), ('P22O18', 'S8L10N33'), ('P22O19', 'S10L10N34'), ('P22O20', 'P2O1'), ('P22O21', 'P2O2'), ('P22O22', 'P3O1'), ('P22O23', 'P3O2'), ('P23O1', 'P3O3'), ('P23O2', 'P3O4'), ('P23O3', 'P3O5'), ('P24O1', 'P3O6'), ('P24O2', 'P3O7'), ('P25O1', 'P3O8'), ('P25O2', 'P3O9'), ('P26O1', 'P4O1'), ('P26O2', 'P4O2'), ('P27O1', 'P4O3'), ('P27O2', 'P4O4'), ('P28O1', 'P4O5'), ('P28O2', 'P4O6'), ('P29O1', 'P4O7'), ('P29O2', 'P4O8'), ('P29O3', 'P4O9'), ('P29O4', 'P5O1'), ('P29O5', 'P5O2'), ('P29O6', 'P5O3'), ('P29O7', 'P5O4'), ('P29O8', 'P5O5'), ('P30O1', 'P6O1'), ('P30O2', 'P6O2'), ('P30O3', 'P7O1'), ('P30O4', 'P7O2'), ('P31O1', 'P7O3'), ('P31O2', 'P8O1'), ('P31O3', 'P8O2'), ('P31O4', 'P9O1'), ('P32O1', 'P9O2'), ('P32O2', 'P10O1'), ('P32O3', 'P10O2'), ('P32O4', 'P11O1'), ('P32O5', 'P11O2'), ('P33O1', 'P12O1'), ('P33O2', 'P12O2'), ('P33O3', 'P12O3'), ('P33O4', 'P12O4'), ('P34O1', 'P13O1'), ('P34O2', 'P13O2'), ('P34O3', 'P14O1'), ('P34O4', 'P14O2'), ('P34O5', 'P14O3'), ('P35O1', 'P15O1'), ('P35O2', 'P15O2'), ('P35O3', 'P15O3'), ('P35O4', 'P16O1'), ('P36O1', 'P16O2'), ('P36O2', 'P17O1'), ('P36O3', 'P17O2'), ('P36O4', 'P18O1'), ('P36O5', 'P18O2'), ('P36O6', 'P19O1'), ('P36O7', 'P19O2'), ('P37O1', 'S0L1N1'), ('P37O2', None), ('P38O1', None), ('P38O2', None), ('P39O1', None), ('P39O2', None), ('P40O1', None), ('P40O2', None), ('P41O1', None), ('P41O2', None), ('P42O1', None), ('P42O2', None), ('P43O1', None), ('P43O2', None)]
