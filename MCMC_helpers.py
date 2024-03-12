@@ -23,15 +23,15 @@ def is_invalid_proposal_type(t):
 	return is_edge_subst or is_identical_node_subst
 
 def is_invalid_proposal_application(R_curr, t):
-	is_node_del = t[0] is None and isinstance(t[1], str)
+	is_node_del = isinstance(t[0], str) and t[1] is None 
 	# only delete node if (total, i.e. in- and out-degree) arity is zero, otherwise we end up with 1-2 edge deletions as well
-	nonzero_arity_node_del = is_node_del and R_curr.degree(t[1]) != 0
-	is_deleting_nonexist_node = is_node_del and not R_curr.has_node(t[1])
+	nonzero_arity_node_del = is_node_del and R_curr.degree(t[0]) != 0
+	nonexist_node_del = is_node_del and not R_curr.has_node(t[0])
 
-	is_edge_del = t[0] is None and isinstance(t[1], tuple)
-	is_deleting_nonexist_edge = is_edge_del and not R_curr.has_edge(t[1][0], t[1][1])
+	is_edge_del = isinstance(t[0], tuple) and t[1] is None
+	nonexist_edge_del = is_edge_del and not R_curr.has_edge(t[0][0], t[0][1])
 
-	return nonzero_arity_node_del or is_deleting_nonexist_node or is_deleting_nonexist_edge
+	return nonzero_arity_node_del or nonexist_node_del or nonexist_edge_del
 
 def combine_counters(c1, c2):
 	result = Counter()
@@ -72,6 +72,8 @@ def generate_proposal(proposal_dist):
 	return random.choices(transforms, weights, k=1)[0]
 
 def apply_transform(R, t):
+	print(R.nodes(data=True))
+	print(R.edges(data=True))
 	match t:
 		case (None, str(b)): # node insertion
 			R.add_node(b)
@@ -85,4 +87,6 @@ def apply_transform(R, t):
 			R.remove_edge(a, b)
 		case _:
 			return ValueError("Invalid transform proposal application")
+	print(R.nodes(data=True))
+	print(R.edges(data=True))
 	return R

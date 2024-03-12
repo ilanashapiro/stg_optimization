@@ -72,6 +72,7 @@ def metropolis_hastings_step(R_curr, T, curr_cost, need_new_proposal_dist, propo
 	transform_is_ok = False
 	while not transform_is_ok:
 		t = MCMC_helpers.generate_proposal(proposal_dist)
+		print(t)
 		transform_is_ok = not MCMC_helpers.is_invalid_proposal_application(R_curr, t)
 	# apply_transform actually modifies the graph that's passed in, and we want to preserve the original R_curr in case we reject the rewrite
 	R_new = MCMC_helpers.apply_transform(R_curr.copy(), t) 
@@ -117,6 +118,22 @@ def run_metropolis_hastings(initial_graph, initial_cost, initial_proposal_dist, 
 
 (G0, layers0, label_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G1, layers1, label_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+
+# # test graph
+# G0 = nx.Graph()
+# G0.add_node('A', label='A')
+# G0.add_node('B', label='B')
+# G0.add_edge('A', 'B', label='(A, B)')
+
+# # test graph 
+# G1 = nx.Graph()
+# G1.add_node('A', label='A')
+# G1.add_node('B', label='B')
+# G1.add_node('C', label='C')
+# G1.add_node('D', label='D')
+# G1.add_edge('A', 'C', label='(A, C)')
+# G1.add_edge('A', 'D', label='(A, D)')
+
 (initial_cost, initial_proposal_dist) = cost(G0, [G0, G1], True, {})
 print("GENERATED INITIAL PROPOSALS")
 G_centroid, results = run_metropolis_hastings(G0.copy(), initial_cost, initial_proposal_dist, [G0, G1], n=20)
