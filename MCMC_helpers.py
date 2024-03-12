@@ -1,3 +1,4 @@
+from multiprocessing import Value
 import networkx as nx
 from collections import Counter
 import random
@@ -6,9 +7,6 @@ def node_subst_cost(attr_dict1, attr_dict2):
 	if attr_dict1['label'] != attr_dict2['label']:
 		return 1
 	return 0
-
-def edge_match(attr_dict1, attr_dict2):
-	return attr_dict1['label'] == attr_dict2['label']
 
 def is_invalid_proposal_type(t):
 	# since we set edge substitution to be zero-cost, so subbing an edge can't possibly decreast the cost
@@ -41,7 +39,7 @@ def combine_counters(c1, c2):
 	
 	for key in all_keys:
 		new_count = c1[key] + c2[key]
-		result[key] = new_count # explicitly include zero counts)
+		result[key] = new_count # explicitly include zero counts
 	
 	return result
 
@@ -74,18 +72,17 @@ def generate_proposal(proposal_dist):
 	return random.choices(transforms, weights, k=1)[0]
 
 def apply_transform(R, t):
-	print(t)
 	match t:
-		case (str(a), None): # node insertion
-			R.add_node(a)
-		case (None, str(b)): # node deletion
-			R.remove_node(b)
+		case (None, str(b)): # node insertion
+			R.add_node(b)
+		case (str(a), None): # node deletion
+			R.remove_node(a)
 		case (str(a), str(b)): # node substitution
 			R = nx.relabel_nodes(R, {a:b})
-		case ((str(a), str(b)), None): # edge insertion
+		case (None, (str(a), str(b))): # edge insertion
 			R.add_edge(a, b)
-		case (None, (str(a), str(b))): # edge deletion
+		case ((str(a), str(b)), None): # edge deletion
 			R.remove_edge(a, b)
 		case _:
-			return ValueError("Invalid transform proposal")
+			return ValueError("Invalid transform proposal application")
 	return R

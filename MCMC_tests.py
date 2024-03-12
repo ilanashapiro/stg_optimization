@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 # import gmatch4py as gm
-import time
+import time, sys
 import MCMC_helpers
 import random 
 import build_graph
@@ -56,23 +56,25 @@ G1a = nx.Graph()
 G1a.add_node('A', label='A')
 G1a.add_node('B', label='B')
 G1a.add_node('C', label='C')
+G1a.add_node('D', label='D')
 G1a.add_edge('A', 'C', label='(A, C)')
+G1a.add_edge('A', 'D', label='(A, D)')
 
-(G0, layers0, labels_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-(G1, layers1, labels_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+# (G0, layers0, labels_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+# (G1, layers1, labels_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 
-print(G0.nodes(data=True))
 start = time.perf_counter()
-node_edit_path, edge_edit_path, cost = next(nx.optimize_edit_paths(G0, G1, node_subst_cost=MCMC_helpers.node_subst_cost, edge_match=MCMC_helpers.edge_match))
+generator = nx.optimize_edit_paths(G1a, G1, node_subst_cost=MCMC_helpers.node_subst_cost)
+next(generator)
+node_edit_path, edge_edit_path, cost = next(generator)
 end = time.perf_counter()
-# transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
+transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
 # t = MCMC_helpers.generate_proposal(transform_dist)
-# print(t)
-# G1 = nx.relabel_nodes(G1, {t[0]:t[1]})
-# G1 = MCMC_helpers.apply_transform(G1, t)
-print(end-start, cost)
-# nx.draw(G1, with_labels=True, node_color='lightblue', edge_color='gray')
-# plt.show()
+t = (('A','C'), None)
+print(node_edit_path, edge_edit_path, t, cost)
+G = MCMC_helpers.apply_transform(G1a.copy(), t)
+nx.draw(nx.Graph(G1a), with_labels=True, node_color='lightblue', edge_color='gray')
+plt.show()
 
 
 # TEST VALUES
