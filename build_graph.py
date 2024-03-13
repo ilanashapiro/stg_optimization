@@ -24,8 +24,7 @@ def parse_motives_file(file_path):
   with open(file_path, 'r') as file:
     data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
-  layers = []
-  pattern_layer = []
+  motif_layer = []
   pattern_num = 1
 
   for chunk in data:
@@ -39,8 +38,7 @@ def parse_motives_file(file_path):
           if start is not None and end is not None:
             # Save the previous occurrence before starting a new one
             node_label = f"P{pattern_num}O{occurrence_num}"
-            node_id = f"{node_label}I({start},{end})"
-            pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
+            motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
           occurrence_num += 1
           start, end = None, None # Reset start and end for the new occurrence
         else:
@@ -51,39 +49,16 @@ def parse_motives_file(file_path):
       # Add the last occurrence in the chunk
       if start is not None and end is not None:
         node_label = f"P{pattern_num}O{occurrence_num}"
-        node_id = f"{node_label}I({start},{end})"
-        pattern_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
+        motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
 
-  # Append the pattern layer as the new bottom-most layer
-  layers.append(pattern_layer)
-
-  return layers
+  # Sort by start time and add index based on the sort
+  sorted_data = sorted(motif_layer, key=lambda x: x['start'])
+  for idx, item in enumerate(sorted_data):
+    item['id'] += f"N{idx}"
+  
+  return motif_layer
 
 def create_graph(layers):
-  def relabel_motive_nodes_with_index(G):
-    node_starts = {}
-    for node in G.nodes():
-      motive_pattern = r"^P(\d+)O(\d+)I\((\d+\.\d+),(\d+\.\d+)\)$"
-      match = re.search(motive_pattern, node)
-      if match:
-        _, _, start, _ = match.groups()
-        start = float(start)
-        node_starts[node] = start
-
-    # Sort nodes by 'start' extracted from their label
-    sorted_nodes = sorted(node_starts.items(), key=lambda x: x[1])
-    relabel_mapping = {}
-
-    for idx, (node_id, _) in enumerate(sorted_nodes, start=1):
-      # Generate new node ID without "I(start, end)" and with "N{idx}" instead
-      id_without_I = re.sub(r"I\(\d+\.\d+,\d+\.\d+\)", "", node_id)
-      new_node_id = f"{id_without_I}N{idx}"
-      # G.nodes[node_id]['label'] = new_node_id # relabel node to include index
-      relabel_mapping[node_id] = new_node_id # rename node with index rather than intervals
-
-    G = nx.relabel_nodes(G, relabel_mapping)
-    return G
-
   G = nx.DiGraph()
 
   for layer in layers:
@@ -98,7 +73,8 @@ def create_graph(layers):
         # node has edge to parent if its interval overlaps with that parent's interval
         if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
           G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
-  return relabel_motive_nodes_with_index(G)
+  
+  return G
 
 def get_layers_with_index_from_graph(G):
   # Regular expressions to match the ID/label formats
@@ -109,28 +85,28 @@ def get_layers_with_index_from_graph(G):
   partition_structure = []
   partition_motives = []
   for node, data in G.nodes(data=True):
-      if structure_pattern.match(node):
-          result = structure_pattern.search(node)
-          if result:
-            n3 = result.group(3)
-            partition_structure.append({'id': node, 'label': data['label'], 'start': data['start'], 'end': data['end'], 'index': int(n3)})
-      elif motive_pattern.match(node):
-          result = motive_pattern.search(node)
-          if result:
-            n3 = result.group(3)
-            partition_motives.append({'id': node, 'label': data['label'], 'start': data['start'], 'end': data['end'], 'index': int(n3)})
+    if structure_pattern.match(node):
+      result = structure_pattern.search(node)
+      if result:
+        n3 = result.group(3)
+        partition_structure.append({'id': node, 'label': data['label'], 'start': data['start'], 'end': data['end'], 'index': int(n3)})
+    elif motive_pattern.match(node):
+      result = motive_pattern.search(node)
+      if result:
+        n3 = result.group(3)
+        partition_motives.append({'id': node, 'label': data['label'], 'start': data['start'], 'end': data['end'], 'index': int(n3)})
 
-  # Step 2: For the partition_sli list, further partition by the L{n2} substring
+  # Step 2: For the partition_structure list, further partition by the L{n2} substring
   partition_structure_grouped = {}
 
   for item in partition_structure:
-      # Extract the L{n2} part using regular expression
-      match = re.search(r'L(\d+)', item['label'])
-      if match:
-          l_value = match.group(1)
-          if l_value not in partition_structure_grouped:
-              partition_structure_grouped[l_value] = []
-          partition_structure_grouped[l_value].append(item)
+    # Extract the L{n2} part using regular expression
+    match = re.search(r'L(\d+)', item['label'])
+    if match:
+      l_value = match.group(1)
+      if l_value not in partition_structure_grouped:
+        partition_structure_grouped[l_value] = []
+      partition_structure_grouped[l_value].append(item)
 
   # Convert the grouped dictionary into a list of nested lists
   layers = list(partition_structure_grouped.values())
@@ -139,54 +115,55 @@ def get_layers_with_index_from_graph(G):
   return layers
 
 def visualize(graph_list, layers_list, labels_dicts = None):
-    n = len(graph_list)
+  n = len(graph_list)
+  
+  # Determine grid size (rows x cols) for subplots
+  cols = int(math.ceil(math.sqrt(n)))
+  rows = int(math.ceil(n / cols))
+  
+  # Create a figure with subplots arranged in the calculated grid
+  _, axes = plt.subplots(rows, cols, figsize=(8 * cols, 12 * rows))
+  
+  # Flatten axes array for easy iteration if it's 2D (which happens with multiple rows and columns)
+  axes_flat = axes.flatten() if n > 1 else [axes]
+  
+  for idx, G in enumerate(graph_list):
+    layers = layers_list[idx]
+    labels_dict = labels_dicts[idx] if labels_dicts else None
+    pos = {}  # Positions dictionary: node -> (x, y)
+    layer_height = 1.0 / (len(layers) + 1)
+    for i, layer in enumerate(layers):
+      y = 1 - (i + 1) * layer_height  # Adjust y-coordinate
+      # Sort nodes if necessary (i.e. sort last/motives layer based on start attribute)
+      if i == len(layers) - 1 and 'start' in layer[0]:
+        layer = sorted(layer, key=lambda node: node['start'])
+          
+      x_step = 1.0 / (len(layer) + 1)
+      for j, node in enumerate(layer):
+        x = (j + 1) * x_step
+        pos[node['id']] = (x, y)
     
-    # Determine grid size (rows x cols) for subplots
-    cols = int(math.ceil(math.sqrt(n)))
-    rows = int(math.ceil(n / cols))
-    
-    # Create a figure with subplots arranged in the calculated grid
-    _, axes = plt.subplots(rows, cols, figsize=(8 * cols, 12 * rows))
-    
-    # Flatten axes array for easy iteration if it's 2D (which happens with multiple rows and columns)
-    axes_flat = axes.flatten() if n > 1 else [axes]
-    
-    for idx, G in enumerate(graph_list):
-        layers = layers_list[idx]
-        labels_dict = labels_dicts[idx] if labels_dicts else None
-        pos = {}  # Positions dictionary: node -> (x, y)
-        layer_height = 1.0 / (len(layers) + 1)
-        for i, layer in enumerate(layers):
-            y = 1 - (i + 1) * layer_height  # Adjust y-coordinate
-            # Sort nodes if necessary (i.e. sort last/motives layer based on start attribute)
-            if i == len(layers) - 1 and 'start' in layer[0]:
-              layer = sorted(layer, key=lambda node: node['start'])
-                
-            x_step = 1.0 / (len(layer) + 1)
-            for j, node in enumerate(layer):
-                x = (j + 1) * x_step
-                pos[node['id']] = (x, y)
-        
-        ax = axes_flat[idx]
-        nx.draw(G, pos, labels=labels_dict, with_labels=True, node_size=500, node_color="lightblue", font_size=8, edge_color="gray", arrows=True, ax=ax)
-        ax.set_title(f"Graph {idx + 1}")
-    
-    # Hide any unused subplots in the grid
-    for ax in axes_flat[n:]:
-        ax.axis('off')
-    
-    plt.tight_layout()
-    plt.show()
+    ax = axes_flat[idx]
+    nx.draw(G, pos, labels=labels_dict, with_labels=True, node_size=500, node_color="lightblue", font_size=8, edge_color="gray", arrows=True, ax=ax)
+    ax.set_title(f"Graph {idx + 1}")
+  
+  # Hide any unused subplots in the grid
+  for ax in axes_flat[n:]:
+      ax.axis('off')
+  
+  plt.tight_layout()
+  plt.show()
 
 def generate_graph(structure_filepath, motives_filepath):
-  structure_layers = parse_form_file(structure_filepath)
-  motive_layers = parse_motives_file(motives_filepath)
-  layers_with_intervals = structure_layers + motive_layers
-  G = create_graph(layers_with_intervals)
+  layers = parse_form_file(structure_filepath)
+  motive_layer = parse_motives_file(motives_filepath)
+  print(motive_layer)
+  layers.append(motive_layer)
+  G = create_graph(layers)
   layers_with_index = get_layers_with_index_from_graph(G) # for rendering purposes
   labels_dict = {d['id']: d['label'] for layer in layers_with_index for d in layer}
   return (G, layers_with_index, labels_dict)
 
 if __name__ == "__main__":
-  G, layers, labels_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+  G, layers, labels_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
   visualize([G], [layers], [labels_dict])
