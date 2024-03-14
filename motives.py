@@ -5,120 +5,10 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 import mido
-import music21
 import csv
 import numpy as np
 import SIA
-# from music21 import converter, note
 # import vmo
-
-def count_unique_channels(midi_path):
-    midi_file = mido.MidiFile(midi_path)
-    unique_channels = set()
-
-    for track in midi_file.tracks:
-        for msg in track:
-            # Check if the message is a channel message
-            if hasattr(msg, 'channel'):
-                unique_channels.add(msg.channel)
-
-    return len(unique_channels)
-
-midi_path = 'LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.mid'
-print(len(mido.MidiFile(midi_path).tracks), count_unique_channels(midi_path))
-
-# CSV format from https://github.com/Wiilly07/Beethoven_motif 
-def midi_to_csv_mido():
-	filename = "LOP_database_06_09_17/liszt_classical_archives/0/bl11_solo.mid" # for now
-	output_filename = filename[:-4] + "_data.csv"
-
-	print("Converting " + filename + " to " + output_filename)
-
-	mid = mido.MidiFile(filename)
-	df = pd.DataFrame(columns=["onset", "onset_seconds", "pitch", "duration", "staff"])
-
-	# Default MIDI tempo is 500,000 microseconds per beat
-	# This can change throughout the piece and needs to be accounted for
-	microseconds_per_beat = 500000  # Default value
-	
-	def ticks_to_crochets(ticks, ticks_per_beat):
-		return ticks / ticks_per_beat
-
-	for track in mid.tracks:
-		note_ontimes_dict = {} 
-		absolute_time_in_ticks = 0
-
-		for msg in track:
-			if msg.type == 'set_tempo':
-				# If there's a tempo change, update the microseconds per beat
-				microseconds_per_beat = msg.tempo
-
-			absolute_time_in_ticks += msg.time  # Update absolute time with delta time
-			
-			if msg.type in ['note_on', 'note_off']:
-				if msg.type == 'note_on' and msg.velocity > 0:
-					note_ontimes_dict[msg.note] = (absolute_time_in_ticks, msg.channel)
-
-				elif (msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0)) and msg.note in note_ontimes_dict:
-					onset_ticks, channel = note_ontimes_dict.pop(msg.note)
-					onset_seconds = mido.tick2second(onset_ticks, mid.ticks_per_beat, microseconds_per_beat)
-					onset_crochets = ticks_to_crochets(onset_ticks, mid.ticks_per_beat)
-					absolute_time_in_crochets = ticks_to_crochets(absolute_time_in_ticks, mid.ticks_per_beat)
-					duration_crochets = absolute_time_in_crochets - onset_crochets
-					staff_num = channel + 1  # Assign the staff number based on the MIDI channel, channels are zero-indexed
-
-					new_row = pd.DataFrame([[round(onset_crochets, 3), round(onset_seconds, 3), msg.note, round(duration_crochets, 3), staff_num]], columns=["onset", "onset_seconds", "pitch", "duration", "staff"]) 
-					df = pd.concat([df, new_row], axis=0) 
-
-	df.to_csv(output_filename, index=False) 
-	print(f"Data has been written to {output_filename}")
-# midi_to_csv_mido()
-
-# CSV format from https://github.com/Wiilly07/Beethoven_motif 
-# code modified from https://github.com/andrewchenk/midi-csv/blob/master/midi_to_csv.py
-def midi_to_csv_in_crochets_music21_NOT_USING():
-	directory = "/Users/ilanashapiro/Documents/constraints_project/LOP_database_06_09_17/liszt_classical_archives"
-	def process_midi(file_path):
-		output_filepath = file_path[:-4] + "_crochets.csv"
-		print("Converting " + file_path + " to " + output_filepath)
-		
-		mf = music21.midi.MidiFile()
-		mf.open(file_path)
-		mf.read()
-		mf.close()
-		
-		s = music21.midi.translate.midiFileToStream(mf, quantizePost=False).flatten() #quantize is what rounds all note durations to real music note types, not needed for our application
-		
-		df = pd.DataFrame(columns=["onset", "pitch", "duration", "staff"])
-		for g in s.recurse().notes:
-			if g.isChord:
-				for pitch in g.pitches: 
-					x = music21.note.Note(pitch.midi, duration=g.duration, offset=g.offset)
-					s.insert(x)
-		for note in s.recurse().notes: 
-			if note.isNote:
-				pitch = note.pitch.midi
-				onset = round(float(note.offset), 3)  # The offset in quarter notes
-				duration = round(float(note.duration.quarterLength), 3)  # Duration in quarter notes
-				
-				staff = note.staff if hasattr(note, 'staff') else 0 # default will be zero (top staff)
-				new_row = pd.DataFrame([[onset, pitch, duration, staff]], columns=["onset", "pitch", "duration", "staff"])
-				df = pd.concat([df, new_row], axis=0) 
-
-		df.to_csv(output_filepath, index=False)
-		print(f"Data has been written to {output_filepath} in crochets")
-
-	with ThreadPoolExecutor() as executor:
-		futures = []
-		for root, _, files in os.walk(directory):
-			for filename in files:
-				# and we haven't already made the CSV file (_data extension since LOP already has CSV files with metadata and we don't want to overwrite)
-				if filename.endswith("_solo_short.mid"):# and not any("_data.csv" in file for file in files): 
-					file_path = os.path.join(root, filename)
-					process_midi(file_path)
-					future = executor.submit(process_midi, file_path)
-					futures.append(future)
-# midi_to_csv_in_crochets_music21_NOT_USING()		
 
 # code modified from https://github.com/Tsung-Ping/motif_discovery/blob/main/experiments.py 
 def load_notes_csv(filename):
@@ -181,7 +71,7 @@ def get_motives():
 				
 # get_motives()
 
-#---------------USING VMO FOR MOTIF EXTXRACTION
+#---------------------------------------------USING VMO FOR MOTIF EXTXRACTION------------------------------------------------------------
 # vmo is MUCH faster than the newer paper I'm using for this, which can detect longer patterns of specified length
 # however, VMO seems to almost exclusively detect very very short patterns (2 notes), in this example there's only
 # 2 patterns of length 5 and 13 of length 4. when I request min length 4, it only gives me 4 patterns but some patterns
