@@ -65,7 +65,7 @@ def midi_to_csv():
   df.to_csv(output_filename, index=False) 
   print(f"Data has been written to {output_filename}")
 
-midi_to_csv()
+# midi_to_csv()
 
 
 def convert_dataset_midi_to_mp3():
@@ -88,6 +88,6 @@ def convert_dataset_midi_to_mp3():
 				os.remove(wav_path)
 				print("Removed", wav_path)
 
-# convert_dataset_midi_to_mp3()
+convert_dataset_midi_to_mp3()
 				
         

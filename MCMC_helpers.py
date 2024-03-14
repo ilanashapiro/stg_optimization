@@ -1,7 +1,9 @@
 from multiprocessing import Value
+from os import remove
 import networkx as nx
 from collections import Counter
 import random
+import re
 
 def node_subst_cost(attr_dict1, attr_dict2):
 	if attr_dict1['label'] != attr_dict2['label']:
@@ -71,22 +73,28 @@ def generate_proposal(proposal_dist):
 	weights = list(proposal_dist.values())
 	return random.choices(transforms, weights, k=1)[0]
 
+def remove_node_index(node_id):
+	index_pattern = r'N\d+'
+	return re.sub(index_pattern, '', node_id)
+
 def apply_transform(R, t):
-	print(R.nodes(data=True))
-	print(R.edges(data=True))
 	match t:
 		case (None, str(b)): # node insertion
-			R.add_node(b)
+			R.add_node(b, label=remove_node_index(b))
 		case (str(a), None): # node deletion
 			R.remove_node(a)
 		case (str(a), str(b)): # node substitution
-			R = nx.relabel_nodes(R, {a:b})
+			b_label = remove_node_index(b)
+			nx.relabel_nodes(R, {a:b}, copy=False) # change R directly in memory
+			nx.set_node_attributes(R, {b: {'label': b_label}})
+			for _, y in list(R.out_edges(b)):
+				nx.set_edge_attributes(R, {(b, y): {'label': f"({remove_node_index(b)},{remove_node_index(y)})"}})
+			for x, _ in list(R.in_edges(b)):
+				nx.set_edge_attributes(R, {(x, b): {'label': f"({remove_node_index(x)},{remove_node_index(b)})"}})
 		case (None, (str(a), str(b))): # edge insertion
-			R.add_edge(a, b)
+			R.add_edge(a, b, label=remove_node_index(b))
 		case ((str(a), str(b)), None): # edge deletion
-			R.remove_edge(a, b)
+			R.remove_edge(a, b) # do I need to update nodes????
 		case _:
 			return ValueError("Invalid transform proposal application")
-	print(R.nodes(data=True))
-	print(R.edges(data=True))
 	return R

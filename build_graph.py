@@ -157,7 +157,6 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 def generate_graph(structure_filepath, motives_filepath):
   layers = parse_form_file(structure_filepath)
   motive_layer = parse_motives_file(motives_filepath)
-  print(motive_layer)
   layers.append(motive_layer)
   G = create_graph(layers)
   layers_with_index = get_layers_with_index_from_graph(G) # for rendering purposes
@@ -165,5 +164,5 @@ def generate_graph(structure_filepath, motives_filepath):
   return (G, layers_with_index, labels_dict)
 
 if __name__ == "__main__":
-  G, layers, labels_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+  G, layers, labels_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_data_motives.txt')
   visualize([G], [layers], [labels_dict])

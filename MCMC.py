@@ -3,9 +3,20 @@ import networkx as nx
 import numpy as np
 from collections import Counter
 import MCMC_helpers
+import gmatch4py as gm
 
 # Stoke uses beta=1 so I'm doing that for now: https://github.com/StanfordPL/stoke/blob/98d8a0f028f2daf2052bfe607dbc32ec8d55ba9e/tools/args/search.inc#L29
 beta = 2/3 # temperature/annealing param 
+
+def get_cost_from_matrix(matrix):
+	np_matrix = np.array(matrix)
+	dist = np_matrix[(np_matrix > 0) & (np_matrix < 1)]
+	default1 = np_matrix[np_matrix == 1]
+	if dist.size > 0:
+		return dist[0]
+	elif default1.size > 0:
+		return default1[0]
+	return 0
 
 # R: rewrite (i.e. the canonical graph proposal)
 # T: target (i.e. corpus of graphs)
@@ -20,13 +31,19 @@ def cost(R, T, need_new_proposal_dist, proposal_dist):
 	# all the operations that don't appear in the paths, start with prob zero and then apply smoothing
 	# optimize_graph_edit_distance is about 7.5 seconds per graph based on experiment
 	total_approx_edit_dist = 0
+	greedy_ged_dist = 0
 	transform_counts = Counter()
 	for g in T:
 		# edge substitution/relabeling is redudant once the nodes are relabeled so we keep at cost 0
 		node_edit_path, edge_edit_path, approx_edit_dist = next(nx.optimize_edit_paths(R, g, node_subst_cost=MCMC_helpers.node_subst_cost)) 
 		if need_new_proposal_dist: # i.e. we want a new distribution because we just accepted/added a new transform in the prev step, and thus R has changed
 			transform_counts = MCMC_helpers.combine_counters(transform_counts, MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
-		total_approx_edit_dist += approx_edit_dist
+		
+		# ged=gm.GreedyEditDistance(1,1,1,1) # all edit costs are equal to 1
+		# ged.set_attr_graph_used("label", "label")
+		# greedy_ged_dist += get_cost_from_matrix(ged.distance(ged.compare([R,g],None)))
+		# print(greedy_ged_dist)
+		# total_approx_edit_dist += approx_edit_dist
 	
 	proposal_dist = MCMC_helpers.additive_smooth(transform_counts) if need_new_proposal_dist else proposal_dist
 	print(total_approx_edit_dist)

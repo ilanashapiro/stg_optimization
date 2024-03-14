@@ -1,7 +1,7 @@
 import sys
 
-# sys.path.append('/Users/ilanashapiro/Documents/msaf0_1_80') https://github.com/urinieto/msaf/tree/main
-# sys.path.append('/Users/ilanashapiro/Library/musicaiz-0.1.2') https://github.com/carlosholivan/musicaiz
+sys.path.append('/Users/ilanashapiro/Documents/msaf0_1_80') # https://github.com/urinieto/msaf/tree/main
+# sys.path.append('/Users/ilanashapiro/Library/musicaiz-0.1.2') # https://github.com/carlosholivan/musicaiz
 
 import msaf
 
@@ -10,10 +10,10 @@ def segment_audio_MSAF():
 
 	# hierarchical: scluster, olda (boundaries only, use with fmc2d), vmo
 	# sf (flat, boundaries only) has best performance
-	boundaries, labels = msaf.process(audio_filepath, boundaries_id="vmo", labels_id="vmo", hier=True)
+	boundaries, labels = msaf.process(audio_filepath, boundaries_id="scluster", labels_id="scluster", hier=True)
 	out_file = audio_filepath[:-4] + '_segments.txt'
 	
 	print('Saving output to %s' % out_file)
 	msaf.io.write_mirex_hierarchical(boundaries, labels, out_file)
 
-# segment_audio_MSAF()
+segment_audio_MSAF()

@@ -52,13 +52,24 @@ G1.add_node('B', label='B')
 G1.add_edge('A', 'B', label='(A, B)')
 
 # test graph 2
-G1a = nx.Graph()
+G1a = nx.DiGraph()
 G1a.add_node('A', label='A')
 G1a.add_node('B', label='B')
 G1a.add_node('C', label='C')
 G1a.add_node('D', label='D')
 G1a.add_edge('A', 'C', label='(A, C)')
-G1a.add_edge('A', 'D', label='(A, D)')
+G1a.add_edge('D', 'A', label='(D, A)')
+nx.relabel_nodes(G1a, {'A':'E'}, copy=False)
+nx.set_node_attributes(G1a, {'E': {'label': 'E'}})
+print(G1a.out_edges('E'))
+for _, y in list(G1a.out_edges('E')):
+  nx.set_edge_attributes(G1a, {('E', y): {'label': f"(E,{y})"}})
+for x, _ in list(G1a.in_edges('E')):
+  nx.set_edge_attributes(G1a, {(x, 'E'): {'label': f"({x},E)"}})
+print(G1a.edges(data=True))
+nx.draw(nx.Graph(G1a), with_labels=True, node_color='lightblue', edge_color='gray')
+plt.show()
+sys.exit(0)
 
 # (G0, layers0, labels_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 # (G1, layers1, labels_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')

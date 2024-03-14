@@ -69,7 +69,7 @@ def get_motives():
 					future = executor.submit(process_file, file_path)
 					futures.append(future)
 				
-# get_motives()
+get_motives()
 
 #---------------------------------------------USING VMO FOR MOTIF EXTXRACTION------------------------------------------------------------
 # vmo is MUCH faster than the newer paper I'm using for this, which can detect longer patterns of specified length
