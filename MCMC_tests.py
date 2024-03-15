@@ -23,7 +23,7 @@ import build_graph
 	# g=None or h=None for deletion/insertion
 
 # test graph 1
-G0 = nx.Graph()
+G0 = nx.DiGraph()
 G0.add_node('1', label='1')
 G0.add_node('2', label='2')
 G0.add_node('3', label='3')
@@ -35,7 +35,7 @@ G0.add_edge('5', '1', label='(5, 1)')
 
 
 # test graph 3
-G2 = nx.Graph()
+G2 = nx.DiGraph()
 G2.add_node('1', label='1')
 G2.add_node('2', label='2')
 G2.add_node('3', label='3')
@@ -46,10 +46,11 @@ G2.add_edge('1', '3', label='(1, 3)')
 G2.add_edge('4', '1', label='(4, 1)')
 
 # test graph 2
-G1 = nx.Graph()
+G1 = nx.DiGraph()
 G1.add_node('A', label='A')
 G1.add_node('B', label='B')
-G1.add_edge('A', 'B', label='(A, B)')
+G1.add_node('C', label='C')
+G1.add_edge('B', 'C', label='(B, C)')
 
 # test graph 2
 G1a = nx.DiGraph()
@@ -57,35 +58,35 @@ G1a.add_node('A', label='A')
 G1a.add_node('B', label='B')
 G1a.add_node('C', label='C')
 G1a.add_node('D', label='D')
-G1a.add_edge('A', 'C', label='(A, C)')
-G1a.add_edge('D', 'A', label='(D, A)')
-nx.relabel_nodes(G1a, {'A':'E'}, copy=False)
-nx.set_node_attributes(G1a, {'E': {'label': 'E'}})
-print(G1a.out_edges('E'))
-for _, y in list(G1a.out_edges('E')):
-  nx.set_edge_attributes(G1a, {('E', y): {'label': f"(E,{y})"}})
-for x, _ in list(G1a.in_edges('E')):
-  nx.set_edge_attributes(G1a, {(x, 'E'): {'label': f"({x},E)"}})
-print(G1a.edges(data=True))
-nx.draw(nx.Graph(G1a), with_labels=True, node_color='lightblue', edge_color='gray')
-plt.show()
-sys.exit(0)
+G1a.add_edge('B', 'D', label='(B, D)')
+# G1a.add_edge('D', 'A', label='(D, A)')
+# G1a.remove_edge('A', 'C')
+# nx.relabel_nodes(G1a, {'A':'E'}, copy=False)
+# nx.set_node_attributes(G1a, {'E': {'label': 'E'}})
+# print(G1a.out_edges('E'))
+# for _, y in list(G1a.out_edges('E')):
+#   nx.set_edge_attributes(G1a, {('E', y): {'label': f"(E,{y})"}})
+# for x, _ in list(G1a.in_edges('E')):
+#   nx.set_edge_attributes(G1a, {(x, 'E'): {'label': f"({x},E)"}})
+# nx.draw(G1a, with_labels=True, node_color='lightblue', edge_color='gray')
+# plt.show()
+# sys.exit(0)
 
 # (G0, layers0, labels_dict0) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 # (G1, layers1, labels_dict1) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 
 start = time.perf_counter()
-generator = nx.optimize_edit_paths(G1a, G1, node_subst_cost=MCMC_helpers.node_subst_cost)
-next(generator)
-node_edit_path, edge_edit_path, cost = next(generator)
+generator = nx.optimal_edit_paths(G1, G1a, node_subst_cost=MCMC_helpers.node_subst_cost, edge_subst_cost=MCMC_helpers.node_subst_cost)
+# next(generator)
+paths, cost = generator #next(generator)
 end = time.perf_counter()
-transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
+# transform_dist = MCMC_helpers.additive_smooth(MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
 # t = MCMC_helpers.generate_proposal(transform_dist)
-t = (('A','C'), None)
-print(node_edit_path, edge_edit_path, t, cost)
-G = MCMC_helpers.apply_transform(G1a.copy(), t)
-nx.draw(nx.Graph(G1a), with_labels=True, node_color='lightblue', edge_color='gray')
-plt.show()
+# t = (('A','C'), None)
+print(paths, cost)
+# MCMC_helpers.apply_transform(G1a, t)
+# nx.draw(nx.Graph(G1a), with_labels=True, node_color='lightblue', edge_color='gray')
+# plt.show()
 
 
 # TEST VALUES

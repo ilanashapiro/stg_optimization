@@ -31,10 +31,12 @@ def cost(R, T, need_new_proposal_dist, proposal_dist):
 	# all the operations that don't appear in the paths, start with prob zero and then apply smoothing
 	# optimize_graph_edit_distance is about 7.5 seconds per graph based on experiment
 	total_approx_edit_dist = 0
-	greedy_ged_dist = 0
+	# greedy_ged_dist = 0
 	transform_counts = Counter()
 	for g in T:
 		# edge substitution/relabeling is redudant once the nodes are relabeled so we keep at cost 0
+		nodes_without_label = [node for node, attrs in R.nodes(data=True) if 'label' not in attrs]
+		print(nodes_without_label)
 		node_edit_path, edge_edit_path, approx_edit_dist = next(nx.optimize_edit_paths(R, g, node_subst_cost=MCMC_helpers.node_subst_cost)) 
 		if need_new_proposal_dist: # i.e. we want a new distribution because we just accepted/added a new transform in the prev step, and thus R has changed
 			transform_counts = MCMC_helpers.combine_counters(transform_counts, MCMC_helpers.build_transform_counts(node_edit_path + edge_edit_path))
@@ -43,7 +45,7 @@ def cost(R, T, need_new_proposal_dist, proposal_dist):
 		# ged.set_attr_graph_used("label", "label")
 		# greedy_ged_dist += get_cost_from_matrix(ged.distance(ged.compare([R,g],None)))
 		# print(greedy_ged_dist)
-		# total_approx_edit_dist += approx_edit_dist
+		total_approx_edit_dist += approx_edit_dist
 	
 	proposal_dist = MCMC_helpers.additive_smooth(transform_counts) if need_new_proposal_dist else proposal_dist
 	print(total_approx_edit_dist)
@@ -89,14 +91,14 @@ def metropolis_hastings_step(R_curr, T, curr_cost, need_new_proposal_dist, propo
 	transform_is_ok = False
 	while not transform_is_ok:
 		t = MCMC_helpers.generate_proposal(proposal_dist)
-		print(t)
+		print("TRYING TRANSFORM", t)
 		transform_is_ok = not MCMC_helpers.is_invalid_proposal_application(R_curr, t)
 	# apply_transform actually modifies the graph that's passed in, and we want to preserve the original R_curr in case we reject the rewrite
 	R_new = MCMC_helpers.apply_transform(R_curr.copy(), t) 
 	(accept_prob, new_proposal_dist, new_cost) = local_accept_prob(R_curr, R_new, T, t, need_new_proposal_dist, proposal_dist, curr_cost)
 	u = np.random.uniform()
 	if u <= accept_prob:
-		print(t)
+		print("ACCEPTED", t)
 		R_curr = R_new
 		accepted = True
 		proposal_dist = new_proposal_dist

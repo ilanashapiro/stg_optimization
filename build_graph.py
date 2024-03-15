@@ -15,7 +15,7 @@ def parse_form_file(file_path):
       start, end, id = line.split('\t')
       node_label = f"S{id}L{layer_idx + 1}"
       node_id = f"{node_label}N{idx}"
-      layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label})
+      layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_id})
     layers.append(layer)
   
   return layers

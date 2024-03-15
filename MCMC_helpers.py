@@ -33,7 +33,7 @@ def is_invalid_proposal_application(R_curr, t):
 	is_edge_del = isinstance(t[0], tuple) and t[1] is None
 	nonexist_edge_del = is_edge_del and not R_curr.has_edge(t[0][0], t[0][1])
 
-	return nonzero_arity_node_del or nonexist_node_del or nonexist_edge_del
+	return nonzero_arity_node_del or nonexist_node_del or nonexist_edge_del 
 
 def combine_counters(c1, c2):
 	result = Counter()
@@ -80,21 +80,25 @@ def remove_node_index(node_id):
 def apply_transform(R, t):
 	match t:
 		case (None, str(b)): # node insertion
-			R.add_node(b, label=remove_node_index(b))
+			R.add_node(b, label=b)
+			print("ADDING", b)
+			print("CHECK", R.nodes[b])
 		case (str(a), None): # node deletion
 			R.remove_node(a)
 		case (str(a), str(b)): # node substitution
-			b_label = remove_node_index(b)
 			nx.relabel_nodes(R, {a:b}, copy=False) # change R directly in memory
-			nx.set_node_attributes(R, {b: {'label': b_label}})
+			nx.set_node_attributes(R, {b: {'label': b}})
 			for _, y in list(R.out_edges(b)):
-				nx.set_edge_attributes(R, {(b, y): {'label': f"({remove_node_index(b)},{remove_node_index(y)})"}})
+				nx.set_edge_attributes(R, {(b, y): {'label': f"({b},{y})"}})
 			for x, _ in list(R.in_edges(b)):
-				nx.set_edge_attributes(R, {(x, b): {'label': f"({remove_node_index(x)},{remove_node_index(b)})"}})
+				nx.set_edge_attributes(R, {(x, b): {'label': f"({x},{b})"}})
 		case (None, (str(a), str(b))): # edge insertion
-			R.add_edge(a, b, label=remove_node_index(b))
+			R.add_edge(a, b, label=f"({a},{b})")
+			print("ADDING", (a, b))
+			print("CHECK", R.edges[(a,b)])
+			# After experimenting, it appears that optimize_edit_paths won't directly add an edge 
 		case ((str(a), str(b)), None): # edge deletion
-			R.remove_edge(a, b) # do I need to update nodes????
+			R.remove_edge(a, b) # It's possible for us to end up with zero-arity nodes this way. Maybe this is ok since we have to validate anyways and fix later???
 		case _:
 			return ValueError("Invalid transform proposal application")
 	return R
