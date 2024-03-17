@@ -46,14 +46,14 @@ G2.add_edge('1', '3', label='(1, 3)')
 G2.add_edge('4', '1', label='(4, 1)')
 
 # test graph 2
-G1 = nx.DiGraph()
+G1 = nx.Graph()
 G1.add_node('A', label='A')
 G1.add_node('B', label='B')
 G1.add_node('C', label='C')
 G1.add_edge('B', 'C', label='(B, C)')
 
 # test graph 2
-G1a = nx.DiGraph()
+G1a = nx.Graph()
 G1a.add_node('A', label='A')
 G1a.add_node('B', label='B')
 G1a.add_node('C', label='C')
