@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  17 MAR 2024 15:26
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  17 MAR 2024 17:20
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -147,7 +147,7 @@ Package: lineno 2005/11/02 line numbers on paragraphs v4.41
 \bframebox=\box52
 LaTeX Info: Redefining \\ on input line 3056.
 )
-LaTeX Font Info:    Trying to load font information for T1+ptm on input line 78
+LaTeX Font Info:    Trying to load font information for T1+ptm on input line 75
 .
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1ptm.fd
@@ -158,23 +158,24 @@ File: l3backend-pdftex.def 2022-02-07 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count278
 \l__pdf_internal_box=\box53
 )
-No file ISMIR2024_template.aux.
+(./ISMIR2024_template.aux)
 \openout1 = `ISMIR2024_template.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 75.
+LaTeX Font Info:    ... okay on input line 75.
+
 (/usr/local/texlive/2022/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
 \scratchcounter=\count279
@@ -197,7 +198,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-LaTeX Font Info:    Trying to load font information for T1+pcr on input line 81
+LaTeX Font Info:    Trying to load font information for T1+pcr on input line 78
 .
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1pcr.fd
@@ -206,92 +207,49 @@ File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
 <figs/cc_by.pdf, id=1, 121.45375pt x 43.16125pt>
 File: figs/cc_by.pdf Graphic file (type pdf)
 <use figs/cc_by.pdf>
-Package pdftex.def Info: figs/cc_by.pdf  used on input line 81.
+Package pdftex.def Info: figs/cc_by.pdf  used on input line 78.
 (pdftex.def)             Requested size: 36.02869pt x 12.80365pt.
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 8
-1.
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 7
+8.
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-LaTeX Font Info:    Trying to load font information for T1+phv on input line 87
+LaTeX Font Info:    Trying to load font information for T1+phv on input line 84
 .
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 )
-
-LaTeX Warning: Citation `MIREX_2017_motif' on page 1 undefined on input line 97
-.
-
-
-LaTeX Warning: Citation `ISMIR17Author:01' on page 1 undefined on input line 11
-8.
-
-
-LaTeX Warning: Citation `JNMR10Someone:01' on page 1 undefined on input line 11
-9.
-
-
-LaTeX Warning: Citation `Book20Person:01' on page 1 undefined on input line 119
-.
-
-
-LaTeX Warning: Citation `Chapter09Person:01' on page 1 undefined on input line 
-119.
-
-
-Underfull \hbox (badness 1221) in paragraph at lines 114--120
-\T1/ptm/m/n/10 All bib-li-o-graph-i-cal ref-er-ences should be listed at the
- []
-
-
-Underfull \hbox (badness 1939) in paragraph at lines 114--120
-\T1/ptm/m/n/10 ENCES,'' num-bered and in the or-der that they first
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 114--120
-\T1/pcr/m/n/10 ieeeauthorcenter . ieee . org / wp-[]content /
- []
-
-
-Underfull \hbox (badness 4341) in paragraph at lines 114--120
-\T1/pcr/m/n/10 uploads / IEEE-[]Reference-[]Guide . pdf$\T1/ptm/m/n/10 ). Ap-
- []
-
 (./ISMIR2024_template.bbl) [1{/usr/local/texlive/2022/texmf-var/fonts/map/pdfte
 x/updmap/pdftex.map}
 
 
 
+
  <./figs/cc_by.pdf>] (./ISMIR2024_template.aux)
-
-LaTeX Warning: There were undefined references.
-
 
 LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 2954 strings out of 478268
- 44221 string characters out of 5846346
- 342296 words of memory out of 5000000
- 21126 multiletter control sequences out of 15000+600000
- 506694 words of font info for 70 fonts, out of 8000000 for 9000
+ 2939 strings out of 478268
+ 43989 string characters out of 5846346
+ 337296 words of memory out of 5000000
+ 21111 multiletter control sequences out of 15000+600000
+ 502771 words of font info for 64 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  55i,14n,62p,366b,407s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
-exlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/te
-xlive/2022/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/20
-22/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/texm
-f-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fon
-ts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/u
-rw/times/utmri8a.pfb>
-Output written on ISMIR2024_template.pdf (1 page, 75872 bytes).
+exlive/2022/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2
+022/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/tex
+mf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fo
+nts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/
+urw/times/utmri8a.pfb>
+Output written on ISMIR2024_template.pdf (1 page, 60305 bytes).
 PDF statistics:
- 45 PDF objects out of 1000 (max. 8388607)
- 28 compressed objects within 1 object stream
+ 40 PDF objects out of 1000 (max. 8388607)
+ 25 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  6 words of extra memory for PDF output out of 10000 (max. 10000000)
 
