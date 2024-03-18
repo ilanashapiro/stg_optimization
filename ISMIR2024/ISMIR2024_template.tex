@@ -17,7 +17,6 @@
 \usepackage{graphicx}
 \usepackage{color}
 
-
 \usepackage{lineno}
 \linenumbers
 
@@ -82,15 +81,19 @@
 %Paper should be submitted as PDFs and the \textcolor{red}{file size is limited to 10MB}. Please compress images and figures as necessary before submitting.
 
 \begin{abstract}
-Music structure analysis is an open research problem in the MIR community. Analyses for However, the problem of how to combine
-How to relate their results both semantically (i.e. informed by musical theory) and temporally (i.e. informed by the timestamps of the structure labels)?
-Also, how to find a representative structure for a corpus of pieces, rather than a single piece?
-Goal: using existing structure analyses, abstract them into a data structure (graph) that combines them. Then, average these graphs into a “centroid” that represents the whole corpus
-
+Music is an innately hierarchical system, comprising semantic levels such as formal structure segmentation, disjoint motif repetition, functional harmonic contour, and melodic contour that are informed by music theory. Historically, researchers in the music information retrieval community have focused on developing analyses for single levels in this hierarchy. Existing research has addressed neither (1) how to combine arbitrarily many levels of structure analyses into a single unified model and (2) how to extract a representative such structure from a corpus of music, rather than a single piece. In this work, we propose a novel data structure called the \textit{semantic temporal graph} that captures both the semantic (i.e. music theoretic) relationships between levels of the hierarchy, as well as the temporal relationships between the elements of adjacent-level analyses. Furthermore, given a corpus of such graphs derived from individual pieces, we introduce a method rooted in stochastic optimization to derive a representative graph encoding the music dataset's overall structure.
+% and evaluate??
 \end{abstract}
+
+
 %
 \section{Introduction}\label{sec:intro}
+Music is both composed and comprehended within a framework of intrinsic hierarchical structure. Automatic identification of musical structure, also known as \textit{music structure analysis}, continues to be a major interest to both musicologists and the MIR community. Research thus far has focused on the automatic contiguous segmentation (both flat and hierarchical) of musical form \cite{msaf, musicaiz, vmo_segmentation, cnmf, 2dfmc, eval_hier, olda, scluster, repetition_grammars_ismir2023, grammars_ismir2014}, the detection of disjoint repeating motifs \cite{Hsiao_2023_motifs, vmo_motifs}, and more recently on harmonic \cite{chen_2019_harmony}, functional harmonic \cite{chen_2018_harmony}, and melodic \cite{salamon_2013_melody, kosta_22_melody, chou2021_melody_midibert} contour extraction. All of these tasks have been proposed in annual competitions of the Music Information Retrieval eXchange (MIREX) \cite{MIREX_2017_form, MIREX_2017_motif, MIREX_2010_harmony}, which provides a standard format for their output. 
 
+To our knowledge, all existing research addresses a single aspect of the compositional hierarchy, such as motif extraction, or melodic contour. There is currently no notion of how reconcile differing levels of the hierarchy in a single, unified model of structure. In this respect, we find that there are two central 
+
+
+\subsection{Our Contributions}
 
 \section{Related work}\label{sec:related_work}
 
