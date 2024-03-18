@@ -29,13 +29,11 @@ O.~Nieto, ``Discovering structure in music: Automatic approaches and perceptual
   \url{https://www.proquest.com/openview/09f67403121bcbc7d2ee431985bf0568/1}
 \BIBentrySTDinterwordspacing
 
-\bibitem{musicaiz}
-\BIBentryALTinterwordspacing
-C.~Hernandez-Olivan and J.~R. Beltran, ``Musicaiz: A python library for
-  symbolic music generation, analysis and visualization,'' \emph{SoftwareX},
-  vol.~22, p. 101365, 2023. [Online]. Available:
-  \url{https://www.sciencedirect.com/science/article/pii/S2352711023000614}
-\BIBentrySTDinterwordspacing
+\bibitem{sf}
+J.~Serrà, M.~Müller, P.~Grosche, and J.~L. Arcos, ``Unsupervised music
+  structure annotation by time series structure features and segment
+  similarity,'' \emph{IEEE Transactions on Multimedia}, vol.~16, no.~5, pp.
+  1229--1240, 2014.
 
 \bibitem{vmo_segmentation}
 \BIBentryALTinterwordspacing
@@ -88,6 +86,14 @@ B.~McFee and D.~Ellis, ``Analyzing song structure with spectral clustering,''
   H.~Wang, Y.~Yang, and J.~H. Lee, Eds., 2014, pp. 405--410. [Online].
   Available:
   \url{http://www.terasoft.com.tw/conf/ismir2014/proceedings/T073\_319\_Paper.pdf}
+\BIBentrySTDinterwordspacing
+
+\bibitem{musicaiz}
+\BIBentryALTinterwordspacing
+C.~Hernandez-Olivan and J.~R. Beltran, ``Musicaiz: A python library for
+  symbolic music generation, analysis and visualization,'' \emph{SoftwareX},
+  vol.~22, p. 101365, 2023. [Online]. Available:
+  \url{https://www.sciencedirect.com/science/article/pii/S2352711023000614}
 \BIBentrySTDinterwordspacing
 
 \bibitem{repetition_grammars_ismir2023}

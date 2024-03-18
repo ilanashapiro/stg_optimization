@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  17 MAR 2024 23:48
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  18 MAR 2024 12:30
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -220,31 +220,33 @@ LaTeX Font Info:    Trying to load font information for T1+phv on input line 83
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
-)
-(./ISMIR2024_template.bbl [1{/usr/local/texlive/2022/texmf-var/fonts/map/pdftex
-/updmap/pdftex.map}
+) [1{/usr/local/texlive/2022/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
 
 
 
- <./figs/cc_by.pdf>]) [2] (./ISMIR2024_template.aux) ) 
+ <./figs/cc_by.pdf>]
+(./ISMIR2024_template.bbl [2]) [3] (./ISMIR2024_template.aux) ) 
 Here is how much of TeX's memory you used:
- 2969 strings out of 478268
- 44470 string characters out of 5846346
- 359428 words of memory out of 5000000
- 21140 multiletter control sequences out of 15000+600000
+ 2970 strings out of 478268
+ 44468 string characters out of 5846346
+ 360432 words of memory out of 5000000
+ 21141 multiletter control sequences out of 15000+600000
  506073 words of font info for 68 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 55i,14n,62p,1139b,407s stack positions out of 10000i,1000n,20000p,200000b,200000s
-{/usr/local/texlive/2022/
-texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/texlive/2022/texmf-dist/font
-s/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/
-urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/tim
-es/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times/utmr8a.
-pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on ISMIR2024_template.pdf (2 pages, 78407 bytes).
+ 55i,14n,62p,1412b,407s stack positions out of 10000i,1000n,20000p,200000b,200000s
+{/usr/local/texl
+ive/2022/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/texlive/2022/texmf-
+dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2022/texmf-d
+ist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2022/texmf-di
+st/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts
+/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/
+urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times/
+utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times/utmri8a.pf
+b>
+Output written on ISMIR2024_template.pdf (3 pages, 98945 bytes).
 PDF statistics:
- 43 PDF objects out of 1000 (max. 8388607)
- 27 compressed objects within 1 object stream
+ 56 PDF objects out of 1000 (max. 8388607)
+ 35 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  6 words of extra memory for PDF output out of 10000 (max. 10000000)
 
