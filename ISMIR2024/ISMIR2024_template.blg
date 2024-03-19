@@ -13,44 +13,44 @@ Database file #1: ISMIRtemplate.bib
 -- See the "IEEEtran_bst_HOWTO.pdf" manual for usage information.
 
 Done.
-You've used 21 entries,
+You've used 25 entries,
             4087 wiz_defined-function locations,
-            955 strings with 13112 characters,
-and the built_in function-call counts, 18155 in all, are:
-= -- 1435
-> -- 519
-< -- 131
-+ -- 270
-- -- 96
-* -- 900
-:= -- 2722
-add.period$ -- 47
-call.type$ -- 21
-change.case$ -- 37
-chr.to.int$ -- 330
-cite$ -- 21
-duplicate$ -- 1213
-empty$ -- 1452
-format.name$ -- 121
-if$ -- 4220
+            978 strings with 14247 characters,
+and the built_in function-call counts, 21474 in all, are:
+= -- 1675
+> -- 635
+< -- 156
++ -- 328
+- -- 119
+* -- 1076
+:= -- 3232
+add.period$ -- 55
+call.type$ -- 25
+change.case$ -- 43
+chr.to.int$ -- 393
+cite$ -- 25
+duplicate$ -- 1432
+empty$ -- 1720
+format.name$ -- 147
+if$ -- 4981
 int.to.chr$ -- 0
-int.to.str$ -- 21
-missing$ -- 236
-newline$ -- 118
-num.names$ -- 37
-pop$ -- 586
+int.to.str$ -- 25
+missing$ -- 283
+newline$ -- 136
+num.names$ -- 43
+pop$ -- 703
 preamble$ -- 1
 purify$ -- 0
 quote$ -- 2
-skip$ -- 1392
+skip$ -- 1633
 stack$ -- 0
-substring$ -- 800
-swap$ -- 1008
-text.length$ -- 21
+substring$ -- 933
+swap$ -- 1185
+text.length$ -- 25
 text.prefix$ -- 0
 top$ -- 5
-type$ -- 21
+type$ -- 25
 warning$ -- 0
-while$ -- 82
-width$ -- 23
-write$ -- 267
+while$ -- 93
+width$ -- 27
+write$ -- 313

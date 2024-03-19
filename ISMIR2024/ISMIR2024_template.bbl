@@ -29,6 +29,12 @@ O.~Nieto, ``Discovering structure in music: Automatic approaches and perceptual
   \url{https://www.proquest.com/openview/09f67403121bcbc7d2ee431985bf0568/1}
 \BIBentrySTDinterwordspacing
 
+\bibitem{checkerboard}
+J.~Foote, ``Automatic audio segmentation using a measure of audio novelty,'' in
+  \emph{2000 IEEE International Conference on Multimedia and Expo. ICME2000.
+  Proceedings. Latest Advances in the Fast Changing World of Multimedia (Cat.
+  No.00TH8532)}, vol.~1, 2000, pp. 452--455 vol.1.
+
 \bibitem{sf}
 J.~Serrà, M.~Müller, P.~Grosche, and J.~L. Arcos, ``Unsupervised music
   structure annotation by time series structure features and segment
@@ -90,10 +96,10 @@ B.~McFee and D.~Ellis, ``Analyzing song structure with spectral clustering,''
 
 \bibitem{musicaiz}
 \BIBentryALTinterwordspacing
-C.~Hernandez-Olivan and J.~R. Beltran, ``Musicaiz: A python library for
-  symbolic music generation, analysis and visualization,'' \emph{SoftwareX},
-  vol.~22, p. 101365, 2023. [Online]. Available:
-  \url{https://www.sciencedirect.com/science/article/pii/S2352711023000614}
+C.~Hernandez{-}Olivan, S.~R. Llamas, and J.~R. Beltr{\'{a}}n, ``Symbolic music
+  structure analysis with graph representations and changepoint detection
+  methods,'' \emph{CoRR}, vol. abs/2303.13881, 2023. [Online]. Available:
+  \url{https://doi.org/10.48550/arXiv.2303.13881}
 \BIBentrySTDinterwordspacing
 
 \bibitem{repetition_grammars_ismir2023}
@@ -107,14 +113,23 @@ C.~Finkensiep, M.~Haeberle, F.~Eisenbrand, M.~Neuwirth, and M.~Rohrmeier,
   \url{https://doi.org/10.5281/zenodo.10265305}
 \BIBentrySTDinterwordspacing
 
-\bibitem{grammars_ismir2014}
+\bibitem{buisson_2022}
 \BIBentryALTinterwordspacing
-K.~A. Sidorov, A.~Jones, and A.~D. Marshall, ``Music analysis as a smallest
-  grammar problem,'' in \emph{Proceedings of the 15th International Society for
-  Music Information Retrieval Conference, {ISMIR} 2014, Taipei, Taiwan, October
-  27-31, 2014}, H.~Wang, Y.~Yang, and J.~H. Lee, Eds., 2014, pp. 301--306.
-  [Online]. Available:
-  \url{http://www.terasoft.com.tw/conf/ismir2014/proceedings/T055\_226\_Paper.pdf}
+M.~Buisson, B.~McFee, S.~Essid, and H.~C. Crayencour, ``Learning multi-level
+  representations for hierarchical music structure analysis.'' in
+  \emph{Proceedings of the 23rd International Society for Music Information
+  Retrieval Conference, {ISMIR} 2022, Bengaluru, India, December 4-8, 2022},
+  P.~Rao, H.~A. Murthy, A.~Srinivasamurthy, R.~M. Bittner, R.~C. Repetto,
+  M.~Goto, X.~Serra, and M.~Miron, Eds., 2022, pp. 591--597. [Online].
+  Available: \url{https://archives.ismir.net/ismir2022/paper/000071.pdf}
+\BIBentrySTDinterwordspacing
+
+\bibitem{cmu_dannenberg_2020}
+\BIBentryALTinterwordspacing
+S.~Dai, H.~Zhang, and R.~B. Dannenberg, ``Automatic analysis and influence of
+  hierarchical structure on melody, rhythm and harmony in popular music,''
+  \emph{CoRR}, vol. abs/2010.07518, 2020. [Online]. Available:
+  \url{https://arxiv.org/abs/2010.07518}
 \BIBentrySTDinterwordspacing
 
 \bibitem{Hsiao_2023_motifs}
@@ -193,6 +208,24 @@ T.~Collins. (2017) {Discovery of Repeated Themes \& Sections}. Music
 Sutashu. (2010) {Harmonic Analysis}. Music Information Retrieval Evaluation
   eXchange (MIREX). [Online]. Available:
   \url{https://www.music-ir.org/mirex/wiki/2010:Harmonic_Analysis}
+\BIBentrySTDinterwordspacing
+
+\bibitem{wang_2021}
+\BIBentryALTinterwordspacing
+J.~Wang, J.~B.~L. Smith, W.~T. Lu, and X.~Song, ``Supervised metric learning
+  for music structure features,'' in \emph{Proceedings of the 22nd
+  International Society for Music Information Retrieval Conference, {ISMIR}
+  2021, Online, November 7-12, 2021}, J.~H. Lee, A.~Lerch, Z.~Duan, J.~Nam,
+  P.~Rao, P.~van Kranenburg, and A.~Srinivasamurthy, Eds., 2021, pp. 730--737.
+  [Online]. Available:
+  \url{https://archives.ismir.net/ismir2021/paper/000091.pdf}
+\BIBentrySTDinterwordspacing
+
+\bibitem{mccallum_2021}
+\BIBentryALTinterwordspacing
+M.~C. McCallum, ``Unsupervised learning of deep features for music
+  segmentation,'' \emph{CoRR}, vol. abs/2108.12955, 2021. [Online]. Available:
+  \url{https://arxiv.org/abs/2108.12955}
 \BIBentrySTDinterwordspacing
 
 \end{thebibliography}

@@ -16,4 +16,7 @@ def segment_audio_MSAF():
 	print('Saving output to %s' % out_file)
 	msaf.io.write_mirex_hierarchical(boundaries, labels, out_file)
 
-segment_audio_MSAF()
+# segment_audio_MSAF()
+	
+print(msaf.get_all_boundary_algorithms())
+print(msaf.get_all_label_algorithms())
