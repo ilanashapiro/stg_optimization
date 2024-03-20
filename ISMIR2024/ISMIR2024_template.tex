@@ -94,13 +94,13 @@ Music is an innately hierarchical system, comprising multiple semantic levels in
 \section{Introduction}\label{sec:intro}
 Music is both composed and comprehended with a hierarchical organization. Individual notes constitute the bottom of the hierarchy, followed by harmony, rhythmic patterns, motives, phrases, and finally large scale sections. Together, this hierarchy defines the overall structure of a piece \cite{msaf}.
 
-Automatic identification of musical structure, also known as \textit{music structure analysis} (MSA), continues to be a major interest to both musicologists and the MIR community. Research thus far has focused on the automatic contiguous segmentation (both flat and hierarchical) of musical form \cite{msaf, checkerboard, sf, vmo_segmentation, cnmf, 2dfmc, eval_hier, olda, scluster, musicaiz, repetition_grammars_ismir2023, buisson_2022, cmu_dannenberg_2020}, which involves a boundary detection step followed by a segment labeling step, as well as motif detection \cite{Hsiao_2023_motifs, vmo_motifs}, which looks for disjoint repeating musical patterns. More recently, researchers have also developed avenues for harmonic \cite{chen_2019_harmony}, functional harmonic \cite{chen_2018_harmony}, and melodic \cite{salamon_2013_melody, kosta_22_melody, chou2021_melody_midibert} contour extraction. The techniques used are diverse, ranging from matrix factorization to deep learning in both supervised and unsupervised settings. All of these tasks have been proposed in annual competitions of the Music Information Retrieval eXchange (MIREX) \cite{MIREX_2017_form, MIREX_2017_motif, MIREX_2010_harmony}, which provides a standard format for their outputs. 
+Automatic identification of musical structure, also known as \textit{music structure analysis} (MSA), continues to be a major interest to both musicologists and the MIR community. Research thus far has focused on the automatic contiguous segmentation (both flat and hierarchical) of musical form \cite{msaf, checkerboard, sf, vmo_segmentation, cnmf, 2dfmc, eval_hier, olda, scluster, musicaiz, repetition_grammars_ismir2023, buisson_2022, cmu_dannenberg_2020}, which involves a boundary detection step followed by a segment labeling step, as well as motif detection \cite{Hsiao_2023_motifs, vmo_motifs, features_motifs}, which looks for disjoint repeating musical patterns. More recently, researchers have also developed avenues for harmonic \cite{chen_2019_harmony}, functional harmonic \cite{chen_2018_harmony}, and melodic \cite{salamon_2013_melody, kosta_22_melody, midibert} contour extraction. The techniques used are diverse, ranging from matrix factorization to deep learning in both supervised and unsupervised settings. All of these tasks have been proposed in annual competitions of the Music Information Retrieval eXchange (MIREX) \cite{MIREX_2017_form, MIREX_2017_motif, MIREX_2010_harmony}, which provides a standard format for their outputs. 
 
 To our knowledge, all existing MSA research addresses a single aspect of the compositional hierarchy, such as motif extraction, or melodic contour. There is currently no notion of how reconcile differing levels of the hierarchy into a single, unified model of structure, even though their amalgamation is central to a piece's compositional architecture and cohesive integrity. In identifying the critical components necessary for integrating the hierarchical levels, we find that there are two central challenges: how to convey each level's semantic, music theoretic level in the hierarchy, and how to encapsulate the temporal relationships between the results of structural analyses at adjacent hierarchical levels. 
 
 Furthermore, prior MSA research has only addressed the problem of identifying structure in a single piece, and there is presently no methodology for describing the overall structure of a musical corpus, even across existing single-level analyses. The one exception is Oriol Nieto's proposed technique for merging multiple segment boundary annotations \cite{msaf}, but this is intended to be used with multiple boundary detection algorithms over a single piece to alleviate the problem of subjectivity, and does not address the problem of reconciling differing labels.  
 
-To address the first gap, in Section \ref{sec:representation}, we develop the notion of a \textit{semantic temporal graph} (STG), a k-partite directed acyclic graph (DAG) where semantic, music theoretic levels of the compositional hierarchy are represented as levels in the k-partite structure, nodes represent structure labels that are the results of the relevant analysis at each level, and edges between nodes of adjacent levels convey the temporal relationships between those structure labels. Each node has an associated time interval determined by the relevant MSA algorithm. A node must have one or two parents at the level above it: one if its associated time interval is a total subset of its parents, and two if its time interval begins in one parent and ends in the other. In order to easily parse the results of MSA algorithms into this data structure, the standard MIREX format is adhered to. 
+To address the first gap, in Section \ref{sec:representation}, we develop the notion of a \textit{semantic temporal graph} (STG), a k-partite directed acyclic graph (DAG) where semantic, music theoretic levels of the compositional hierarchy are represented as levels in the k-partite structure, nodes represent structure labels that are the results of the relevant analysis at each level, and edges between nodes of adjacent levels convey the temporal relationships between those structure labels. Each node has an associated time interval determined by the relevant MSA algorithm. A node must have one or two parents at the level above it: one if its associated time interval is a total subset of its parents, and two if its time interval begins in one parent and ends in the other. In order to easily parse the results of MSA algorithms into this data structure, the standard MIREX format is adhered to.
 
 Importantly, the STG is incredibly flexible, and supports the representation of arbitrarily many layers and layer types. Furthermore, the STG is totally decoupled from any specific MSA algorithm or input format, meaning that the chosen MSA algorithm for any level can be easily swapped out, as long as its output adheres to the standard MIREX format. This is crucial as single-level MSA algorithms are constantly improving, and the STG must be adaptable enough to accommodate this.
 
@@ -113,22 +113,33 @@ The majority of existing MSA algorithms focus on the contiguous formal segmentat
 
 More recently, both supervised \cite{wang_2021} and unsupervised \cite{mccallum_2021, buisson_2022} deep learning approaches to segmentation have studied, as have graph- and grammar-based approaches. Hernandez-Olivan et al. use the graph-based G-PELT algorithm \cite{musicaiz}, while Dai et al. employ a graph-based approach informed by interactions between sections, melody, harmony and rhythm \cite{cmu_dannenberg_2020}. In the grammar realm, Finkensiep et al. attempt a unified model of structure by using a minimal context-free grammar to combine repetition with formal prototypes in a tree-based approach, but they still only operate within the contiguous segmentation domain \cite{repetition_grammars_ismir2023}. 
 
-MSA algorithms also extend to motif detection, harmonic analysis, and melody extraction. Motif extraction algorithms, which search for disjoint, repeating, and possibly overlapping patterns in a piece, generally fall into three categories: string-based approaches, where music data is represented as a one-dimensional pitch sequence repeated patterns are detected with sub-string matching; geometry-based approaches, which represents music data as multidimensional point sets
+In the motif extraction domain, algorithms search for disjoint, repeating, and possibly overlapping patterns in a piece. They generally fall into three categories: string-based approaches (e.g. the Variable Markov Oracle \cite{vmo_motifs}), where music data is represented as a one-dimensional pitch sequence and repeated patterns are detected with sub-string matching; geometry-based approaches (e.g. Hsiao et al's BPS-motif discovery algorithm \cite{Hsiao_2023_motifs}), where music data is represented as multidimensional point sets and \textit{translatable subsets} identify repeating patterns; and feature-based (e.g. \cite{features_motifs}) approaches, which learn features from music data, and retrieve patterns with clustering or classification of the features as repeated patterns.
+%The Variable Markov Oracle offers a quality string-based approach \cite{vmo_motifs}, although our experiments reveal that it struggles to detect motifs of length $>2$.  
 
-, where music data is represented as multidimensional point sets \cite{Hsiao_2023_motifs}, as well as with string-based methods, such as 
-by the Variable Markov Oracle, which uses a  string-based method in which input features are symbolized and
-repeated suffixes are located within the time series \cite{motifs}.
+Recent approaches in harmony identification are centered around neural networks, such as using multi-task
+learning with recurrent neural networks and long short term memory units to detect functional harmonic relationships in a piece \cite{chen_2018_harmony}, as well as developing transformer models to improve chord recognition through incorporating chord segmentation into the recognition process \cite{chen_2019_harmony}. Until very recently, Justin Salamon's Melodia algorithm was the state of the art in melody extraction. It comprises sinusoid extraction, salience functions, contour creation, and melody selection, and automatically estimates the fundamental frequency corresponding to the pitch of the predominant melodic line of a piece of polyphonic music. Since then, approaches have shifted to neural networks, such as lightweight deep bidirectional
+LSTM models \cite{kosta_22_melody} and transformers \cite{midibert}.
 
-harmony (NN)
+To our knowledge, little work has been done in developing a unified model of structure for either a single piece or across a corpus. The closest we are aware of is Halley Young's \textit{prototype graph}, a bipartite graph that represents musical form as a network of relationships between ``prototype nodes" (specific musical elements) and the music they represent, as well as the music-theoretic relationships between musical spans and their respective nodes \cite{young_2022}. However, the prototype graph does not encode hierarchy, and it is limited to a single piece.
 
-melody (salamon paper + NN approaches)
-
-As for a model unifying 
-prototype graph
 
 \section{Formats and Parsing}\label{sec:formats}
 \subsection{MIREX Standard Formats} \label{subsec:MIREX}
+In this paper, we build STGs comprising hierarchical segmentation and disjoint motif pattern repetitions, with plans to add layers for functional harmony and melody in the future. Thus, in this section we discuss the standard MIREX formats for the segmentation and pattern detection problems, and detail how we parse these formats into appropriate representations for the STG. 
 \subsection{Parsing} \label{subsec:parsing}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{form_parse}
+  \caption{Parsing of Formal Segmentation}
+  \label{fig:form_parse}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\linewidth]{motif_parse}
+  \caption{Parsing of Motifs}
+  \label{fig:motif_parse}
+\end{figure}
 
 \section{Abstract Representation}\label{sec:representation}
 

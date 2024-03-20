@@ -42,14 +42,9 @@ J.~Serrà, M.~Müller, P.~Grosche, and J.~L. Arcos, ``Unsupervised music
   1229--1240, 2014.
 
 \bibitem{vmo_segmentation}
-\BIBentryALTinterwordspacing
-C.~Wang, J.~Hsu, and S.~Dubnov, ``Music pattern discovery with variable markov
-  oracle: {A} unified approach to symbolic and audio representations,'' in
-  \emph{Proceedings of the 16th International Society for Music Information
-  Retrieval Conference, {ISMIR} 2015, M{\'{a}}laga, Spain, October 26-30,
-  2015}, M.~M{\"{u}}ller and F.~Wiering, Eds., 2015, pp. 176--182. [Online].
-  Available: \url{http://ismir2015.uma.es/articles/78\_Paper.pdf}
-\BIBentrySTDinterwordspacing
+C.-i. Wang and G.~J. Mysore, ``Structural segmentation with the variable markov
+  oracle and boundary adjustment,'' in \emph{2016 IEEE International Conference
+  on Acoustics, Speech and Signal Processing (ICASSP)}, 2016, pp. 291--295.
 
 \bibitem{cnmf}
 \BIBentryALTinterwordspacing
@@ -144,9 +139,22 @@ Y.~Hsiao, T.~Hung, T.~Chen, and L.~Su, ``Bps-motif: {A} dataset for repeated
 \BIBentrySTDinterwordspacing
 
 \bibitem{vmo_motifs}
-C.-i. Wang and G.~J. Mysore, ``Structural segmentation with the variable markov
-  oracle and boundary adjustment,'' in \emph{2016 IEEE International Conference
-  on Acoustics, Speech and Signal Processing (ICASSP)}, 2016, pp. 291--295.
+\BIBentryALTinterwordspacing
+C.~Wang, J.~Hsu, and S.~Dubnov, ``Music pattern discovery with variable markov
+  oracle: {A} unified approach to symbolic and audio representations,'' in
+  \emph{Proceedings of the 16th International Society for Music Information
+  Retrieval Conference, {ISMIR} 2015, M{\'{a}}laga, Spain, October 26-30,
+  2015}, M.~M{\"{u}}ller and F.~Wiering, Eds., 2015, pp. 176--182. [Online].
+  Available: \url{http://ismir2015.uma.es/articles/78\_Paper.pdf}
+\BIBentrySTDinterwordspacing
+
+\bibitem{features_motifs}
+\BIBentryALTinterwordspacing
+G.~Velarde, D.~Meredith, and T.~Weyde, \emph{A Wavelet-Based Approach to
+  Pattern Discovery in Melodies}.\hskip 1em plus 0.5em minus 0.4em\relax Cham:
+  Springer International Publishing, 2016, pp. 303--333. [Online]. Available:
+  \url{https://doi.org/10.1007/978-3-319-25931-4_12}
+\BIBentrySTDinterwordspacing
 
 \bibitem{chen_2019_harmony}
 \BIBentryALTinterwordspacing
@@ -183,11 +191,6 @@ K.~Kosta, W.~T. Lu, G.~Medeot, and P.~Chanquion, ``A deep learning method for
   M.~Goto, X.~Serra, and M.~Miron, Eds., 2022, pp. 757--763. [Online].
   Available: \url{https://archives.ismir.net/ismir2022/paper/000091.pdf}
 \BIBentrySTDinterwordspacing
-
-\bibitem{chou2021_melody_midibert}
-Y.-H. Chou, I.-C. Chen, C.-J. Chang, J.~Ching, and Y.-H. Yang,
-  ``Midibert-piano: Large-scale pre-training for symbolic music
-  understanding,'' 2021.
 
 \bibitem{MIREX_2017_form}
 \BIBentryALTinterwordspacing
@@ -226,6 +229,22 @@ J.~Wang, J.~B.~L. Smith, W.~T. Lu, and X.~Song, ``Supervised metric learning
 M.~C. McCallum, ``Unsupervised learning of deep features for music
   segmentation,'' \emph{CoRR}, vol. abs/2108.12955, 2021. [Online]. Available:
   \url{https://arxiv.org/abs/2108.12955}
+\BIBentrySTDinterwordspacing
+
+\bibitem{midibert}
+Y.-H. Chou, I.-C. Chen, C.-J. Chang, J.~Ching, and Y.-H. Yang,
+  ``Midibert-piano: Large-scale pre-training for symbolic music
+  understanding,'' 2021.
+
+\bibitem{young_2022}
+\BIBentryALTinterwordspacing
+H.~Young, M.~Du, and O.~Bastani, ``Neurosymbolic deep generative models for
+  sequence data with relational constraints,'' in \emph{Advances in Neural
+  Information Processing Systems}, S.~Koyejo, S.~Mohamed, A.~Agarwal,
+  D.~Belgrave, K.~Cho, and A.~Oh, Eds., vol.~35.\hskip 1em plus 0.5em minus
+  0.4em\relax Curran Associates, Inc., 2022, pp. 37\,254--37\,266. [Online].
+  Available:
+  \url{https://proceedings.neurips.cc/paper_files/paper/2022/file/f13ceb1b94145aad0e54186373cc86d7-Paper-Conference.pdf}
 \BIBentrySTDinterwordspacing
 
 \end{thebibliography}
