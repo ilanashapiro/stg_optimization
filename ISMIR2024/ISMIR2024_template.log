@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  20 MAR 2024 00:49
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  20 MAR 2024 17:57
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -129,25 +129,58 @@ File: color.cfg 2016/01/02 v1.6 sample color configuration
 )
 Package color Info: Driver file: pdftex.def on input line 149.
 )
+(/usr/local/texlive/2022/texmf-dist/tex/latex/listings/listings.sty
+\lst@mode=\count271
+\lst@gtempboxa=\box52
+\lst@token=\toks24
+\lst@length=\count272
+\lst@currlwidth=\dimen150
+\lst@column=\count273
+\lst@pos=\count274
+\lst@lostspace=\dimen151
+\lst@width=\dimen152
+\lst@newlines=\count275
+\lst@lineno=\count276
+\lst@maxwidth=\dimen153
+
+(/usr/local/texlive/2022/texmf-dist/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2020/03/24 1.8d (Carsten Heinz)
+\c@lstnumber=\count277
+\lst@skipnumbers=\count278
+\lst@framebox=\box53
+)
+(/usr/local/texlive/2022/texmf-dist/tex/latex/listings/listings.cfg
+File: listings.cfg 2020/03/24 1.8d listings configuration
+))
+Package: listings 2020/03/24 1.8d (Carsten Heinz)
+
+(/usr/local/texlive/2022/texmf-dist/tex/latex/float/float.sty
+Package: float 2001/11/08 v1.3d Float enhancements (AL)
+\c@float@type=\count279
+\float@exts=\toks25
+\float@box=\box54
+\@float@everytoks=\toks26
+\@floatcapt=\box55
+)
 (/usr/local/texlive/2022/texmf-dist/tex/latex/lineno/lineno.sty
 Package: lineno 2005/11/02 line numbers on paragraphs v4.41
-\linenopenalty=\count271
-\output=\toks24
-\linenoprevgraf=\count272
-\linenumbersep=\dimen150
-\linenumberwidth=\dimen151
-\c@linenumber=\count273
-\c@pagewiselinenumber=\count274
-\c@LN@truepage=\count275
-\c@internallinenumber=\count276
-\c@internallinenumbers=\count277
-\quotelinenumbersep=\dimen152
-\bframerule=\dimen153
-\bframesep=\dimen154
-\bframebox=\box52
+\linenopenalty=\count280
+\output=\toks27
+\linenoprevgraf=\count281
+\linenumbersep=\dimen154
+\linenumberwidth=\dimen155
+\c@linenumber=\count282
+\c@pagewiselinenumber=\count283
+\c@LN@truepage=\count284
+\c@internallinenumber=\count285
+\c@internallinenumbers=\count286
+\quotelinenumbersep=\dimen156
+\bframerule=\dimen157
+\bframesep=\dimen158
+\bframebox=\box56
 LaTeX Info: Redefining \\ on input line 3056.
 )
-LaTeX Font Info:    Trying to load font information for T1+ptm on input line 78
+LaTeX Font Info:    Trying to load font information for T1+ptm on input line 88
 .
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1ptm.fd
@@ -155,43 +188,40 @@ File: t1ptm.fd 2001/06/04 font definitions for T1/ptm.
 )
 (/usr/local/texlive/2022/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def
 File: l3backend-pdftex.def 2022-02-07 L3 backend support: PDF output (pdfTeX)
-\l__color_backend_stack_int=\count278
-\l__pdf_internal_box=\box53
+\l__color_backend_stack_int=\count287
+\l__pdf_internal_box=\box57
 )
-(./ISMIR2024_template.aux
-
-LaTeX Warning: Label `fig:probe' multiply defined.
-
-)
+(./ISMIR2024_template.aux)
 \openout1 = `ISMIR2024_template.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 78.
-LaTeX Font Info:    ... okay on input line 78.
- (/usr/local/texlive/2022/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 88.
+LaTeX Font Info:    ... okay on input line 88.
+
+(/usr/local/texlive/2022/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count279
-\scratchdimen=\dimen155
-\scratchbox=\box54
-\nofMPsegments=\count280
-\nofMParguments=\count281
-\everyMPshowfont=\toks25
-\MPscratchCnt=\count282
-\MPscratchDim=\dimen156
-\MPnumerator=\count283
-\makeMPintoPDFobject=\count284
-\everyMPtoPDFconversion=\toks26
+\scratchcounter=\count288
+\scratchdimen=\dimen159
+\scratchbox=\box58
+\nofMPsegments=\count289
+\nofMParguments=\count290
+\everyMPshowfont=\toks28
+\MPscratchCnt=\count291
+\MPscratchDim=\dimen160
+\MPnumerator=\count292
+\makeMPintoPDFobject=\count293
+\everyMPtoPDFconversion=\toks29
 ) (/usr/local/texlive/2022/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
 Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
@@ -201,7 +231,8 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-LaTeX Font Info:    Trying to load font information for T1+pcr on input line 81
+\c@lstlisting=\count294
+LaTeX Font Info:    Trying to load font information for T1+pcr on input line 91
 .
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1pcr.fd
@@ -210,21 +241,21 @@ File: t1pcr.fd 2001/06/04 font definitions for T1/pcr.
 <figs/cc_by.pdf, id=1, 121.45375pt x 43.16125pt>
 File: figs/cc_by.pdf Graphic file (type pdf)
 <use figs/cc_by.pdf>
-Package pdftex.def Info: figs/cc_by.pdf  used on input line 81.
+Package pdftex.def Info: figs/cc_by.pdf  used on input line 91.
 (pdftex.def)             Requested size: 36.02869pt x 12.80365pt.
-LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 8
+LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 9
 1.
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-LaTeX Font Info:    Trying to load font information for T1+phv on input line 87
+LaTeX Font Info:    Trying to load font information for T1+phv on input line 97
 .
 
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
 )
-Underfull \hbox (badness 1831) in paragraph at lines 97--98
+Underfull \hbox (badness 1831) in paragraph at lines 107--108
 []\T1/ptm/m/n/10 Automatic iden-ti-fi-ca-tion of mu-si-cal struc-ture, also
  []
 
@@ -232,25 +263,31 @@ Underfull \hbox (badness 1831) in paragraph at lines 97--98
 
 
 
- <./figs/cc_by.pdf>]
-<form_parse.png, id=18, 828.09375pt x 366.36874pt>
-File: form_parse.png Graphic file (type png)
-<use form_parse.png>
-Package pdftex.def Info: form_parse.png  used on input line 132.
-(pdftex.def)             Requested size: 233.31259pt x 103.21983pt.
-
-
-LaTeX Warning: `h' float specifier changed to `ht'.
-
-<motif_parse.png, id=20, 811.03pt x 448.67625pt>
-File: motif_parse.png Graphic file (type png)
-<use motif_parse.png>
-Package pdftex.def Info: motif_parse.png  used on input line 139.
+ <./figs/cc_by.pdf>] [2]
+<figs/form_parse.png, id=22, 845.1575pt x 405.515pt>
+File: figs/form_parse.png Graphic file (type png)
+<use figs/form_parse.png>
+Package pdftex.def Info: figs/form_parse.png  used on input line 184.
+(pdftex.def)             Requested size: 233.31259pt x 111.947pt.
+<figs/motif_parse.png, id=24, 811.03pt x 448.67625pt>
+File: figs/motif_parse.png Graphic file (type png)
+<use figs/motif_parse.png>
+Package pdftex.def Info: figs/motif_parse.png  used on input line 193.
 (pdftex.def)             Requested size: 233.31259pt x 129.07214pt.
+<figs/stg_example.png, id=25, 155.58125pt x 123.46124pt>
+File: figs/stg_example.png Graphic file (type png)
+<use figs/stg_example.png>
+Package pdftex.def Info: figs/stg_example.png  used on input line 204.
+(pdftex.def)             Requested size: 104.98994pt x 83.31577pt.
+
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-(./ISMIR2024_template.bbl [2] [3 <./form_parse.png> <./motif_parse.png>]
+(./ISMIR2024_template.bbl
+Underfull \vbox (badness 3635) has occurred while \output is active []
+
+ [3 <./figs/form_parse.png> <./figs/motif_parse.png>] [4 <./figs/stg_example.pn
+g>]
 Underfull \hbox (badness 10000) in paragraph at lines 241--249
 \T1/ptm/m/n/10 / / proceedings . neurips . cc / paper _ ^^\les / paper / 2022 /
  ^^\le /
@@ -261,31 +298,32 @@ Overfull \hbox (14.76639pt too wide) in paragraph at lines 241--249
 \T1/ptm/m/n/10 f13ceb1b94145aad0e54186373cc86d7-[]Paper-[]Conference .
  []
 
-) [4] (./ISMIR2024_template.aux)
+) [5] (./ISMIR2024_template.aux)
 
-LaTeX Warning: There were multiply-defined labels.
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
  ) 
 Here is how much of TeX's memory you used:
- 3000 strings out of 478268
- 44976 string characters out of 5846346
- 360169 words of memory out of 5000000
- 21170 multiletter control sequences out of 15000+600000
- 506073 words of font info for 68 fonts, out of 8000000 for 9000
+ 4712 strings out of 478268
+ 68297 string characters out of 5846346
+ 416579 words of memory out of 5000000
+ 22860 multiletter control sequences out of 15000+600000
+ 510494 words of font info for 73 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 55i,14n,62p,1313b,407s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 55i,14n,62p,1313b,1119s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/te
-xlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/tex
-live/2022/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/202
-2/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/texmf
--dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/font
-s/type1/urw/times/utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/ur
-w/times/utmri8a.pfb>
-Output written on ISMIR2024_template.pdf (4 pages, 553950 bytes).
+xlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texl
+ive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texli
+ve/2022/texmf-dist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2022/
+texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/texmf-d
+ist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/
+type1/urw/times/utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/
+times/utmri8a.pfb>
+Output written on ISMIR2024_template.pdf (5 pages, 604596 bytes).
 PDF statistics:
- 64 PDF objects out of 1000 (max. 8388607)
- 38 compressed objects within 1 object stream
+ 74 PDF objects out of 1000 (max. 8388607)
+ 43 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 16 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 21 words of extra memory for PDF output out of 10000 (max. 10000000)
 
