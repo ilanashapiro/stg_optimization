@@ -110,13 +110,13 @@ To our knowledge, all existing MSA research addresses a single aspect of the com
 
 Furthermore, prior MSA research has only addressed the problem of identifying structure in a single piece, and there is presently no methodology for describing the overall structure of a musical corpus, even across existing single-level analyses. The one exception is Oriol Nieto's proposed technique for merging multiple segment boundary annotations \cite{msaf}, but this is intended to be used with multiple boundary detection algorithms over a single piece to alleviate the problem of subjectivity, and does not address the problem of reconciling differing labels.  
 
+\subsection{Contributions}\label{subsec:contributions}
+
 To address the first gap, in Section \ref{sec:representation}, we develop the notion of a \textit{semantic temporal graph} (STG), a $k$-partite directed acyclic graph (DAG) where semantic, music theoretic levels of the compositional hierarchy are represented as levels in the $k$-partite structure, nodes represent structure labels that are the results of the relevant analysis at each level, and edges between nodes of adjacent levels convey the temporal relationships between those structure labels. Each node has an associated time interval determined by the relevant MSA algorithm. A node must have one or two parents at the level above it: one if its associated time interval is a total subset of its parents, and two if its time interval begins in one parent and ends in the other. In order to easily parse the results of MSA algorithms into this data structure, the standard MIREX format is adhered to.
 
 Importantly, the STG is incredibly flexible, and supports the representation of arbitrarily many layers and layer types. Furthermore, the STG is totally decoupled from any specific MSA algorithm or input format, meaning that the chosen MSA algorithm for any level can be easily swapped out, as long as its output adheres to the standard MIREX format. This is crucial as single-level MSA algorithms are constantly improving, and the STG must be adaptable enough to accommodate this.
 
-Finally, to address the second gap, in Section \ref{sec:synthesis} we examine the problem of finding a \textit{centroid}, or most representative, graph given a corpus of the k-partite semantic temporal DAGs derived from individual pieces. We use the label-aware graph edit distance as the similarity metric between two graphs. Given such a set of graphs $G$, we seek to construct the STG $g*$ that minimizes this distance from $g*$ to every graph in $G$. This is a constraint satisfaction problem, but one that is intractable to solve deterministically. Thus, we must rely on approximation techniques, and utilize Markov Chain Monte Carlo methods, demonstrating how to use the Metropolis Hastings algorithm to infer an optimal solution and thus arrive at the centroid graph most descriptive of the entire corpus by construction. 
-
-
+Finally, to address the second gap, in Section \ref{sec:synthesis} we examine the problem of finding a \textit{centroid}, or most representative, graph given a corpus of the k-partite semantic temporal DAGs derived from individual pieces. We use the label-aware graph edit distance as the similarity metric between two graphs. Given such a set of graphs $G$, we seek to construct the STG $g*$ that minimizes this distance from $g*$ to every graph in $G$. This is a constraint satisfaction problem, but one that is intractable to solve deterministically. Thus, we must rely on approximation techniques, and utilize Markov Chain Monte Carlo methods, demonstrating how to use the Metropolis Hastings algorithm to infer an optimal solution and thus arrive at the centroid graph most descriptive of the entire corpus by construction.\footnote{Source code for this project can be found at https://github.com/ilanashapiro/constraints\_project}
 
 \section{Related work}\label{sec:related_work}
 The majority of existing MSA algorithms focus on the contiguous formal segmentation task: boundary detection, followed by section labeling. Segmentation algorithms can be flat or hierarchical (where each level is an increasingly granular contiguous segmentation of the piece). Existing approaches generally utilize matrix factorization, formal grammars, or more recently, neural networks. Oriol Nieto's Music Structure Analysis Framework (MSAF) toolkit \cite{msaf} features most of the state-of-the art matrix factorization approaches for audio, including ordinal linear discriminant analysis \cite{olda}, convex nonnegative matrix factorization \cite{cnmf}, checkerboard \cite{checkerboard}, spectral clustering \cite{scluster}, the Structural Features algorithm \cite{sf}, 2D-Fourier Magnitude Coefficients \cite{2dfmc}, and the Variable Markov Oracle \cite{vmo_segmentation}. These methods use variants of self-similarity matrices (SSMs) for boundary detection, which are symmetric matrices storing pair-wise comparisons between a given set of features. To assign labels, various methods including Gaussian mixture models and nearest neighbor search are employed \cite{msaf}. 
@@ -180,7 +180,7 @@ occurrencem
 
 Given these standard MIREX formats, we must parse this data into a format suitable for the STG. Each ``chunk" of the data, separated by a newline, forms a level in the STG, and each line in a chunk corresponds to a node. Consider Figure \ref{fig:form_parse}, which demonstrates the parsing process for a segmentation hierarchy with two levels. We start with the MIREX segmentation output in step 1. In step 2, we number each segmentation level (i.e. text chunk) and extract the segment label and time interval from each line. This gives us the preliminary node label \textbf{S}\{segment label\}\textbf{L}\{segment level number\}\textbf{I}\{time interval\}. Finally, in step 3, we transform each time interval into an index representing that line's position in the level, sorted by interval start time. In the case of segmentation, this matches the line order in the MIREX output. We now have the final segmentation node label \textbf{S}\{segment label\}\textbf{L}\{segment level number\}\textbf{N}\{label index within level\}. 
 
-\begin{figure}[H]
+\begin{figure}[h!]
   \centering
   \includegraphics[width=\linewidth]{figs/form_parse}
   \caption{Parsing Formal Segmentation}
@@ -189,7 +189,7 @@ Given these standard MIREX formats, we must parse this data into a format suitab
 
 We repeat this process for motifs as in Figure \ref{fig:motif_parse}. Motif analyses are single level, i.e. they do not output sub-hierarchies like segmentation can do. Consider the MIREX motif output in step 1. Each pattern (i.e. motif) occurrence's time interval is defined as the ontime of its first note to its last, and we extract pattern and occurrence numbers in step 2 to arrive at the preliminary node label \textbf{P}\{pattern number\}\textbf{O}\{occurrence number\}\textbf{I}\{time interval\}. We then order the preliminary labels by start time, as unlike in segmentation, pattern occurrences are not ordered chronologically in MIREX format. We then assign indices to this ordering to arrive at the final motif node label \textbf{P}\{pattern number\}\textbf{O}\{occurrence number\}\textbf{N}\{chronologic occurrence index\}. This is reflected in step 3, where occurrence 2 of pattern 1 is assigned index 3 instead of 2. 
 
-\begin{figure}[H]
+\begin{figure}[h!]
   \centering
   \includegraphics[width=\linewidth]{figs/motif_parse}
   \caption{Parsing Motifs}
@@ -201,7 +201,7 @@ In all cases, the time interval is stored as node metadata, and determines what 
 \subsection{STG Examples}\label{subsec:stg_ex}
 
 In the following examples, we use hierarchical spectral clustering from the MSAF toolkit for segmentation \cite{msaf, scluster}, and Hsiao et al's BPS-motif discovery algorithm for motifs \cite{Hsiao_2023_motifs}. To better visualize the STG's structure, first consider the following subgraph taken from an STG generated for the first movement exposition of the piano transcription of Beethoven's Symphony No. 1, Op. 21 in Figure \ref{fig:stg_ex}.\footnote{MIDI file is from the LOP database, which can be found here: https://qsdfo.github.io/LOP/database} The nodes are taken from levels 4 and 5 of the segmentation sub-hierarchy.
-\begin{figure}[H]
+\begin{figure}[h!]
   \centering
   \includegraphics[width=0.45\linewidth]{figs/stg_example}
   \caption{STG Subgraph Example}
@@ -209,14 +209,12 @@ In the following examples, we use hierarchical spectral clustering from the MSAF
 \end{figure}
 Node S3L5N2’s time interval is a total subset of S1L4N2's, while S0L5N1’s time interval starts in S0L4N1’s, but ends in S2L4N2’s. The entire STG generated for this piece, unifying hierarchical formal segmentation with disjoint motif detection, is shown in Figure \ref{fig:stg_full}. The segmentation nodes are easily visible, and the motif nodes form the crowded bottom layer.
 
-\begin{figure}[H]
+\begin{figure}[h!]
   \centering
   \includegraphics[width=\linewidth]{figs/stg_full}
   \caption{STG Subgraph Example}
   \label{fig:stg_full}
 \end{figure}
-
-
 
 \section{Synthesis}\label{sec:synthesis}
 \subsection{Distance Metric}\label{subsec:dist_metric}
