@@ -104,7 +104,7 @@ Music is an innately hierarchical system, comprising multiple semantic levels in
 \section{Introduction}\label{sec:intro}
 Music is both composed and comprehended with a hierarchical organization. Individual notes constitute the bottom of the hierarchy, followed by harmony, rhythmic patterns, motives, phrases, and finally large scale sections. Together, this hierarchy defines the overall structure of a piece \cite{msaf}.
 
-Automatic identification of musical structure, also known as \textit{music structure analysis} (MSA), continues to be a major interest to both musicologists and the MIR community. Research thus far has focused on the automatic contiguous segmentation (both flat and hierarchical) of musical form \cite{msaf, checkerboard, sf, vmo_segmentation, cnmf, 2dfmc, eval_hier, olda, scluster, musicaiz, repetition_grammars_ismir2023, buisson_2022, cmu_dannenberg_2020}, which involves a boundary detection step followed by a segment labeling step, as well as motif detection \cite{Hsiao_2023_motifs, vmo_motifs, features_motifs}, which looks for disjoint repeating musical patterns. More recently, researchers have also developed avenues for harmonic \cite{chen_2019_harmony}, functional harmonic \cite{chen_2018_harmony}, and melodic \cite{salamon_2013_melody, kosta_22_melody, midibert} contour extraction. The techniques used are diverse, ranging from matrix factorization to deep learning in both supervised and unsupervised settings. All of these tasks have been proposed in annual competitions of the Music Information Retrieval eXchange (MIREX) \cite{MIREX_2017_form, MIREX_2017_motif, MIREX_2010_harmony}, which provides a standard format for their outputs. 
+Automatic identification of musical structure, also known as \textit{music structure analysis} (MSA), continues to be a major interest to both musicologists and the MIR community. Research thus far has focused on the automatic contiguous segmentation (both flat and hierarchical) of musical form \cite{msaf, checkerboard, sf, vmo_segmentation, cnmf, 2dfmc, eval_hier, olda, scluster, musicaiz, repetition_grammars_ismir2023, buisson_2022, cmu_dannenberg_2020}, which involves a boundary detection step followed by a segment labeling step, as well as motif detection \cite{Hsiao_2023_motifs, vmo_motifs, features_motifs}, which looks for disjoint repeating musical patterns. More recently, researchers have also developed avenues for harmonic \cite{chen_2019_harmony}, functional harmonic \cite{chen_2018_harmony}, and melodic \cite{salamon_2013_melody, kosta_22_melody, midibert} contour extraction. The techniques used are diverse, ranging from matrix factorization to deep learning in both supervised and unsupervised settings. All of these tasks have been proposed in annual competitions of the Music Information Retrieval eXchange (MIREX) \cite{MIREX_2017_form, MIREX_2017_motif, MIREX_2010_harmony, MIREX_2021_melody}, which provides a standard format for their outputs. 
 
 To our knowledge, all existing MSA research addresses a single aspect of the compositional hierarchy, such as motif extraction, or melodic contour. There is currently no notion of how reconcile differing levels of the hierarchy into a single, unified model of structure, even though their amalgamation is central to a piece's compositional architecture and cohesive integrity. Indeed, Dai et al. have demonstrated empirically that the levels' contents are not formed in isolation, revealing significant interactions different structural levels \cite{cmu_dannenberg_2020}. In identifying the critical components necessary for integrating the hierarchical levels, we find that there are two central challenges: how to convey each level's semantic, music theoretic level in the hierarchy, and how to encapsulate the temporal relationships between the results of structural analyses at adjacent hierarchical levels. 
 
@@ -178,7 +178,8 @@ occurrencem
 ...
 \end{lstlisting}
 
-Given these standard MIREX formats, we must parse this data into a format suitable for the STG. Each ``chunk" of the data, separated by a newline, forms a level in the STG, and each line in a chunk corresponds to a node. Consider Figure \ref{fig:form_parse}, which demonstrates the parsing process for a segmentation hierarchy with two levels. We start with the MIREX output in step 1. In step 2, we number each segmentation level (i.e. text chunk) and extract the segment label and time interval from each line. This gives us the format \textbf{S}\{segment label\}\textbf{L}\{segment level number\}\textbf{I}\{time interval\}. Finally, in step 3, we transform each time interval into an index representing that line's position in the level, sorted by interval start time. In the case of segmentation, this matches the line order in the MIREX output. This process gives us the node label \textbf{S}\{segment label\}\textbf{L}\{segment level number\}\textbf{N}\{index within level\}. The time interval is stored as node metadata.
+Given these standard MIREX formats, we must parse this data into a format suitable for the STG. Each ``chunk" of the data, separated by a newline, forms a level in the STG, and each line in a chunk corresponds to a node. Consider Figure \ref{fig:form_parse}, which demonstrates the parsing process for a segmentation hierarchy with two levels. We start with the MIREX segmentation output in step 1. In step 2, we number each segmentation level (i.e. text chunk) and extract the segment label and time interval from each line. This gives us the preliminary node label \textbf{S}\{segment label\}\textbf{L}\{segment level number\}\textbf{I}\{time interval\}. Finally, in step 3, we transform each time interval into an index representing that line's position in the level, sorted by interval start time. In the case of segmentation, this matches the line order in the MIREX output. We now have the final segmentation node label \textbf{S}\{segment label\}\textbf{L}\{segment level number\}\textbf{N}\{label index within level\}. 
+
 \begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figs/form_parse}
@@ -186,30 +187,40 @@ Given these standard MIREX formats, we must parse this data into a format suitab
   \label{fig:form_parse}
 \end{figure}
 
-We repeat this process for motifs. Motif detection is single level, i.e. it does not form a sub-hierarchy like segmentation does. 
+We repeat this process for motifs as in Figure \ref{fig:motif_parse}. Motif analyses are single level, i.e. they do not output sub-hierarchies like segmentation can do. Consider the MIREX motif output in step 1. Each pattern (i.e. motif) occurrence's time interval is defined as the ontime of its first note to its last, and we extract pattern and occurrence numbers in step 2 to arrive at the preliminary node label \textbf{P}\{pattern number\}\textbf{O}\{occurrence number\}\textbf{I}\{time interval\}. We then order the preliminary labels by start time, as unlike in segmentation, pattern occurrences are not ordered chronologically in MIREX format. We then assign indices to this ordering to arrive at the final motif node label \textbf{P}\{pattern number\}\textbf{O}\{occurrence number\}\textbf{N}\{chronologic occurrence index\}. This is reflected in step 3, where occurrence 2 of pattern 1 is assigned index 3 instead of 2. 
 
-\begin{figure}[h!]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figs/motif_parse}
   \caption{Parsing Motifs}
   \label{fig:motif_parse}
 \end{figure}
 
+In all cases, the time interval is stored as node metadata, and determines what that node's parent(s) will be.
+
 \subsection{STG Examples}\label{subsec:stg_ex}
 
-To visualize the STG structure more clearly, consider the following subgraph taken from an STG generated for the first movement exposition of the piano transcription of Beethoven's Symphony No. 1, Op. 21 in Figure \ref{fig:stg_ex}.\footnote{MIDI file is from the LOP database, which can be found here: https://qsdfo.github.io/LOP/database}
-
-\begin{figure}[h]
+In the following examples, we use hierarchical spectral clustering from the MSAF toolkit for segmentation \cite{msaf, scluster}, and Hsiao et al's BPS-motif discovery algorithm for motifs \cite{Hsiao_2023_motifs}. To better visualize the STG's structure, first consider the following subgraph taken from an STG generated for the first movement exposition of the piano transcription of Beethoven's Symphony No. 1, Op. 21 in Figure \ref{fig:stg_ex}.\footnote{MIDI file is from the LOP database, which can be found here: https://qsdfo.github.io/LOP/database} The nodes are taken from levels 4 and 5 of the segmentation sub-hierarchy.
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.45\linewidth]{figs/stg_example}
   \caption{STG Subgraph Example}
   \label{fig:stg_ex}
 \end{figure}
+Node S3L5N2’s time interval is a total subset of S1L4N2's, while S0L5N1’s time interval starts in S0L4N1’s, but ends in S2L4N2’s. The entire STG generated for this piece, unifying hierarchical formal segmentation with disjoint motif detection, is shown in Figure \ref{fig:stg_full}. The segmentation nodes are easily visible, and the motif nodes form the crowded bottom layer.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figs/stg_full}
+  \caption{STG Subgraph Example}
+  \label{fig:stg_full}
+\end{figure}
 
 
-We use hierarchical spectral clustering from the MSAF toolkit for segmentation. Hsiao et al's BPS-motif discovery algorithm.
 
-\section{Synthesis} \label{sec:synthesis}
+\section{Synthesis}\label{sec:synthesis}
+\subsection{Distance Metric}\label{subsec:dist_metric}
+\subsection{Stochastic Optimization}\label{subsec:stoch_opt}
 
 %\section{Evaluation} \label{subsec:eval}
 

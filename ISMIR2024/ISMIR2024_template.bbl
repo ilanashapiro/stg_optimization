@@ -192,6 +192,11 @@ K.~Kosta, W.~T. Lu, G.~Medeot, and P.~Chanquion, ``A deep learning method for
   Available: \url{https://archives.ismir.net/ismir2022/paper/000091.pdf}
 \BIBentrySTDinterwordspacing
 
+\bibitem{midibert}
+Y.-H. Chou, I.-C. Chen, C.-J. Chang, J.~Ching, and Y.-H. Yang,
+  ``Midibert-piano: Large-scale pre-training for symbolic music
+  understanding,'' 2021.
+
 \bibitem{MIREX_2017_form}
 \BIBentryALTinterwordspacing
 M.~McCallum. (2017) {Structural Segmentation}. Music Information Retrieval
@@ -213,6 +218,13 @@ Sutashu. (2010) {Harmonic Analysis}. Music Information Retrieval Evaluation
   \url{https://www.music-ir.org/mirex/wiki/2010:Harmonic_Analysis}
 \BIBentrySTDinterwordspacing
 
+\bibitem{MIREX_2021_melody}
+\BIBentryALTinterwordspacing
+D.~Evans. (2021) {Audio Melody Extraction}. Music Information Retrieval
+  Evaluation eXchange (MIREX). [Online]. Available:
+  \url{https://www.music-ir.org/mirex/wiki/2021:Audio_Melody_Extraction}
+\BIBentrySTDinterwordspacing
+
 \bibitem{wang_2021}
 \BIBentryALTinterwordspacing
 J.~Wang, J.~B.~L. Smith, W.~T. Lu, and X.~Song, ``Supervised metric learning
@@ -230,11 +242,6 @@ M.~C. McCallum, ``Unsupervised learning of deep features for music
   segmentation,'' \emph{CoRR}, vol. abs/2108.12955, 2021. [Online]. Available:
   \url{https://arxiv.org/abs/2108.12955}
 \BIBentrySTDinterwordspacing
-
-\bibitem{midibert}
-Y.-H. Chou, I.-C. Chen, C.-J. Chang, J.~Ching, and Y.-H. Yang,
-  ``Midibert-piano: Large-scale pre-training for symbolic music
-  understanding,'' 2021.
 
 \bibitem{young_2022}
 \BIBentryALTinterwordspacing
