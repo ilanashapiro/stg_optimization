@@ -22,6 +22,8 @@
 \usepackage{color}
 \usepackage{listings}
 \usepackage{float}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
 % Configure listings
 \lstset{
@@ -218,9 +220,51 @@ Node S3L5N2’s time interval is a total subset of S1L4N2's, while S0L5N1’s ti
 
 \section{Synthesis}\label{sec:synthesis}
 \subsection{Distance Metric}\label{subsec:dist_metric}
-\subsection{Stochastic Optimization}\label{subsec:stoch_opt}
+In order to derive a representative "centroid" STG from a corpus of STGs, it is first necessary to define a distance metric between them. The distance between two STGs $G_1$ and $G_2$ is quantified by the \textit{label-aware edit distance} between them, i.e. the minimum number of graph operations necessary to transform $G_1$ into $G_2$. We define six valid graph operations: node and edge deletion, insertion, and substitution. 
 
-There remain some issues with this approach that we are continuing to investigate.  We are still unsure whether the adaptive nature of the proposal distribution undermines the Markov property of the chain, and therefore convergence of the algorithm. Furthermore, all MCMC algorithms are guaranteed convergence in the infinite limit, but we are unsure whether it is possible to establish when the algorithm converges in practice. For these reasons, we might shift our approach to other optimization strategies, such as manipulating the vector embeddings produced by graph neural networks. 
+Calculating graph edit distance (GED) is in general a NP-hard problem, and thus intractable for graphs of these sizes. Fortunately, the Python package networkX offers a highly customizable approximation algorithm \verb!optimize_edit_paths!\footnote{https://networkx.org/documentation/stable/reference/algorithms/ generated/networkx.algorithms.similarity.optimize\_edit\_paths.html} that efficiently computes the approximate GED and also returns the sequence of transforms that led to this number. 
+
+\subsection{Stochastic Optimization}\label{subsec:stoch_opt}
+Consider the set $G$ comprising a corpus of STGs. With the GED given by \verb!optimize_edit_paths! as our cost function $c$, we seek to construct the STG $g*$ that minimizes $c$ over all of $G$. This is a constraint satisfaction problem, but due to the size of the graphs, it is intractable to compute by deterministic satisfiability modulo theories (SMT) solvers like Z3. Even if we try to represent this an integer linear programming (ILP) problem, the size of each encoded graph would still blow up even the most efficient of ILP solvers. Thus, we must utilize stochastic optimization techniques. 
+
+Although the work for this section is still in progress, we introduce here a framework for finding $g*$ using a Markov Chain Monte Carlo (MCMC) sampler. MCMC methods provide a framework for sampling from some arbitrary probability distribution $p(x)$. The equation for $p$ is known, but it is unknown how to generate a random number from $p$. The idea is to define a Markov chain over possible $x$ values, denoted $\{x^{(0)}, x^{(1)}, \ldots, x^{(N)}\}$ such that as $n \to \inf$, we can guarantee that $x_n \sim p(x)$. 
+
+The Metropolis Hastings algorithm is a popular MCMC algorithm that we adapt for the centroid graph problem. Its psuedocode is shown in Algorithm \ref{alg:metropolis_hastings}.
+
+\begin{algorithm}
+\caption{Metropolis-Hastings Algorithm}\label{alg:metropolis_hastings}
+\begin{algorithmic}[1] % The number tells where the line numbering should start
+\Procedure{MetropolisHastings}{$p, q, x_0, N$}
+    \State Initialize $x^{(0)} = x_0$
+    \For{$i = 1$ to $N$}
+        \State Propose $t \sim q(x'|x^{(i-1)})$
+        \State Apply $t$ to $x^{(i-1)}$ to obtain rewrite $x'$
+        \State Calculate acceptance ratio \Statex $\qquad\qquad\alpha = \min\left(1, \frac{p(x')q(x^{(i-1)}|x')}{p(x^{(i-1)})q(x'|x^{(i-1)})}\right)$
+        \State Draw $u \sim \text{Uniform}(0, 1)$
+        \If{$u < \alpha$}
+            \State Accept the proposal: $x^{(i)} = x'$
+        \Else
+            \State Reject the proposal: $x^{(i)} = x^{(i-1)}$
+        \EndIf
+    \EndFor
+    \State \textbf{return} $\{x^{(0)}, x^{(1)}, \ldots, x^{(N)}\}$
+\EndProcedure
+\end{algorithmic}
+\label{alg:metropolis_hastings}
+\end{algorithm}
+
+In more detail, given a probability distribution $p$ we want to sample from, suppose that the current state of the Markov chain is $x^{(n)}$, and we want to generate $x^{(n+1)}$. Given $x^{(n)}$, we first generate a $proposal$ $t$ from the \textit{proposal distribution} $q$, which we know how to sample from. We apply $t$ to $x^{(i-1)}$ to obtain the rewrite $x'$. Then, we execute the accept-reject step by computing the \textit{acceptance probability} $\alpha$ (line 5 of Algorithm \ref{alg:metropolis_hastings}). Consider the ratio $\frac{q(x^{(i-1)}|x')}{q(x'|x^{(i-1)})}$ that appears in the $\alpha$ equation. $q(x'|x^{(i-1)})$ describes the probability proposal $t$ would be chosen given the current state $x^{(n)}$. $q(x^{(i-1)}|x')$, however, is probability this proposal would be $undone$, i.e. the probability we choose the inverse of $t$. If the proposal distribution is symmetric, then these two probabilities will be equal. We accept the rewrite $x'$ if a uniformly generated $u$ falls in $\alpha$, and reject otherwise. In the limit, we are guaranteed to arrive at the optimal rewrite $x^{(N)}$.
+
+We seek to adapt this algorithm to find the centroid graph. Our $p$ is derived from the discrete cost function $c$, which recall is the label-aware GED given by \verb!optimize_edit_paths!. In order to convert this into a continuous probability distribution, we use the technique suggested by Schkufza et al. \cite{cacm} in Equation \ref{eqn:c_to_p}
+
+ \begin{figure}[h!]
+  \centering
+  \includegraphics[width=0.4\linewidth]{figs/proposal_dist}
+  \caption{Transform Paths from $g*$}
+  \label{fig:proposal_dist}
+\end{figure}
+
+There remain some issues with this approach that we are continuing to investigate.  We are still unsure whether the adaptive nature of the proposal distribution undermines the Markov property of the chain, and therefore convergence of the algorithm. Furthermore, all MCMC algorithms are guaranteed convergence in the infinite limit, but we are unsure whether it is possible to establish when the algorithm converges in practice. The former could be solved by discarding the custom (and theoretically more efficient) proposal distribution to make it symmetric and unchanging, but the latter remains unclear. For these reasons, we might shift our approach to other optimization strategies, such as manipulating the vector embeddings produced by graph neural networks. 
  
 %\section{Evaluation} \label{subsec:eval}
 
@@ -229,8 +273,10 @@ In this paper we have presented the semantic temporal graph, a unified meta-repr
 
 Furthermore, we have introduced a novel approach rooted in stochastic optimization for deriving an STG representative of a dataset of music. By considering the label-aware edit distance between two STG as a cost function to minimize over the corpus, we are able to describe an application of the Metropolis Hastings algorithm that allows us to construct the ``centroid" STG $g*$ for the corpus that minimizes this cost by construction. To our knowledge, this is the inaugural presentation of a method for discerning the overarching structure of an entire dataset, rather than just individual pieces.
 
-However, due to uncertainties we have regarding the convergence of the algorithm, we are interested in exploring graph neural networks as an alternative approach in the near future. We also will add the remaining layers of the compositional hierarchy to the STG; namely, rhythmic contour, functional harmonic contour, and melodic contour, and derive the canonical STG for the relevant dataset using these more robust STGs. Finally, we plan to conduct a qualitative evaluation of the STG as a whole, as well as a quantitative evaluation of the centroid STG. 
+However, due to uncertainties we have regarding the convergence of the algorithm, we are interested in exploring graph neural networks as an alternative approach in the near future. We also will add the remaining layers of the compositional hierarchy to the STG; namely, rhythmic contour, functional harmonic contour, and melodic contour, and derive the canonical STG for the relevant dataset using these more robust STGs. In addition, we plan to conduct a qualitative evaluation of the STG as a whole, as well as a quantitative evaluation of the centroid STG. 
 
+
+Finally, in future research we plan to use the STG as a system of constraints to induce structure in generative models, particularly transformers. Such models suffer from what is known as the \textit{long sequence problem}, in that they cannot handle very long sequences as input since their self-attention operations exhibit quadratic time and space complexity \cite{mao2024iceformer}. This results in a lack of global relational cohesion in their outputs. By using the STG as a system of unified musical constraints, we will explore how to $limit$, rather than condition, the model to adhere to this structure. Similar work has been done by Young et al. \cite{young_2022}, Wang et al. \cite{wang2024wholesong}, and Dai et al. \cite{musicframeworks}, though no one has ever attempted to limit, rather than condition, a model to a complete hierarchy of music theoretic constraints. 
 
 
 %\section{Acknowledgments}

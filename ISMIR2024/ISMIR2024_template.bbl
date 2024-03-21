@@ -254,4 +254,32 @@ H.~Young, M.~Du, and O.~Bastani, ``Neurosymbolic deep generative models for
   \url{https://proceedings.neurips.cc/paper_files/paper/2022/file/f13ceb1b94145aad0e54186373cc86d7-Paper-Conference.pdf}
 \BIBentrySTDinterwordspacing
 
+\bibitem{cacm}
+E.~Schkufza, R.~Sharma, and A.~Aiken, ``{Stochastic Program Optimization},''
+  vol.~59, no.~2, pp. 114--122.
+
+\bibitem{mao2024iceformer}
+\BIBentryALTinterwordspacing
+Y.~Mao, M.~Ester, and K.~Li, ``Iceformer: Accelerated inference with
+  long-sequence transformers on {CPU}s,'' in \emph{The Twelfth International
+  Conference on Learning Representations}, 2024. [Online]. Available:
+  \url{https://openreview.net/forum?id=6RR3wU4mSZ}
+\BIBentrySTDinterwordspacing
+
+\bibitem{wang2024wholesong}
+\BIBentryALTinterwordspacing
+Z.~Wang, L.~Min, and G.~Xia, ``Whole-song hierarchical generation of symbolic
+  music using cascaded diffusion models,'' in \emph{The Twelfth International
+  Conference on Learning Representations}, 2024. [Online]. Available:
+  \url{https://openreview.net/forum?id=sn7CYWyavh}
+\BIBentrySTDinterwordspacing
+
+\bibitem{musicframeworks}
+\BIBentryALTinterwordspacing
+S.~Dai, Z.~Jin, C.~Gomes, and R.~B. Dannenberg, ``Controllable deep melody
+  generation via hierarchical music structure representation,'' \emph{CoRR},
+  vol. abs/2109.00663, 2021. [Online]. Available:
+  \url{https://arxiv.org/abs/2109.00663}
+\BIBentrySTDinterwordspacing
+
 \end{thebibliography}
