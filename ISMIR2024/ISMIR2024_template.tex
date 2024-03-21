@@ -220,17 +220,18 @@ Node S3L5N2’s time interval is a total subset of S1L4N2's, while S0L5N1’s ti
 \subsection{Distance Metric}\label{subsec:dist_metric}
 \subsection{Stochastic Optimization}\label{subsec:stoch_opt}
 
+There remain some issues with this approach that we are continuing to investigate.  We are still unsure whether the adaptive nature of the proposal distribution undermines the Markov property of the chain, and therefore convergence of the algorithm. Furthermore, all MCMC algorithms are guaranteed convergence in the infinite limit, but we are unsure whether it is possible to establish when the algorithm converges in practice. For these reasons, we might shift our approach to other optimization strategies, such as manipulating the vector embeddings produced by graph neural networks. 
+ 
 %\section{Evaluation} \label{subsec:eval}
 
 \section{Conclusions and Future Work}
-In this paper we have presented a unified meta-representation of complete musical structure that encapsulates the both the intrinsic compositional hierarchy Such a model is essential to comprehending the fundamental system that underlies the core architecture of the piece
+In this paper we have presented the semantic temporal graph, a unified meta-representation of complete musical structure that encapsulates the both the intrinsic compositional hierarchy and the temporal relationships linking the elements of adjacent levels. Such a model is essential to comprehending the fusion of the fundamental components that constitute the piece's core architecture, something cannot be done by considering each level in isolation. The STG thus is a vital contribution to the holistic cognition and analysis of musical form. 
 
-not only the composition and structure of the piece but also its perception and existence within the musical domain.
+Furthermore, we have introduced a novel approach rooted in stochastic optimization for deriving an STG representative of a dataset of music. By considering the label-aware edit distance between two STG as a cost function to minimize over the corpus, we are able to describe an application of the Metropolis Hastings algorithm that allows us to construct the ``centroid" STG $g*$ for the corpus that minimizes this cost by construction. To our knowledge, this is the inaugural presentation of a method for discerning the overarching structure of an entire dataset, rather than just individual pieces.
 
-To our knowledge, all existing MSA research addresses a single aspect of the compositional hierarchy, such as motif extraction, or melodic contour. There is currently no notion of how reconcile differing levels of the hierarchy into a single, unified model of structure, even though their amalgamation is central to a piece's compositional architecture and cohesive integrity.
+However, due to uncertainties we have regarding the convergence of the algorithm, we are interested in exploring graph neural networks as an alternative approach in the near future. We also will add the remaining layers of the compositional hierarchy to the STG; namely, rhythmic contour, functional harmonic contour, and melodic contour, and derive the canonical STG for the relevant dataset using these more robust STGs. Finally, we plan to conduct a qualitative evaluation of the STG as a whole, as well as a quantitative evaluation of the centroid STG. 
 
 
-Since repetition structure is an aspect of human music cognition, the overarching objective of our approach is to approach human listening.
 
 %\section{Acknowledgments}
 %\textbf{Do not include in your submission, only in your camera ready version}. This section can be used to refer to any individuals or organizations that should be acknowledged in this paper. This section does \textit{not} count towards the page limit for scientific content.
