@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  21 MAR 2024 14:01
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2022.10.13)  21 MAR 2024 22:18
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -281,12 +281,6 @@ LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 9
 (/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/ts1ptm.fd
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 )
-LaTeX Font Info:    Trying to load font information for T1+phv on input line 99
-.
-
-(/usr/local/texlive/2022/texmf-dist/tex/latex/psnfss/t1phv.fd
-File: t1phv.fd 2020/03/25 scalable font definitions for T1/phv.
-)
 Underfull \hbox (badness 1831) in paragraph at lines 109--110
 []\T1/ptm/m/n/10 Automatic iden-ti-fi-ca-tion of mu-si-cal struc-ture, also
  []
@@ -301,59 +295,65 @@ Underfull \hbox (badness 10000) in paragraph at lines 121--121
  []
 
 [2]
-<figs/form_parse.png, id=22, 845.1575pt x 405.515pt>
+<figs/form_parse.png, id=21, 845.1575pt x 405.515pt>
 File: figs/form_parse.png Graphic file (type png)
 <use figs/form_parse.png>
 Package pdftex.def Info: figs/form_parse.png  used on input line 187.
 (pdftex.def)             Requested size: 233.31259pt x 111.947pt.
-<figs/motif_parse.png, id=24, 818.05624pt x 485.815pt>
+<figs/motif_parse.png, id=23, 818.05624pt x 485.815pt>
 File: figs/motif_parse.png Graphic file (type png)
 <use figs/motif_parse.png>
-Package pdftex.def Info: figs/motif_parse.png  used on input line 196.
+Package pdftex.def Info: figs/motif_parse.png  used on input line 195.
 (pdftex.def)             Requested size: 233.31259pt x 138.55507pt.
-
-
-LaTeX Warning: `!h' float specifier changed to `!ht'.
-
-<figs/stg_example.png, id=25, 155.58125pt x 123.46124pt>
+<figs/stg_example.png, id=24, 155.58125pt x 123.46124pt>
 File: figs/stg_example.png Graphic file (type png)
 <use figs/stg_example.png>
-Package pdftex.def Info: figs/stg_example.png  used on input line 208.
+Package pdftex.def Info: figs/stg_example.png  used on input line 207.
 (pdftex.def)             Requested size: 104.98994pt x 83.31577pt.
-
-Underfull \vbox (badness 1308) has occurred while \output is active []
-
- [3 <./figs/form_parse.png>]
+ [3 <./figs/form_parse.png> <./figs/motif_parse.png>]
 <figs/stg_full.png, id=31, 1389.19pt x 872.25874pt>
 File: figs/stg_full.png Graphic file (type png)
 <use figs/stg_full.png>
-Package pdftex.def Info: figs/stg_full.png  used on input line 216.
+Package pdftex.def Info: figs/stg_full.png  used on input line 215.
 (pdftex.def)             Requested size: 233.31259pt x 146.48523pt.
 
-Underfull \hbox (badness 10000) in paragraph at lines 225--225
+Underfull \hbox (badness 10000) in paragraph at lines 224--224
 [][]\T1/ptm/m/n/8 https://networkx.org/documentation/stable/reference/algorithm
 s/
  []
 
 
-Underfull \hbox (badness 1325) in paragraph at lines 225--226
-\T1/ptm/m/n/10 of-fers a highly cus-tomiz-able ap-prox-i-ma-tion al-go-rithm
+Underfull \hbox (badness 3386) in paragraph at lines 224--225
+[]\T1/ptm/m/n/10 Calculating ex-act graph edit dis-tance is an NP-
  []
 
 
-Underfull \hbox (badness 1337) in paragraph at lines 225--226
+Underfull \hbox (badness 4084) in paragraph at lines 224--225
+\T1/ptm/m/n/10 fers a highly cus-tomiz-able ap-prox-i-ma-tion al-go-rithm
+ []
+
+
+Underfull \hbox (badness 1337) in paragraph at lines 224--225
 [][]\T1/pcr/m/n/10 optimize_edit_paths[] []\T1/ptm/m/n/10 that ef-fi-ciently co
 m-putes
  []
 
-[4 <./figs/motif_parse.png> <./figs/stg_example.png> <./figs/stg_full.png>]
-<figs/proposal_dist.png, id=45, 237.88875pt x 151.56625pt>
+[4 <./figs/stg_example.png> <./figs/stg_full.png>]
+<figs/proposal_dist.png, id=44, 352.31625pt x 212.795pt>
 File: figs/proposal_dist.png Graphic file (type png)
 <use figs/proposal_dist.png>
-Package pdftex.def Info: figs/proposal_dist.png  used on input line 262.
-(pdftex.def)             Requested size: 93.32361pt x 59.45981pt.
+Package pdftex.def Info: figs/proposal_dist.png  used on input line 272.
+(pdftex.def)             Requested size: 93.32361pt x 56.36443pt.
 
-(./ISMIR2024_template.bbl [5 <./figs/proposal_dist.png>] [6]
+Underfull \hbox (badness 2698) in paragraph at lines 278--279
+[]\T1/ptm/m/n/10 We col-lect all $\OML/cmm/m/it/10 t$ \T1/ptm/m/n/10 val-ues fr
+om the in-ter-sec-tion of
+ []
+
+(./ISMIR2024_template.bbl
+Underfull \vbox (badness 1642) has occurred while \output is active []
+
+ [5 <./figs/proposal_dist.png>] [6]
 Underfull \hbox (badness 10000) in paragraph at lines 248--256
 \T1/ptm/m/n/10 / / proceedings . neurips . cc / paper _ ^^\les / paper / 2022 /
  ^^\le /
@@ -370,13 +370,13 @@ LaTeX Warning: There were multiply-defined labels.
 
  ) 
 Here is how much of TeX's memory you used:
- 5380 strings out of 478268
- 79401 string characters out of 5846346
- 429880 words of memory out of 5000000
- 23510 multiletter control sequences out of 15000+600000
- 516897 words of font info for 77 fonts, out of 8000000 for 9000
+ 5332 strings out of 478268
+ 78775 string characters out of 5846346
+ 417313 words of memory out of 5000000
+ 23467 multiletter control sequences out of 15000+600000
+ 514007 words of font info for 75 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 55i,14n,62p,1332b,1119s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 55i,14n,62p,1311b,1037s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/te
 xlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/tex
@@ -389,14 +389,13 @@ xmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2022/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb></usr/local/texlive/2022/texmf
 -dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2022/texmf-d
 ist/fonts/type1/urw/courier/ucrr8a.pfb></usr/local/texlive/2022/texmf-dist/font
-s/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1
-/urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times
-/utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times/utmri8a.p
-fb>
-Output written on ISMIR2024_template.pdf (7 pages, 1629976 bytes).
+s/type1/urw/times/utmb8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/ur
+w/times/utmr8a.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/urw/times/ut
+mri8a.pfb>
+Output written on ISMIR2024_template.pdf (7 pages, 1633542 bytes).
 PDF statistics:
- 121 PDF objects out of 1000 (max. 8388607)
- 70 compressed objects within 1 object stream
+ 116 PDF objects out of 1000 (max. 8388607)
+ 67 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
  31 words of extra memory for PDF output out of 10000 (max. 10000000)
 

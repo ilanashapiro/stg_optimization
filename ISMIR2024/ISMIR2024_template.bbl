@@ -254,9 +254,18 @@ H.~Young, M.~Du, and O.~Bastani, ``Neurosymbolic deep generative models for
   \url{https://proceedings.neurips.cc/paper_files/paper/2022/file/f13ceb1b94145aad0e54186373cc86d7-Paper-Conference.pdf}
 \BIBentrySTDinterwordspacing
 
+\bibitem{metropolis_hastings}
+\BIBentryALTinterwordspacing
+D.~Navarro. The {Metropolis-Hastings} algorithm. [Online]. Available:
+  \url{https://blog.djnavarro.net/posts/2023-04-12_metropolis-hastings}
+\BIBentrySTDinterwordspacing
+
 \bibitem{cacm}
-E.~Schkufza, R.~Sharma, and A.~Aiken, ``{Stochastic Program Optimization},''
-  vol.~59, no.~2, pp. 114--122.
+\BIBentryALTinterwordspacing
+E.~Schkufza, R.~Sharma, and A.~Aiken, ``Stochastic program optimization,''
+  \emph{Commun. {ACM}}, vol.~59, no.~2, pp. 114--122, 2016. [Online].
+  Available: \url{https://doi.org/10.1145/2863701}
+\BIBentrySTDinterwordspacing
 
 \bibitem{mao2024iceformer}
 \BIBentryALTinterwordspacing
