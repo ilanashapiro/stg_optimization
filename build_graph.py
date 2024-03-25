@@ -73,7 +73,7 @@ def create_graph(layers):
         # node has edge to parent if its interval overlaps with that parent's interval
         if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
           G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
-  
+
   return G
 
 def get_layers_with_index_from_graph(G):
@@ -113,6 +113,74 @@ def get_layers_with_index_from_graph(G):
   layers.append(partition_motives)
 
   return layers
+
+def add_prototypes_and_intra_level_edges(G):
+    layers = get_layers_with_index_from_graph(G)
+    
+    # Step 1: Add prototype nodes and edges to instances
+    for layer in layers:
+        for node_info in layer:
+            # Determine prototype label
+            if 'L' in node_info['id']:
+                proto_label = 'S' + node_info['id'].split('S')[1].split('L')[0]
+            else:  # 'O' in node_info['id']
+                proto_label = 'P' + node_info['id'].split('P')[1].split('O')[0]
+            proto_node_id = f"Pr{proto_label}"
+
+            # Add prototype node if not already present
+            if proto_node_id not in G:
+                G.add_node(proto_node_id, label=proto_label)
+
+            # Add edge from prototype node to instance node
+            if not G.has_edge(proto_node_id, node_info['id']):
+                G.add_edge(proto_node_id, node_info['id'])
+
+    # Step 2: Add intra-level edges based on index
+    for layer in layers:
+        # Sort nodes within each layer by their index to ensure proper sequential connections
+        sorted_layer_nodes = sorted(layer, key=lambda x: x['index'])
+        
+        # Iterate through sorted nodes to add edges
+        for i in range(len(sorted_layer_nodes)-1):
+            current_node_id = sorted_layer_nodes[i]['id']
+            next_node_id = sorted_layer_nodes[i+1]['id']
+            # Add directed edge from current node to next
+            if not G.has_edge(current_node_id, next_node_id):
+                G.add_edge(current_node_id, next_node_id)
+
+def add_prototypes_and_intra_level_edges(G):
+  layers = get_layers_with_index_from_graph(G)
+  
+  # Step 1: Add prototype nodes and edges to instances
+  for layer in layers:
+    for node_info in layer:
+      # Determine prototype label
+      if 'L' in node_info['id']:
+        proto_label = 'S' + node_info['id'].split('S')[1].split('L')[0]
+      else:  # 'O' in node_info['id']
+        proto_label = 'P' + node_info['id'].split('P')[1].split('O')[0]
+      proto_node_id = f"Pr{proto_label}"
+
+      # Add prototype node if not already present
+      if proto_node_id not in G:
+        G.add_node(proto_node_id, label=proto_label)
+
+      # Add edge from prototype node to instance node
+      if not G.has_edge(proto_node_id, node_info['id']):
+        G.add_edge(proto_node_id, node_info['id'])
+
+  # Step 2: Add intra-level edges based on index
+  for layer in layers:
+    # Sort nodes within each layer by their index to ensure proper sequential connections
+    sorted_layer_nodes = sorted(layer, key=lambda x: x['index'])
+    
+    # Iterate through sorted nodes to add edges
+    for i in range(len(sorted_layer_nodes)-1):
+      current_node_id = sorted_layer_nodes[i]['id']
+      next_node_id = sorted_layer_nodes[i+1]['id']
+      # Add directed edge from current node to next
+      if not G.has_edge(current_node_id, next_node_id):
+        G.add_edge(current_node_id, next_node_id)
 
 def visualize(graph_list, layers_list, labels_dicts = None):
   n = len(graph_list)
@@ -154,6 +222,68 @@ def visualize(graph_list, layers_list, labels_dicts = None):
   plt.tight_layout()
   plt.show()
 
+def visualize_p(graph_list, layers_list, labels_dicts=None):
+    n = len(graph_list)
+    
+    # Determine grid size (rows x cols) for subplots
+    cols = int(math.ceil(math.sqrt(n)))
+    rows = int(math.ceil(n / cols))
+    
+    # Create a figure with subplots arranged in the calculated grid
+    _, axes = plt.subplots(rows, cols, figsize=(8 * cols, 12 * rows))
+    
+    # Flatten axes array for easy iteration if it's 2D (which happens with multiple rows and columns)
+    axes_flat = axes.flatten() if n > 1 else [axes]
+    
+    for idx, G in enumerate(graph_list):
+        layers = layers_list[idx]
+        labels_dict = labels_dicts[idx] if labels_dicts else None
+        pos = {}  # Positions dictionary: node -> (x, y)
+        prototype_nodes = []
+        
+        # Prototype node positioning
+        prototype_list = [node for node in G.nodes() if node.startswith("Pr")]
+        # Custom order: "S" prototypes first, then "P", both sorted numerically within their groups
+        def proto_sort(proto):
+          order = {'S': 0, 'P': 1}  # Define custom order for the first characters
+          return (order[proto[2]], int(proto[3:]))  # Sort by custom order and then numerically
+        prototype_list_sorted = sorted(prototype_list, key=proto_sort)
+        
+        # Spacing out prototype nodes vertically
+        proto_y_step = 1.0 / (len(prototype_list_sorted) + 1)
+        for index, prototype in enumerate(prototype_list_sorted):
+            y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
+            pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
+            prototype_nodes.append(prototype)
+
+        # Regular node positioning
+        layer_height = 1.0 / (len(layers) + 1)
+        for i, layer in enumerate(layers):
+            y = 1 - (i + 1) * layer_height  # Adjust y-coordinate
+            if 'start' in layer[0]:
+                layer = sorted(layer, key=lambda node: node['start'])
+            
+            x_step = 1.0 / (len(layer) + 1)
+            for j, node in enumerate(layer):
+                x = (j + 1) * x_step + 0.1  # Adjust x to the right to accommodate prototypes
+                pos[node['id']] = (x, y)
+        
+        ax = axes_flat[idx]
+        # Draw the graph
+        nx.draw_networkx_nodes(G, pos, ax=ax, node_size=500, node_color="lightblue")
+        nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray", arrows=True)
+        proto_edges = [(u, v) for u, v in G.edges() if u in prototype_nodes]
+        nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True)
+        nx.draw_networkx_labels(G, pos, labels=labels_dict, ax=ax, font_size=8)
+        
+        ax.set_title(f"Graph {idx + 1}")
+    
+    for ax in axes_flat[n:]:
+        ax.axis('off')
+    
+    plt.tight_layout()
+    plt.show()
+
 def generate_graph(structure_filepath, motives_filepath):
   layers = parse_form_file(structure_filepath)
   motive_layer = parse_motives_file(motives_filepath)
@@ -165,4 +295,5 @@ def generate_graph(structure_filepath, motives_filepath):
 
 if __name__ == "__main__":
   G, layers, labels_dict = generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-  visualize([G], [layers], [labels_dict])
+  add_prototypes_and_intra_level_edges(G)
+  visualize_p([G], [layers])
