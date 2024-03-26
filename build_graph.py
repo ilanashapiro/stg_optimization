@@ -25,7 +25,7 @@ def parse_motives_file(file_path):
     data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
   motif_layer = []
-  pattern_num = 1
+  pattern_num = 0
 
   for chunk in data:
     if chunk.startswith("pattern"):
