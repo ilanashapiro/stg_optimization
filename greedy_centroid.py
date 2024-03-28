@@ -2,24 +2,17 @@ import networkx as nx
 import numpy as np
 from simanneal import Annealer
 import random
+import greedy_centroid_tests
+import greedy_centroid_helpers
 
-class GraphAlignmentAnnealer(Annealer):
-  def __init__(self, initial_state, A_g, A_G):
-    super(GraphAlignmentAnnealer, self).__init__(initial_state)
-    self.A_g = A_g
-    self.A_G = A_G
 
-  def move(self):
-    """Swaps two nodes in the permutation."""
-    a = random.randint(0, len(self.state) - 1)
-    b = random.randint(0, len(self.state) - 1)
-    self.state[a], self.state[b] = self.state[b], self.state[a]
+'''
+Greedy Combinatorial Optimization Approach
+1. Use simulated annealing to find optimal alignments between current centroid and each graph in corpus
+2. Use the resulting average difference adjacency matrix between centroid and corpus to select the best (valid) transform. 
+3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
+'''
 
-  def energy(self): # i.e. cost
-    """Calculates the objective function of the current state."""
-    # self.state represents the permutation/alignment matrix a
-    return dist(self.A_g, self.state, self.A_g)
-    
 # current centroid g, list of alignments list_a to the graphs in the corpus list_G
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
   # based on the current alignments
@@ -38,22 +31,59 @@ def dist(A_g, a, A_G):
   alignedA_G = a.T @ A_G @ a
   return np.linalg.norm(A_g - alignedA_G, 'fro')
 
-def improve(g, list_a, list_G):
-  while (True):
-    improved_list_a = []
-    for a, G in zip(list_a, list_G):
-      a = improve_a(g, a, G)
-      improved_list_a.append(a)
-    g = improve_g(g, improved_list_a, list_G)
-    list_a = improved_list_a
-    print(loss(g, list_a, list_G))
+class GraphAlignmentAnnealer(Annealer):
+  def __init__(self, initial_state, A_g, A_G):
+    super(GraphAlignmentAnnealer, self).__init__(initial_state)
+    self.A_g = A_g
+    self.A_G = A_G
+
+  def move(self):
+    """Swaps two nodes in the permutation, ensuring a != b."""
+    a = random.randint(0, len(self.state) - 1)
+    b = a
+    while b == a:
+      b = random.randint(0, len(self.state) - 1)
+    self.state[a], self.state[b] = self.state[b], self.state[a]
+
+  def energy(self): # i.e. cost
+    """Calculates the objective function of the current state."""
+    # self.state represents the permutation/alignment matrix a
+    return dist(self.A_g, self.state, self.A_g)
+
+g, G = greedy_centroid_tests.G1, greedy_centroid_tests.G2
+padded_matrices, node_mapping = greedy_centroid_helpers.pad_adj_matrices([g, G])
+A_g, A_G = padded_matrices[0], padded_matrices[1]
+
+n = np.shape(A_g)[0] # or A_G
+perm_indices = np.random.permutation(n)
+identity = np.eye(n)
+initial_state = identity[perm_indices]
+
+graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G)
+
+# don't do auto scheduling beceause it seems to completely mess up the results???
+alignment, cost = graph_aligner.anneal()
+print("Best alignment", alignment)
+print("Lowest cost:", cost)
+ 
+
+
+# def improve(g, list_a, list_G):
+#   while (True):
+#     improved_list_a = []
+#     for a, G in zip(list_a, list_G):
+#       a = improve_a(g, a, G)
+#       improved_list_a.append(a)
+#     g = improve_g(g, improved_list_a, list_G)
+#     list_a = improved_list_a
+#     print(loss(g, list_a, list_G))
 
 # e.g. flip 2 edges that most improve dist for that alignment
 # might need to iterate thru all edges
 # this is where I say what's a valid transform, e.g. can't
   # add edge between non-adj levels
 # highly flexible step 
-def improve_a(g, a, G):
+# def improve_a(g, a, G):
 
 # now, the alignments are fixed. 
 # with these alignments, we want to execute the "proposal transform" t that minimizes the losses
@@ -66,5 +96,5 @@ def improve_a(g, a, G):
   # and consult the original A' for the direction/size
 # also, note that we have padded each A s.t. all A's are the same dimensions (i.e. size of max graph in G)
   # this means we can never add a node w/o a parent or child (need to refine so only can't add node with no parent)
-def improve_g(g, list_a, list_G):
+# def improve_g(g, list_a, list_G):
 
