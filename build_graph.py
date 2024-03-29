@@ -91,12 +91,12 @@ def get_unsorted_layers_from_graph_by_index(G):
       result = structure_pattern.search(node)
       if result:
         n3 = result.group(3)
-        partition_structure.append({'id': node, 'label': data['label'], 'start': data['start'], 'end': data['end'], 'index': int(n3)})
+        partition_structure.append({'id': node, 'label': data['label'], 'index': int(n3)})
     elif motive_pattern.match(node):
       result = motive_pattern.search(node)
       if result:
         n3 = result.group(3)
-        partition_motives.append({'id': node, 'label': data['label'], 'start': data['start'], 'end': data['end'], 'index': int(n3)})
+        partition_motives.append({'id': node, 'label': data['label'], 'index': int(n3)})
 
   # Step 2: For the partition_structure list, further partition by the L{n2} substring
   partition_structure_grouped = {}
@@ -242,8 +242,8 @@ def visualize(graph_list, layers_list, labels_dicts = None):
     for i, layer in enumerate(layers):
       y = 1 - (i + 1) * layer_height  # Adjust y-coordinate
       # Sort nodes if necessary (i.e. sort last/motives layer based on start attribute)
-      if i == len(layers) - 1 and 'start' in layer[0]:
-        layer = sorted(layer, key=lambda node: node['start'])
+      if i == len(layers) - 1 and 'index' in layer[0]:
+        layer = sorted(layer, key=lambda node: node['index'])
           
       x_step = 1.0 / (len(layer) + 1)
       for j, node in enumerate(layer):
