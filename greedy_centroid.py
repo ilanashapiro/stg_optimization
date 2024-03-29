@@ -17,11 +17,8 @@ Greedy Combinatorial Optimization Approach
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
   # based on the current alignments
 # this is our objective we're trying to minimize
-def loss(A_g, alignments, listA_G):
-  loss = 0
-  for a, A_G in zip(alignments, listA_G):
-    loss += dist(A_g, a, A_G)
-  return loss
+def loss(A_g, list_alignedA_G):
+  return sum([dist(A_g, A_G) for A_G in list_alignedA_G])
 
 def align(a, A_G):
   return a.T @ A_G @ a 
@@ -29,8 +26,8 @@ def align(a, A_G):
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
 # ||A_g - a^t * A_G * a|| where ||.|| is the norm (using Frobenius norm)
-def dist(A_g, a, A_G):
-  return np.linalg.norm(A_g - align(a, A_G), 'fro')
+def dist(A_g, A_G):
+  return np.linalg.norm(A_g - A_G, 'fro')
 
 # Generates random n x n permutation alignment matrixx
 def random_alignment(n):
@@ -39,8 +36,8 @@ def random_alignment(n):
   return identity[perm_indices]
 
 class GraphAlignmentAnnealer(Annealer):
-  def __init__(self, initial_state, A_g, A_G):
-    super(GraphAlignmentAnnealer, self).__init__(initial_state)
+  def __init__(self, initial_alignment, A_g, A_G):
+    super(GraphAlignmentAnnealer, self).__init__(initial_alignment)
     self.A_g = A_g
     self.A_G = A_G
 
@@ -56,7 +53,7 @@ class GraphAlignmentAnnealer(Annealer):
   def energy(self): # i.e. cost
     """Calculates the objective function of the current state."""
     # self.state represents the permutation/alignment matrix a
-    return dist(self.A_g, self.state, self.A_G)
+    return dist(self.A_g, align(self.state, self.A_G))
 
 # simanneal_runs is in order to ensure we're not stuck in local minima, tweak as needed
 def get_alignments_to_centroid(A_g, listA_G, simanneal_runs=1):
@@ -72,15 +69,29 @@ def get_alignments_to_centroid(A_g, listA_G, simanneal_runs=1):
         min_cost = cost
         best_alignment = alignment
     alignments.append(best_alignment)
-    print("BEST COST", min_cost)
   return alignments
 
-def align_corpus_to_centroid(alignments, listA_G):
-  aligned_listA_G = []
-  for a, A_G in zip(alignments, listA_G):
-    aligned_listA_G.append(align(a, A_G))
-  return aligned_listA_G
+class CentroidAnnealer(Annealer):
+  def __init__(self, initial_centroid, listA_G):
+    super(CentroidAnnealer, self).__init__(initial_centroid)
+    self.listA_G = listA_G
 
+  def move(self):
+    # Choose a random row and column index
+    i = random.randint(0, self.state.shape[0] - 1)
+    j = random.randint(0, self.state.shape[1] - 1)
+
+    # Flip the value at the selected position
+    self.state[i, j] = 1 - self.state[i, j]
+
+  def energy(self): # i.e. cost
+    """Calculates the objective function of the current state."""
+    # self.state represents the permutation/alignment matrix a
+    # def loss(A_g, aligned_listA_G):
+    alignments = get_alignments_to_centroid(self.state, self.listA_G)
+    list_alignedA_G = list(map(align, alignments, self.listA_G))
+    return loss(self.state, list_alignedA_G) 
+  
 def greedy_centroid(list_G, threshold):
   listA_G, centroid_node_mapping = greedy_centroid_helpers.pad_adj_matrices(list_G)
   A_g = random.choice(listA_G) # initial centroid. random for now, can improve later
@@ -88,7 +99,7 @@ def greedy_centroid(list_G, threshold):
   
   while (loss > threshold):
     alignments = get_alignments_to_centroid(A_g, listA_G)
-    list_alignedA_G = align_corpus_to_centroid(alignments, listA_G)
+    list_alignedA_G = list(map(align, alignments, listA_G))
     loss = improve(A_g, list_alignedA_G, centroid_node_mapping)
 
 def improve(A_g, list_alignedA_G, centroid_node_mapping):
@@ -99,7 +110,7 @@ def improve(A_g, list_alignedA_G, centroid_node_mapping):
   print(difference_matrix, avgA_G)
   sys.exit(0)
 
-greedy_centroid([tests.G1, tests.G2], 0)
+# greedy_centroid([tests.G1, tests.G2], 0)
 
 # g, G = greedy_centroid_tests.G1, greedy_centroid_tests.G2
 # padded_matrices, node_mapping = greedy_centroid_helpers.pad_adj_matrices([g, G])
