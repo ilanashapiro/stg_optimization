@@ -3,8 +3,6 @@ import matplotlib.pyplot as plt
 import math 
 import re
 
-from numpy import sort 
-
 def parse_form_file(file_path):
   with open(file_path, 'r') as file:
     data = file.read().strip().split('\n\n')  # Split into chunks by blank line
@@ -155,7 +153,8 @@ def get_unsorted_layers_from_graph_by_index(G):
 
 #     return sorted_levels
 
-def add_prototypes_and_intra_level_edges(G):
+# augment with prototype nodes and intra-level layers
+def augment_graph(G):
   layers = get_unsorted_layers_from_graph_by_index(G)
   
   # Step 1: Add prototype nodes and edges to instances
@@ -163,9 +162,9 @@ def add_prototypes_and_intra_level_edges(G):
     for node_info in layer:
       # Determine prototype label
       if 'L' in node_info['id']:
-        proto_node_id = 'S' + node_info['id'].split('S')[1].split('L')[0]
+        proto_node_id = 'PrS' + node_info['id'].split('S')[1].split('L')[0]
       else:  # 'O' in node_info['id']
-        proto_node_id = 'P' + node_info['id'].split('P')[1].split('O')[0]
+        proto_node_id = 'PrP' + node_info['id'].split('P')[1].split('O')[0]
 
       # Add prototype node if not already present
       if proto_node_id not in G:
@@ -275,7 +274,6 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
   axes_flat = axes.flatten() if n > 1 else [axes]
   
   for idx, G in enumerate(graph_list):
-    print("HERE")
     layers = layers_list[idx]
     labels_dict = labels_dicts[idx] if labels_dicts else None
     pos = {}  # Positions dictionary: node -> (x, y)
@@ -285,8 +283,8 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
     prototype_list = [node for node in G.nodes() if not bool(re.search(r'N\d+$', node))]
     # Custom order: "S" prototypes first, then "P", both sorted numerically within their groups
     def proto_sort(proto):
-      order = {'S': 0, 'P': 1}  # Define custom order for the first characters
-      return (order[proto[0]], int(proto[1:]))  # Sort by custom order and then numerically
+      order = {'PrS': 0, 'PrP': 1}  # Define custom order for the first characters
+      return (order[proto[:3]], int(proto[3:]))  # Sort by custom order and then numerically
     prototype_list_sorted = sorted(prototype_list, key=proto_sort)
     
     # Spacing out prototype nodes vertically
@@ -332,7 +330,7 @@ def generate_graph(structure_filepath, motives_filepath):
 
 if __name__ == "__main__":
   G, layers, _ = generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-  add_prototypes_and_intra_level_edges(G)
+  augment_graph(G)
   # replace_node_ids_with_integers(G)
   # layers = get_sorted_layers_from_graph_by_structure(G)
   visualize_p([G], [layers])
