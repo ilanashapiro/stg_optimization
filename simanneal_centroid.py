@@ -7,6 +7,7 @@ import sys
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
+import build_graph
 
 
 '''
@@ -86,15 +87,15 @@ class GraphAlignmentAnnealer(Annealer):
       j_options = self.node_partitions[i_kind]
 
     # Ensure i is not equal to j
-    if j_options:
-      j_options = [option for option in j_options if option != i]
-      if len(j_options) > 0:
+    if j_options and len(j_options):
+      j = random.choice(j_options)
+      while j == i and len(j_options) > 1: # if a partition has only 1 element we have infinite loop
         j = random.choice(j_options)
-      else:
-        # Fallback to random selection if no suitable j is found
-        j = i
-        while j == i:
-          j = random.randint(0, n - 1)
+    else:
+      # Fallback to random selection if no suitable j is found
+      j = random.randint(0, n - 1)
+      while j == i:
+        j = random.randint(0, n - 1)
     # if i_kind in ['prototype_segmentation', 'prototype_motif']:
     #   print(self.centroid_node_mapping[i], self.centroid_node_mapping[j])
     self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
@@ -105,11 +106,17 @@ class GraphAlignmentAnnealer(Annealer):
     return dist(self.A_g, align(self.state, self.A_G))
 
 g, G = tests.G1, tests.G2
+(g, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
 A_g, A_G = padded_matrices[0], padded_matrices[1]
 
 initial_state = A_G # random_alignment(np.shape(A_g)[0]) --> choosing strategic seed A_G gives better result than random or A_g
 graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
+graph_aligner.Tmax = 2.5
+graph_aligner.Tmin = 0.01 
+graph_aligner.steps = 10000 # ~19.5 energy on complete test graphs c. 1min 10sec, 5000 gives ~20.2 energy on complete test graphs but takes half the time
+
 min_cost = np.inf
 best_alignment = None
 runs = 1
