@@ -24,19 +24,20 @@ def pad_adj_matrices(graphs):
   return new_adj_matrices, idx_node_mapping
 
 def adj_matrix_to_graph(A, idx_node_mapping):
-  # print(A[573], idx_node_mapping)
   G = nx.DiGraph()
 
   for i in range(A.shape[0]):
-    for j in range(i, A.shape[1]):
-      if A[i, j] > 0:
-        G.add_edge(idx_node_mapping[i], idx_node_mapping[j])
-
+    for j in range(A.shape[1]):
+      source = idx_node_mapping[i]
+      sink = idx_node_mapping[j] 
+      if A[i, j] > 0 and 'Pr' not in source: # remove prototype nodes
+        G.add_edge(source, sink)
+            
   for node in G.nodes():
     G.nodes[node]['label'] = node
     match = re.search(r'N(\d+)$', node)
     if match:
-      index_value = int(match.group(1))
-      G.nodes[node]['index'] = index_value
+      index = int(match.group(1))
+      G.nodes[node]['index'] = index
 
   return G

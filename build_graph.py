@@ -112,7 +112,7 @@ def get_unsorted_layers_from_graph_by_index(G):
   layers = list(partition_structure_grouped.values())
   layers.append(partition_motives)
 
-  def sort_key(layer):
+  def vertical_sort_key(layer):
     id = layer[0]['id'] 
     parts = id.split('N')
     if id.startswith('S'):
@@ -121,7 +121,7 @@ def get_unsorted_layers_from_graph_by_index(G):
     else: 
       return (1, 0)  # 1 to deprioritize 'P' prefixed ids, 0 as a placeholder for level since it's irrelevant for motifs
 
-  layers = sorted(layers, key=sort_key)
+  layers = sorted(layers, key=vertical_sort_key)
   return layers
 
 # def get_sorted_layers_from_graph_by_structure(G):
@@ -249,10 +249,8 @@ def visualize(graph_list, layers_list, labels_dicts = None):
     pos = {}  # Positions dictionary: node -> (x, y)
     layer_height = 1.0 / (len(layers) + 1)
     for i, layer in enumerate(layers):
-      y = 1 - (i + 1) * layer_height  # Adjust y-coordinate
-      # Sort nodes if necessary (i.e. sort last/motives layer based on start attribute)
-      if i == len(layers) - 1 and 'index' in layer[0]:
-        layer = sorted(layer, key=lambda node: node['index'])
+      y = 1 - (i + 1) * layer_height
+      layer = sorted(layer, key=lambda node: node['index'])
           
       x_step = 1.0 / (len(layer) + 1)
       for j, node in enumerate(layer):
@@ -304,9 +302,10 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
       pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
       prototype_nodes.append(prototype)
 
-    # Regular node positioning, assuming layers are already sorted
+    # Regular node positioning
     layer_height = 1.0 / (len(layers) + 1)
     for i, layer in enumerate(layers):
+      layer = sorted(layer, key=lambda node: node['index'])
       y = 1 - (i + 1) * layer_height
       x_step = 1.0 / (len(layer) + 1)
       for j, node in enumerate(layer):
