@@ -106,10 +106,15 @@ class GraphAlignmentAnnealer(Annealer):
     return dist(self.A_g, align(self.state, self.A_G))
 
 g, G = tests.G1, tests.G2
-(g, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
 A_g, A_G = padded_matrices[0], padded_matrices[1]
+
+g1 = helpers.adj_matrix_to_graph(nx.to_numpy_array(g), g.nodes())
+layers1 = build_graph.get_unsorted_layers_from_graph_by_index(g)
+# print(layers)
+build_graph.visualize([g, g1], [layers, layers1])
 
 initial_state = A_G # random_alignment(np.shape(A_g)[0]) --> choosing strategic seed A_G gives better result than random or A_g
 graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
@@ -119,7 +124,7 @@ graph_aligner.steps = 10000 # ~19.5 energy on complete test graphs c. 1min 10sec
 
 min_cost = np.inf
 best_alignment = None
-runs = 1
+runs = 0
 for _ in range(runs):
   alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
   if cost < min_cost:

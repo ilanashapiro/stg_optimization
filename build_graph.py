@@ -112,6 +112,16 @@ def get_unsorted_layers_from_graph_by_index(G):
   layers = list(partition_structure_grouped.values())
   layers.append(partition_motives)
 
+  def sort_key(layer):
+    id = layer[0]['id'] 
+    parts = id.split('N')
+    if id.startswith('S'):
+      level = int(parts[0].split('L')[1])
+      return (0, level)  # 0 as the first element to prioritize 'S' prefixed ids
+    else: 
+      return (1, 0)  # 1 to deprioritize 'P' prefixed ids, 0 as a placeholder for level since it's irrelevant for motifs
+
+  layers = sorted(layers, key=sort_key)
   return layers
 
 # def get_sorted_layers_from_graph_by_structure(G):
@@ -330,6 +340,7 @@ def generate_graph(structure_filepath, motives_filepath):
 
 if __name__ == "__main__":
   G, layers, _ = generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+  visualize([G], [layers])
   augment_graph(G)
   # replace_node_ids_with_integers(G)
   # layers = get_sorted_layers_from_graph_by_structure(G)
