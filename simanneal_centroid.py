@@ -9,7 +9,6 @@ import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
 import build_graph
 
-
 '''
 Simulated Annealing (SA) Combinatorial Optimization Approach
 1. Use SA to find optimal alignments between current centroid and each graph in corpus
@@ -46,6 +45,10 @@ class GraphAlignmentAnnealer(Annealer):
     self.A_G = A_G
     self.centroid_node_mapping = centroid_node_mapping
     self.node_partitions = self.get_node_partitions()
+  
+  # this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
+  def default_update(self, step, T, E, acceptance, improvement):
+    return 
   
   def get_node_info(self, node_id):
     if node_id.startswith('PrS'):
@@ -96,44 +99,41 @@ class GraphAlignmentAnnealer(Annealer):
       j = random.randint(0, n - 1)
       while j == i:
         j = random.randint(0, n - 1)
-    # if i_kind in ['prototype_segmentation', 'prototype_motif']:
-    #   print(self.centroid_node_mapping[i], self.centroid_node_mapping[j])
+
     self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
 
-  def energy(self): # i.e. cost
-    """Calculates the objective function of the current state."""
-    # self.state represents the permutation/alignment matrix a
+  def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     return dist(self.A_g, align(self.state, self.A_G))
 
-g, G = tests.G1, tests.G2
+# g, G = tests.G1, tests.G2
 # (g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 # (G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
-padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
-A_g, A_G = padded_matrices[0], padded_matrices[1]
+# padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
+# A_g, A_G = padded_matrices[0], padded_matrices[1]
 
-layers = build_graph.get_unsorted_layers_from_graph_by_index(g)
-g1 = helpers.adj_matrix_to_graph(A_g, centroid_node_mapping)
-layers1 = build_graph.get_unsorted_layers_from_graph_by_index(g1)
-build_graph.visualize_p([g, g1], [layers, layers1])
+# layers = build_graph.get_unsorted_layers_from_graph_by_index(g)
+# g1 = helpers.adj_matrix_to_graph(A_g, centroid_node_mapping)
+# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(g1)
+# build_graph.visualize_p([g, g1], [layers, layers1])
 
-initial_state = A_G # random_alignment(np.shape(A_g)[0]) --> choosing strategic seed A_G gives better result than random or A_g
-graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
-graph_aligner.Tmax = 2.5
-graph_aligner.Tmin = 0.01 
-graph_aligner.steps = 10000 # ~19.5 energy on complete test graphs c. 1min 10sec, 5000 gives ~20.2 energy on complete test graphs but takes half the time
+# initial_state = A_G # random_alignment(np.shape(A_g)[0]) --> choosing strategic seed A_G gives better result than random or A_g
+# graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
+# graph_aligner.Tmax = 2.5
+# graph_aligner.Tmin = 0.01 
+# graph_aligner.steps = 10000 # ~19.5 energy on complete test graphs c. 1min 10sec, 5000 gives ~20.2 energy on complete test graphs but takes half the time
 
-min_cost = np.inf
-best_alignment = None
-runs = 0
-for _ in range(runs):
-  alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
-  if cost < min_cost:
-    min_cost = cost
-    best_alignment = alignment
-    print("Best cost", cost)
+# min_cost = np.inf
+# best_alignment = None
+# runs = 0
+# for _ in range(runs):
+#   alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
+#   if cost < min_cost:
+#     min_cost = cost
+#     best_alignment = alignment
+#     print("Best cost", cost)
 
 # simanneal_runs is in order to ensure we're not stuck in local minima, tweak as needed
-def get_alignments_to_centroid(A_g, listA_G, node_mapping, simanneal_runs=5):
+def get_alignments_to_centroid(A_g, listA_G, node_mapping, simanneal_runs=1):
   alignments = []
   for A_G in listA_G: # for each graph in the corpus, find its best alignment with current centroid
     initial_state = A_g # random_alignment(np.shape(A_g)[0]) --> choosing strategic seed A_G gives better result than random or A_g
@@ -152,65 +152,35 @@ class CentroidAnnealer(Annealer):
   def __init__(self, initial_centroid, listA_G, centroid_node_mapping):
     super(CentroidAnnealer, self).__init__(initial_centroid)
     self.listA_G = listA_G
-    self.list_alignedA_G = None
     self.centroid_node_mapping = centroid_node_mapping
 
   def move(self):
     # 1/n * sum_{i=1}^n A_{a_i}(G_i)
     # A_{a_i}(G_i) is the adjacency matrix for G_i given alignment a_i, and A_g is the adj matrix for centroid g
-    assert isinstance(self.list_alignedA_G, list)
-    avgA_G = np.sum(np.array(self.list_alignedA_G), axis=0) / len(self.list_alignedA_G)
+    avgA_G = np.sum(np.array(self.listA_G), axis=0) / len(self.listA_G)
     difference_matrix = self.state - avgA_G
     largest_diff = np.max(difference_matrix)
     indices_max = np.argwhere(difference_matrix == largest_diff)
     coord = random.choice(indices_max) # Randomly select a coordinate with a max value to do the transform on
     self.state[coord[0], coord[1]] = 1 - self.state[coord[0], coord[1]]
 
-  def energy(self): # i.e. cost
-    """Calculates the objective function of the current state."""
-    # self.state represents the permutation/alignment matrix a
+  def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_node_mapping)
-    self.list_alignedA_G = list(map(align, alignments, self.listA_G))
-    x = loss(self.state, self.list_alignedA_G) 
-    print("LOSS", x)
-    return x
-  
-def greedy_centroid(list_G, threshold):
-  listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
-  A_g = random.choice(listA_G) # initial centroid. random for now, can improve later
-  loss = np.inf
-  
-  while (loss > threshold):
-    alignments = get_alignments_to_centroid(A_g, listA_G, centroid_node_mapping)
-    list_alignedA_G = list(map(align, alignments, listA_G))
-    loss = improve(A_g, list_alignedA_G, centroid_node_mapping)
+    # Align the corpus to the current centroid
+    # Seems to perform better when we keep the corpus aligned to the prev centroid rather than starting
+    # alignment from scratch each time
+    self.listA_G = list(map(align, alignments, self.listA_G))
+    return loss(self.state, self.listA_G) 
 
-def improve(A_g, list_alignedA_G, centroid_node_mapping):
-  # 1/n * sum_{i=1}^n A_{a_i}(G_i)
-  # A_{a_i}(G_i) is the adjacency matrix for G_i given alignment a_i, and A_g is the adj matrix for centroid g
-  avgA_G = np.sum(np.array(list_alignedA_G), axis=0) / len(list_alignedA_G)
-  difference_matrix = A_g - avgA_G
-  print(difference_matrix, avgA_G)
-  sys.exit(0)
+list_G = [tests.G1, tests.G2]
+listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
+initial_centroid = random.choice(listA_G) # initial centroid. random for now, can improve later
+centroid_annealer = CentroidAnnealer(initial_centroid, listA_G, centroid_node_mapping)
+centroid_annealer.Tmax = 2.5
+centroid_annealer.Tmin = 0.01 
+centroid_annealer.steps = 10
+centroid, min_loss = centroid_annealer.anneal()
+print("Best centroid", centroid)
+print("Best cost", min_loss)
 
-# list_G = [tests.G1, tests.G2]
-# listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
-# initial_centroid = random.choice(listA_G) # initial centroid. random for now, can improve later
-# centroid_annealer = CentroidAnnealer(initial_centroid, listA_G, centroid_node_mapping)
-# centroid, min_loss = centroid_annealer.anneal()
-# print("Best centroid", centroid)
-# print("Best cost", min_loss)
-
-# now, the alignments are fixed. 
-# with these alignments, we want to execute the "proposal transform" t that minimizes the losses
-# to choose t, look at the adj matrices of g and G1...Gn=list_G. Note that list_G has already 
-  # been changed in improve_alignments to maximize alignment
-# take the overall distance measure A_g - 1/2 * sum_{i=1}^n A_{a_i}(G_i) = A'
-  # where A_{a_i}(G_i) is the adjacency matrix for G_i given alignment a_i, and A_g is the adj matrix for g
-  # you can think of 1/n * sum_{i=1}^n A_{a_i}(G_i) as the "average" adj matrix of list_G
-# then, take the abs val |A'| and pick from there the transform with the biggeset val/distance
-  # and consult the original A' for the direction/size
-# also, note that we have padded each A s.t. all A's are the same dimensions (i.e. size of max graph in G)
-  # this means we can never add a node w/o a parent or child (need to refine so only can't add node with no parent)
-# def improve_g(g, list_a, list_G):
 
