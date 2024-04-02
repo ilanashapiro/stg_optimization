@@ -1,13 +1,13 @@
 import networkx as nx
 import numpy as np
-from simanneal import Annealer
 import random
+import re 
+from simanneal import Annealer
+import sys
 
-import simanneal
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
-import sys
-import re 
+
 
 '''
 Simulated Annealing (SA) Combinatorial Optimization Approach
@@ -71,27 +71,6 @@ class GraphAlignmentAnnealer(Annealer):
       elif kind:
         partitions[kind].append(index)
     return partitions
-  
-  # def move(self): # naive implementation, more inefficient than pre-partitioning
-  #   """Swaps two rows in the n x n permutation matrix, ensuring i != j."""
-  #   n = len(self.state)
-  #   i = random.randint(0, n - 1)
-  #   i_kind, i_layer = self.get_node_info(self.centroid_node_mapping[i])
-
-  #   # Try to find j options that match node type and layer (if it's a segmentation node)
-  #   j_options = [index for index, node_id in self.centroid_node_mapping.items() 
-  #                 if self.get_node_info(node_id)[0] == i_kind and
-  #                   (self.get_node_info(node_id)[1] == i_layer or i_layer is None) and 
-  #                   index != i]
-  
-  #   if j_options:
-  #     j = random.choice(j_options) 
-  #   else:
-  #     j = i
-  #     while j == i:
-  #       j = random.randint(0, n - 1)
-    
-  #   self.state[[i, j], :] = self.state[[j, i], :] # Swap rows i and j
 
   def move(self):
     """Swaps two rows in the n x n permutation matrix by permuting within valid sets (protype node class or individual level)"""
@@ -174,18 +153,10 @@ class CentroidAnnealer(Annealer):
     indices_max = np.argwhere(difference_matrix == largest_diff)
     coord = random.choice(indices_max) # Randomly select a coordinate with a max value to do the transform on
     self.state[coord[0], coord[1]] = 1 - self.state[coord[0], coord[1]]
-    # print(difference_matrix)
-    # Choose a random row and column index
-    # i = random.randint(0, self.state.shape[0] - 1)
-    # j = random.randint(0, self.state.shape[1] - 1)
-
-    # # Flip the value at the selected position
-    # self.state[i, j] = 1 - self.state[i, j]
 
   def energy(self): # i.e. cost
     """Calculates the objective function of the current state."""
     # self.state represents the permutation/alignment matrix a
-    # def loss(A_g, aligned_listA_G):
     alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_node_mapping)
     self.list_alignedA_G = list(map(align, alignments, self.listA_G))
     x = loss(self.state, self.list_alignedA_G) 
