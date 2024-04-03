@@ -18,6 +18,31 @@ def parse_form_file(file_path):
       layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_id})
     layers.append(layer)
   
+  # fix section labels so each new label encountered is increasing from the previous
+  for idx, layer in enumerate(layers):
+    # Step 1: Identify all unique S values and map them to new values
+    s_num_mapping = {}
+    new_s_num_counter = 0
+    for node in layer:
+      # Extract the 'n1' part of the 'id'
+      s_num = node['id'].split('L')[0][1:]  # This splits the id at 'L', takes the 'S{n1}' part, and then removes 'S' to get 'n1'
+      if s_num not in s_num_mapping:
+        s_num_mapping[s_num] = new_s_num_counter
+        new_s_num_counter += 1
+
+    # Step 2: Update each dictionary in the list according to the n1 mapping
+    updated_nodes = []
+    for node in layer:
+      old_s_num = node['id'].split('L')[0][1:]
+      new_s_num = s_num_mapping[old_s_num]
+      # Decompose the original 'id' and 'label' to reconstruct them with the new 'n1'
+      parts = node['id'].split('L')
+      new_id = f'S{new_s_num}L{parts[1]}'
+      # Assuming 'label' should be updated the same way as 'id'
+      new_label = new_id
+      updated_nodes.append({'start': node['start'], 'end': node['end'], 'id': new_id, 'label': new_label})
+    layers[idx] = updated_nodes
+
   return layers
 
 def parse_motives_file(file_path):
@@ -52,9 +77,11 @@ def parse_motives_file(file_path):
         motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
 
   # Sort by start time and add index based on the sort
-  sorted_data = sorted(motif_layer, key=lambda x: x['start'])
-  for idx, item in enumerate(sorted_data):
+  motif_layer = sorted(motif_layer, key=lambda x: x['start'])
+  for idx, item in enumerate(motif_layer):
     item['id'] += f"N{idx}"
+    item['label'] += f"N{idx}"
+  
   
   return motif_layer
 
