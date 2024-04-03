@@ -21,7 +21,11 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
   # based on the current alignments
 # this is our objective we're trying to minimize
 def loss(A_g, list_alignedA_G):
-  return sum([dist(A_g, A_G) for A_G in list_alignedA_G])
+  distances = np.array([dist(A_g, A_G) for A_G in list_alignedA_G])
+  distance = np.sum(distances)
+  variance = np.var(distances) / 5
+  print("DIST", distance, "VAR", variance, np.var(distances))
+  return distance + variance
 
 def align(a, A_G):
   return a.T @ A_G @ a 
@@ -105,69 +109,67 @@ class GraphAlignmentAnnealer(Annealer):
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     return dist(self.A_g, align(self.state, self.A_G))
 
-g, G = tests.G1, tests.G2
+# g, G = tests.G1, tests.G2
 # (g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 # (G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
-padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
-A_g, A_G = padded_matrices[0], padded_matrices[1]
+# padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
+# A_g, A_G = padded_matrices[0], padded_matrices[1]
 
-A_g = np.array([[0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,1.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
- [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.]])
-layers = build_graph.get_unsorted_layers_from_graph_by_index(g)
-g1 = helpers.adj_matrix_to_graph(A_g, centroid_node_mapping)
-layers1 = build_graph.get_unsorted_layers_from_graph_by_index(g1)
-build_graph.visualize_p([g, g1], [layers, layers1])
+# A_g = np.array([[0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,1.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
+#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.]])
+# layers = build_graph.get_unsorted_layers_from_graph_by_index(g)
+# g1 = helpers.adj_matrix_to_graph(A_g, centroid_node_mapping)
+# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(g1)
+# build_graph.visualize_p([g, g1], [layers, layers1])
 
-initial_state = A_G # random_alignment(np.shape(A_g)[0]) --> choosing strategic seed A_G gives better result than random or A_g
-graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
-graph_aligner.Tmax = 2.5
-graph_aligner.Tmin = 0.01 
-graph_aligner.steps = 10000 # ~19.5 energy on complete test graphs c. 1min 10sec, 5000 gives ~20.2 energy on complete test graphs but takes half the time
+# initial_state = np.eye(np.shape(A_G)[0])
+# graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
+# graph_aligner.Tmax = 1.25
+# graph_aligner.Tmin = 0.01 
+# graph_aligner.steps = 5000 
 
-min_cost = np.inf
-best_alignment = None
-runs = 0
-for _ in range(runs):
-  alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
-  if cost < min_cost:
-    min_cost = cost
-    best_alignment = alignment
-    print("Best cost", cost)
+# alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
 
-# simanneal_runs is in order to ensure we're not stuck in local minima, tweak as needed
-def get_alignments_to_centroid(A_g, listA_G, node_mapping, simanneal_runs=1):
+# print("Best cost1", cost)
+
+# graph_aligner = GraphAlignmentAnnealer(alignment, A_g, A_G, centroid_node_mapping)
+# graph_aligner.Tmax = 1.25
+# graph_aligner.Tmin = 0.01 
+# graph_aligner.steps = 5000 
+
+
+# print("Best cost2", cost)
+
+def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps):
   alignments = []
-  for A_G in listA_G: # for each graph in the corpus, find its best alignment with current centroid
-    initial_state = A_G # this is WRONG --> the rotated A_G is NOT a permutation matrix, but it encodes the permutation
-    # so initial state is either the identity matrix, since A_G is always updated/aligned, or otherwise just maintain the alignments/permutations themselves
+  for i, A_G in enumerate(listA_G): # for each graph in the corpus, find its best alignment with current centroid
+    initial_state = np.eye(np.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
     graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, node_mapping)
+    graph_aligner.Tmax = Tmax
+    graph_aligner.Tmin = Tmin
+    graph_aligner.steps = steps
     # each time we make the new alignment annealer at each step of the centroid annealer, we want to UPDATE THE TEMPERATURE PARAM (decrement it at each step)
     # and can try decreasing number of iterations each time as well
-    min_cost = np.inf
-    best_alignment = None
-    for _ in range(simanneal_runs):
-      alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
-      if cost < min_cost:
-        min_cost = cost
-        best_alignment = alignment
-    alignments.append(best_alignment)
+    alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
+    print(f"ALIGNMENT COST{i}", cost, "|||")
+    alignments.append(alignment)
   return alignments
 
 class CentroidAnnealer(Annealer):
@@ -175,34 +177,78 @@ class CentroidAnnealer(Annealer):
     super(CentroidAnnealer, self).__init__(initial_centroid)
     self.listA_G = listA_G
     self.centroid_node_mapping = centroid_node_mapping
+    self.step = 0
 
   def move(self):
     # 1/n * sum_{i=1}^n A_{a_i}(G_i)
     # A_{a_i}(G_i) is the adjacency matrix for G_i given alignment a_i, and A_g is the adj matrix for centroid g
     avgA_G = np.sum(np.array(self.listA_G), axis=0) / len(self.listA_G)
+    
+    # Calculate the difference matrix between the current state and the average
     difference_matrix = self.state - avgA_G
-    largest_diff = np.max(difference_matrix)
-    indices_max = np.argwhere(difference_matrix == largest_diff)
-    coord = random.choice(indices_max) # Randomly select a coordinate with a max value to do the transform on
+    
+    # Calculate variance across the aligned adjacency matrices at each position
+    variance_matrix = np.var(np.array(self.listA_G), axis=0)
+    
+    # Consider both difference and variance; you might experiment with how to weight these
+    score_matrix = np.abs(difference_matrix) * variance_matrix  # Example scoring function
+    
+    # Find the maximum score for a move
+    max_score = np.max(score_matrix)
+    indices_max_score = np.argwhere(score_matrix == max_score)
+    
+    # Randomly select a coordinate with a max score to perform the transform
+    coord = random.choice(indices_max_score)
     self.state[coord[0], coord[1]] = 1 - self.state[coord[0], coord[1]]
+    self.step += 1
 
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
-    alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_node_mapping)
+    # Calculate the current temperature ratio of the centroid annealer
+    current_temp_ratio = (self.T - self.Tmin) / (self.Tmax - self.Tmin)
+    
+    # Define initial and final values for Tmax and steps in get_alignments_to_centroid
+    initial_Tmax = 1
+    final_Tmax = 0.05
+    initial_steps = 100
+    final_steps = 5
+    
+    # Adjust Tmax and steps based on the current temperature ratio
+    alignment_Tmax = initial_Tmax * current_temp_ratio + final_Tmax * (1 - current_temp_ratio)
+    alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio))
+    
+    alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_node_mapping, alignment_Tmax, 0.01, alignment_steps)
+    
     # Align the corpus to the current centroid
     # Seems to perform better when we keep the corpus aligned to the prev centroid rather than starting
     # alignment from scratch each time
     self.listA_G = list(map(align, alignments, self.listA_G))
-    return loss(self.state, self.listA_G) 
+    l = loss(self.state, self.listA_G) 
+    print("LOSS", l)
+    return l
 
+
+(g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 # list_G = [tests.G1, tests.G2]
-# listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
-# initial_centroid = random.choice(listA_G) # initial centroid. random for now, can improve later
-# centroid_annealer = CentroidAnnealer(initial_centroid, listA_G, centroid_node_mapping)
+list_G = [g, G]
+listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
+initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
+# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
+
+# for i, alignment in enumerate(alignments):
+#   file_name = f'alignment_{i}.txt'
+#   np.savetxt(file_name, alignment)
+#   print(f'Saved: {file_name}')
+
+alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
+aligned_listA_G = list(map(align, alignments, listA_G))
+
+# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
 # centroid_annealer.Tmax = 2.5
-# centroid_annealer.Tmin = 0.01 
-# centroid_annealer.steps = 10
+# centroid_annealer.Tmin = 0.05 
+# centroid_annealer.steps = 100
 # centroid, min_loss = centroid_annealer.anneal()
+# np.savetxt("centroid.txt", centroid)
+# print('Saved: centroid.txt')
 # print("Best centroid", centroid)
-# print("Best cost", min_loss)
-
-
+# print("Best loss", min_loss)
