@@ -64,8 +64,8 @@ class GraphAlignmentAnnealer(Annealer):
     self.node_partitions = self.get_node_partitions()
   
   # this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-  def default_update(self, step, T, E, acceptance, improvement):
-    return 
+  # def default_update(self, step, T, E, acceptance, improvement):
+  #   return 
   
   def get_node_info(self, node_id):
     if node_id.startswith('PrS'):
@@ -122,8 +122,8 @@ class GraphAlignmentAnnealer(Annealer):
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     return dist(self.A_g, align(self.state, self.A_G))
 
-# (g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-# (G, layers1, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+(g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G, layers1, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 # padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([tests.G1, tests.G2])
 # A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
 
@@ -132,15 +132,15 @@ class GraphAlignmentAnnealer(Annealer):
 # initial_centroid = listA_G[0]
 # np.savetxt("centroid.txt", initial_centroid)
 
-# A_g_c = np.loadtxt('centroid.txt')
-# with open("centroid_node_mapping.txt", 'r') as file:
-#   centroid_node_mapping = json.load(file)
-#   centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
+A_g_c = np.loadtxt('centroid.txt')
+with open("centroid_node_mapping.txt", 'r') as file:
+  centroid_node_mapping = json.load(file)
+  centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
 # layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
 # layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
-# g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
-# layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
-# build_graph.visualize_p([g, G, g_c], [layers, layers1, layers_g_c])
+g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
+layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
+build_graph.visualize_p([g, G, g_c], [layers, layers1, layers_g_c])
 
 # initial_state = np.eye(np.shape(A_G)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
@@ -270,7 +270,7 @@ class CentroidAnnealer(Annealer):
     # Define initial and final values for Tmax and steps in get_alignments_to_centroid
     initial_Tmax = 1
     final_Tmax = 0.05
-    initial_steps = 100
+    initial_steps = 50
     final_steps = 5
     
     # Adjust Tmax and steps based on the current temperature ratio
@@ -292,20 +292,20 @@ class CentroidAnnealer(Annealer):
 list_G = [g, G]
 listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
 initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
-alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
+# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
 
-for i, alignment in enumerate(alignments):
-  file_name = f'alignment_{i}.txt'
-  np.savetxt(file_name, alignment)
-  print(f'Saved: {file_name}')
+# for i, alignment in enumerate(alignments):
+#   file_name = f'alignment_{i}.txt'
+#   np.savetxt(file_name, alignment)
+#   print(f'Saved: {file_name}')
 
-# alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
+alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
 aligned_listA_G = list(map(align, alignments, listA_G))
 
 centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
 centroid_annealer.Tmax = 2.5
 centroid_annealer.Tmin = 0.05 
-centroid_annealer.steps = 100
+centroid_annealer.steps = 1000
 centroid, min_loss = centroid_annealer.anneal()
 np.savetxt("centroid.txt", centroid)
 print('Saved: centroid.txt')
