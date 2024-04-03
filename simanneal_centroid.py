@@ -1,9 +1,11 @@
+from curses import A_RIGHT
 import networkx as nx
 import numpy as np
 import random
 import re 
 from simanneal import Annealer
 import sys
+import json 
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
@@ -16,6 +18,12 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
+def normalize(value, lower_bound, upper_bound):
+  # Avoid division by zero if max_value == min_value
+  if upper_bound == lower_bound:
+    return 0
+  return (value - lower_bound) / (upper_bound - lower_bound)
+
 # current centroid g, list of alignments list_a to the graphs in the corpus list_G
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
   # based on the current alignments
@@ -23,9 +31,14 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 def loss(A_g, list_alignedA_G):
   distances = np.array([dist(A_g, A_G) for A_G in list_alignedA_G])
   distance = np.sum(distances)
-  variance = np.var(distances) / 5
-  print("DIST", distance, "VAR", variance, np.var(distances))
-  return distance + variance
+  variance = np.var(distances)
+
+  # n = np.shape(list_alignedA_G[0])[0]
+  # normalized_distance = normalize(distance, 0, n * len(distances))
+  # normalized_variance = normalize(variance, 0, n ** 2 / 4)
+
+  print("DIST", distance, "VAR", variance)
+  return distance * variance
 
 def align(a, A_G):
   return a.T @ A_G @ a 
@@ -51,8 +64,8 @@ class GraphAlignmentAnnealer(Annealer):
     self.node_partitions = self.get_node_partitions()
   
   # this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-  # def default_update(self, step, T, E, acceptance, improvement):
-  #   return 
+  def default_update(self, step, T, E, acceptance, improvement):
+    return 
   
   def get_node_info(self, node_id):
     if node_id.startswith('PrS'):
@@ -109,35 +122,25 @@ class GraphAlignmentAnnealer(Annealer):
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     return dist(self.A_g, align(self.state, self.A_G))
 
-# g, G = tests.G1, tests.G2
 # (g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-# (G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
-# padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([g, G])
-# A_g, A_G = padded_matrices[0], padded_matrices[1]
+# (G, layers1, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+# padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([tests.G1, tests.G2])
+# A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
 
-# A_g = np.array([[0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,1.,0.,1.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,1.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.],
-#  [0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.,0.]])
-# layers = build_graph.get_unsorted_layers_from_graph_by_index(g)
-# g1 = helpers.adj_matrix_to_graph(A_g, centroid_node_mapping)
-# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(g1)
-# build_graph.visualize_p([g, g1], [layers, layers1])
+# list_G = [tests.G1, tests.G2]
+# listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
+# initial_centroid = listA_G[0]
+# np.savetxt("centroid.txt", initial_centroid)
+
+# A_g_c = np.loadtxt('centroid.txt')
+# with open("centroid_node_mapping.txt", 'r') as file:
+#   centroid_node_mapping = json.load(file)
+#   centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
+# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
+# layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
+# g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
+# layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
+# build_graph.visualize_p([g, G, g_c], [layers, layers1, layers_g_c])
 
 # initial_state = np.eye(np.shape(A_G)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
@@ -179,28 +182,86 @@ class CentroidAnnealer(Annealer):
     self.centroid_node_mapping = centroid_node_mapping
     self.step = 0
 
+  def parse_node_name(self, node_name):
+    # Prototype nodes of the form "PrS{n}" or "PrP{n}"
+    proto_match = re.match(r"Pr([SP])(\d+)", node_name)
+    if proto_match:
+      return {
+        "type": "prototype",
+        "kind": proto_match.group(1),
+        "n": int(proto_match.group(2)),
+      }
+    
+    # Instance nodes of the form "S{n1}L{n2}N{n3}" or "P{n1}O{n2}N{n3}"
+    instance_match = re.match(r"([SP])(\d+)L?O?(\d+)N(\d+)", node_name)
+    if instance_match:
+      return {
+        "type": "instance",
+        "kind": instance_match.group(1),
+        "n1": int(instance_match.group(2)),
+        "n2": int(instance_match.group(3)),
+        "n3": int(instance_match.group(4)),
+      }
+    
+    # If the node name does not match any known format
+    return {
+      "type": "unknown",
+      "name": node_name
+    }
+  
+  # i.e. this always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
+  def is_valid_move(self, source, sink, node_mapping):
+    source_info = self.parse_node_name(node_mapping[source])
+    sink_info = self.parse_node_name(node_mapping[sink])
+
+    # The edge is from an instance to a prototype 
+    if source_info['type'] == 'instance' and sink_info['type'] == 'prototype':
+      return False
+    
+    # The edge is between two prototypes
+    if source_info['type'] == 'prototype' and sink_info['type'] == 'prototype':
+      return False
+    
+    # The edge is from the wrong prototype to an instance (i.e. PrP{n} to S{n1}L{n2}N{n3} or PrS{n} to P{n1}O{n2}N{n3})
+    if source_info['type'] == 'prototype' and sink_info['type'] == 'instance' and source_info['kind'] != sink_info['kind']:
+      return False
+    
+    # The edge is from a lower level to a higher level instance node (so either from P{n1}O{n2}N{n3} to S{n1}L{n2}N{n3}, or from S{n1}L{n2}N{n3} to S{n1'}L{n2'}N{n3'} where n2 > n2')
+    if source_info['type'] == 'instance' and sink_info['type'] == 'instance':
+      if source_info['kind'] == 'P' and sink_info['kind'] == 'S':
+        return False
+      if source_info['kind'] == 'S' and sink_info['kind'] == 'S' and source_info['n2'] > sink_info['n2']:
+        return False
+
+    return True
+  
+  
   def move(self):
-    # 1/n * sum_{i=1}^n A_{a_i}(G_i)
-    # A_{a_i}(G_i) is the adjacency matrix for G_i given alignment a_i, and A_g is the adj matrix for centroid g
-    avgA_G = np.sum(np.array(self.listA_G), axis=0) / len(self.listA_G)
+    valid_move_found = False
+    attempt_index = 0
+
+    # Calculate the matrices only once for efficiency
+    diff_matrices = np.array([self.state - A_G for A_G in self.listA_G])
+    difference_matrix = np.mean(diff_matrices, axis=0)
+    variance_matrix = np.var(diff_matrices, axis=0)
+    score_matrix = np.abs(difference_matrix) * variance_matrix 
     
-    # Calculate the difference matrix between the current state and the average
-    difference_matrix = self.state - avgA_G
-    
-    # Calculate variance across the aligned adjacency matrices at each position
-    variance_matrix = np.var(np.array(self.listA_G), axis=0)
-    
-    # Consider both difference and variance; you might experiment with how to weight these
-    score_matrix = np.abs(difference_matrix) * variance_matrix  # Example scoring function
-    
-    # Find the maximum score for a move
-    max_score = np.max(score_matrix)
-    indices_max_score = np.argwhere(score_matrix == max_score)
-    
-    # Randomly select a coordinate with a max score to perform the transform
-    coord = random.choice(indices_max_score)
-    self.state[coord[0], coord[1]] = 1 - self.state[coord[0], coord[1]]
-    self.step += 1
+    # Flatten the score matrix to sort scores
+    flat_indices_sorted_by_score = np.argsort(score_matrix, axis=None)[::-1]
+
+    while not valid_move_found and attempt_index < len(flat_indices_sorted_by_score):
+      flat_index = flat_indices_sorted_by_score[attempt_index]
+      coord = np.unravel_index(flat_index, score_matrix.shape)
+      source_idx, sink_idx = coord
+      valid_move_found = self.is_valid_move(source_idx, sink_idx, self.centroid_node_mapping)
+      if not valid_move_found:
+        attempt_index += 1
+
+    if valid_move_found:
+      self.state[coord[0], coord[1]] = 1 - self.state[coord[0], coord[1]] 
+      self.step += 1
+    else:
+      print("No valid move found.")
 
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     # Calculate the current temperature ratio of the centroid annealer
@@ -219,36 +280,37 @@ class CentroidAnnealer(Annealer):
     alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_node_mapping, alignment_Tmax, 0.01, alignment_steps)
     
     # Align the corpus to the current centroid
-    # Seems to perform better when we keep the corpus aligned to the prev centroid rather than starting
-    # alignment from scratch each time
     self.listA_G = list(map(align, alignments, self.listA_G))
     l = loss(self.state, self.listA_G) 
-    print("LOSS", l)
+    print("LOSS", l, "\n")
     return l
 
 
-(g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(g, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 # list_G = [tests.G1, tests.G2]
 list_G = [g, G]
 listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
 initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
-# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
+alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
 
-# for i, alignment in enumerate(alignments):
-#   file_name = f'alignment_{i}.txt'
-#   np.savetxt(file_name, alignment)
-#   print(f'Saved: {file_name}')
+for i, alignment in enumerate(alignments):
+  file_name = f'alignment_{i}.txt'
+  np.savetxt(file_name, alignment)
+  print(f'Saved: {file_name}')
 
-alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
+# alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
 aligned_listA_G = list(map(align, alignments, listA_G))
 
-# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
-# centroid_annealer.Tmax = 2.5
-# centroid_annealer.Tmin = 0.05 
-# centroid_annealer.steps = 100
-# centroid, min_loss = centroid_annealer.anneal()
-# np.savetxt("centroid.txt", centroid)
-# print('Saved: centroid.txt')
-# print("Best centroid", centroid)
-# print("Best loss", min_loss)
+centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
+centroid_annealer.Tmax = 2.5
+centroid_annealer.Tmin = 0.05 
+centroid_annealer.steps = 100
+centroid, min_loss = centroid_annealer.anneal()
+np.savetxt("centroid.txt", centroid)
+print('Saved: centroid.txt')
+with open("centroid_node_mapping.txt", 'w') as file:
+  json.dump(centroid_node_mapping, file)
+print('Saved: centroid_node_mapping.txt')
+print("Best centroid", centroid)
+print("Best loss", min_loss)

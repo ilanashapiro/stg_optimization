@@ -361,6 +361,7 @@ def generate_graph(structure_filepath, motives_filepath):
   layers.append(motive_layer)
   G = create_graph(layers)
   layers_with_index = get_unsorted_layers_from_graph_by_index(G) # for rendering purposes
+  augment_graph(G)
   labels_dict = {d['id']: d['label'] for layer in layers_with_index for d in layer}
   return (G, layers_with_index, labels_dict)
 

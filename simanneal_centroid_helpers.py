@@ -30,7 +30,7 @@ def adj_matrix_to_graph(A, idx_node_mapping):
     for j in range(A.shape[1]):
       source = idx_node_mapping[i]
       sink = idx_node_mapping[j] 
-      if A[i, j] > 0:# and 'Pr' not in source: # remove prototype nodes
+      if A[i, j] > 0:
         G.add_edge(source, sink)
             
   for node in G.nodes():
@@ -43,6 +43,26 @@ def adj_matrix_to_graph(A, idx_node_mapping):
   return G
 
 '''
+RULES:
+0. It is valid for *any* node to have zero outgoing or incoming edges (this is called a dummy node). However, if the node does have one or more outgoing or incoming edges, then the following rules must apply:
+
+1 [PROTOTYPE-INSTANCE RELATIONSHIPS]. prototype nodes (starting with "Pr") must not have any incoming edges.
+1a. prototype nodes of the form "PrS{n}" must only have edges to nodes of the form "S{n1}L{n2}N{n3}"
+1b. prototype nodes of the form "PrP{n}" must only have edges to nodes of the form "P{n1}O{n2}N{n3}"
+1c. every non-prototype node (S{n1}L{n2}N{n3} or P{n1}O{n2}N{n3}) must be the child of exactly one prototype node
+
+2 [INTER-LEVEL TEMPORAL RELATIONSHIPS]. If n2 > 0 for a S{n1}L{n2}N{n3} node, then that node must have either 1 or 2 parents of the form S{n1'}L{n2 - 1}N{n3'}
+
+3 [INTRA-LEVEL TEMPORAL RELATIONSHIPS]. Consider the set S of S{n1}L{n2}N{n3} nodes that all have the same n2 (i.e. level). Given node n in this set, if n is not a dummy node, then n should have exactly 1 incoming edge from another node in S, and exactly 1 outgoing edge to yet another node in S. There should also be exactly *one* non-dummy node in S that only has an incoming edge from another node in S, and no outgoing. In this way, the non-dummy nodes in S form a linear chain.
+3a. Given 2 nodes a1 and a2 that are adjacent in the same-level linear chain (i.e. a1 and a2 are both in S and a1 has an edge from itself to a2), then a1 and a2 should NOT have the same prototype node as a parent. 
+
+EDGES I NEVER WANT TO ADD THAT WILL ALWAYS MAKE THE SCORE WORSE:
+1. instance->prototype edges
+2. prototype-prototype edges
+-----3. edges across non-adjacent levels----> NOPE ACTUALLY THIS COULD BE AN INTERMEDIATE STEP TO VALIDITY IF WE ARE REMOVING AN ENTIRE LEVEL ETC
+3. edges from instace to the wrong prototype
+
+TRYING TO KEEP IT VALID AT EVERY STEP:
 types of transforms: add/remove instance-proto edge, add/remove intra-level edge, add/remove inter-level edge
 should I iterate thru the entire set of equally high difference values from diff matrix since they introduce other transforms like below?
 
@@ -54,9 +74,9 @@ should I iterate thru the entire set of equally high difference values from diff
 6. add inter-level edge -> if exceeds 2 parents, consult diff matrix to determine which existing inter-level edge to remove for that node
 7. remove inter-level edge -> if it leave a no-parent node, consult diff matrix about how to replace that edge to make a new parent
 
-finally, convert augmented STG back to regular STG
+BUT THIS CAN MAKE THE ANNEALER GET STUCK
 
-OR
+SO HOW ABOUT:
 
 try adding (very small) penalty function in energy for when you do an invalid edge operation
 and this penalty gets much bigger as the temperature decreases, because at this point we want to basically be adding valid edges

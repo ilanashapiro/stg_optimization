@@ -5,3 +5,7 @@ LOP_database_06_09_17/
 __pycache__/
 other_datasets/
 classical_piano_midi_db/
+alignment_0.txt
+alignment_1.txt
+centroid.txt
+centroid_node_mapping.txt
