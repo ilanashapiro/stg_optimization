@@ -33,10 +33,6 @@ def loss(A_g, list_alignedA_G):
   distance = np.sum(distances)
   variance = np.var(distances)
 
-  # n = np.shape(list_alignedA_G[0])[0]
-  # normalized_distance = normalize(distance, 0, n * len(distances))
-  # normalized_variance = normalize(variance, 0, n ** 2 / 4)
-
   print("DIST", distance, "VAR", variance)
   return distance * variance
 
@@ -235,7 +231,6 @@ class CentroidAnnealer(Annealer):
 
     return True
   
-  
   def move(self):
     valid_move_found = False
     attempt_index = 0
@@ -267,13 +262,14 @@ class CentroidAnnealer(Annealer):
     # Calculate the current temperature ratio of the centroid annealer
     current_temp_ratio = (self.T - self.Tmin) / (self.Tmax - self.Tmin)
     
-    # Define initial and final values for Tmax and steps in get_alignments_to_centroid
+    # Define params get_alignments_to_centroid
     initial_Tmax = 1
     final_Tmax = 0.05
     initial_steps = 50
     final_steps = 5
     
-    # Adjust Tmax and steps based on the current temperature ratio
+    # Alignment annealer params Tmax and steps are dynamic based on the current temperature ratio for the centroid
+    # They get narrower as we get an increasingly more accurate centroid that's easier to align
     alignment_Tmax = initial_Tmax * current_temp_ratio + final_Tmax * (1 - current_temp_ratio)
     alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio))
     
@@ -284,7 +280,6 @@ class CentroidAnnealer(Annealer):
     l = loss(self.state, self.listA_G) 
     print("LOSS", l, "\n")
     return l
-
 
 (g, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
 (G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
