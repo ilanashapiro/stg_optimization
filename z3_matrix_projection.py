@@ -2,13 +2,18 @@ import z3
 import numpy as np 
 import json
 import re
+import z3_matrix_projection_helpers as helpers 
 
-A_g = np.loadtxt('centroid.txt')
-with open("centroid_node_mapping.txt", 'r') as file:
-  centroid_node_mapping = json.load(file)
-  centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
+centroid = np.loadtxt('centroid1.txt')
+with open("centroid_node_mapping1.txt", 'r') as file:
+  node_mapping = json.load(file)
+  node_mapping = {int(k): v for k, v in node_mapping.items()}
 
-n = len(centroid_node_mapping) 
+n = len(node_mapping) 
+solver = z3.Optimize()
+
+levels_partition = helpers.partition_levels(node_mapping)
+max_seg_level = len(levels_partition.keys()) - 1
 
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
@@ -18,7 +23,7 @@ A = [[z3.Bool(f"A_{i}_{j}") for j in range(n)] for i in range(n)]
 is_prototype = {}
 is_instance = {}
 
-for index, node_id in centroid_node_mapping.items():
+for index, node_id in node_mapping.items():
   proto_match = re.match(r"^Pr", node_id)
   
   is_prototype[index] = z3.Bool(f"is_prototype_{index}")
@@ -35,65 +40,30 @@ for index, node_id in centroid_node_mapping.items():
     instance_cond = is_instance[index]
   
   # Enforcing the determined conditions
-  z3.Solver().add(prototype_cond, instance_cond)
+  solver.add(prototype_cond, instance_cond)
 
-def is_dummy_node(n, A):
-  incoming_edges = z3.Sum([z3.If(A[i][n], 1, 0) for i in range(n)])
-  outgoing_edges = z3.Sum([z3.If(A[n][j], 1, 0) for j in range(n)])
-  return z3.And(incoming_edges == 0, outgoing_edges == 0)
+# Constraint: Every instance node must be the child of exactly one prototype node
+def add_prototype_to_instance_constraints(is_instance):
+  for i in range(n):
+    if i in is_instance:
+      incoming_prototype_edges = z3.Sum([z3.If(z3.And(A[j][index], is_prototype[j]), 1, 0) for j in range(n)])
+      exactly_one_prototype_parent = incoming_prototype_edges == 1 # Ensure exactly one incoming edge from a prototype unless it's a dummy node
+      solver.add(exactly_one_prototype_parent)
 
-def parse_node_id(node_id):
-  # Pattern for segment nodes S{n1}L{n2}N{n3}
-  s_pattern = re.compile(r'S(\d+)L(\d+)N(\d+)')
-  s_match = s_pattern.match(node_id)
-  if s_match:
-    n1, n2, n3 = map(int, s_match.groups())
-    return ('S', n1, n2, n3)
-  
-  # Pattern for motiv nodes P{n1}O{n2}N{n3}
-  p_pattern = re.compile(r'P(\d+)O(\d+)N(\d+)')
-  p_match = p_pattern.match(node_id)
-  if p_match:
-    n1, n2, n3 = map(int, p_match.groups())
-    return ('P', n1, n2, n3)
+# Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
+def add_inter_level_temporal_constraints():
+  for index, node_id in node_mapping.items():
+    parsed = helpers.parse_node_id(node_id)
+    if parsed:
+      if parsed[0] == 'S':
+        zero_indexed_level = parsed[2] - 1 # bc levels are encoded as 1-indexed
+        if zero_indexed_level > 0: # top level doesn't have instance parents
+          potential_parents = levels_partition[zero_indexed_level]
+          parent_connections = z3.Sum([z3.If(A[j][index], 1, 0) for j in potential_parents])
+          solver.add(z3.Or(parent_connections == 1, parent_connections == 2))
+      elif parsed[0] == 'P':
+        potential_parents = levels_partition[max_seg_level]
+        parent_connections = z3.Sum([z3.If(A[j][index], 1, 0) for j in potential_parents])
+        solver.add(z3.Or(parent_connections == 1, parent_connections == 2))
 
-# Constraint: Every non-prototype, non-dummy node must be the child of exactly one prototype node
-for i in range(n):
-  if i in is_instance:
-    dummy_condition = is_dummy_node(index, A)
-    incoming_prototype_edges = z3.Sum([z3.If(z3.And(A[j][index], is_prototype[j]), 1, 0) for j in range(n)])
-    exactly_one_prototype_parent = z3.If(dummy_condition, True, incoming_prototype_edges == 1) # Ensure exactly one incoming edge from a prototype unless it's a dummy node
-    z3.Solver().add(exactly_one_prototype_parent)
-  print(i)
-
-#------------------------------------------------------------------------
-
-# def apply_segmentation_node_parent_constraints(index, n2, A, centroid_node_mapping):
-#   dummy_condition = is_dummy_node(index, A)
-#   potential_parents = [j for j, other_id in centroid_node_mapping.items() if other_id.startswith('S') and f'L{n2-1}' in other_id]
-#   parent_connections = z3.Sum([z3.If(A[j][index], 1, 0) for j in potential_parents])
-#   constraint = z3.If(dummy_condition, True, z3.Or(parent_connections == 1, parent_connections == 2))
-#   z3.solver.add(constraint)
-
-# def apply_motif_node_parent_constraints(index, A, centroid_node_mapping, highest_s_level):
-#   dummy_condition = is_dummy_node(index, A)
-#   for j, other_id in centroid_node_mapping.items():
-
-#   potential_parents = [j for j, other_id in centroid_node_mapping.items() if other_id.startswith('S') and other_id.startswith(other_id)[1] == highest_s_level]
-#   parent_connections = z3.Sum([z3.If(A[j][index], 1, 0) for j in potential_parents])
-#   constraint = z3.If(dummy_condition, True, z3.Or(parent_connections == 1, parent_connections == 2))
-#   z3.solver.add(constraint)
-
-# # Constraint: For each non-dummy node, enforce the constraint on its parents
-# for index, node_id in centroid_node_mapping.items():
-#   parsed = parse_node_id(node_id)  # Assuming this function now identifies the type and parses IDs
-#   if parsed:
-#     if parsed[0] == 'S':
-#       _, n1, n2, n3 = parsed
-#       if n2 > 1: # since the first level doesn't need 
-#         apply_segmentation_node_parent_constraints(index, n2, A, centroid_node_mapping)
-    
-#     elif parsed[0] == 'P':
-#         _, n1, n2, n3 = parsed
-#         apply_motif_node_parent_constraints(index, A, centroid_node_mapping, highest_s_level)
 

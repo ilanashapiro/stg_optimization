@@ -132,15 +132,15 @@ class GraphAlignmentAnnealer(Annealer):
 # initial_centroid = listA_G[0]
 # np.savetxt("centroid.txt", initial_centroid)
 
-A_g_c = np.loadtxt('centroid.txt')
-with open("centroid_node_mapping.txt", 'r') as file:
-  centroid_node_mapping = json.load(file)
-  centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
-# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
-# layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
-g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
-layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
-build_graph.visualize_p([g, G, g_c], [layers, layers1, layers_g_c])
+# A_g_c = np.loadtxt('centroid.txt')
+# with open("centroid_node_mapping.txt", 'r') as file:
+#   centroid_node_mapping = json.load(file)
+#   centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
+# # layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
+# # layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
+# g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
+# layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
+# build_graph.visualize_p([g, G, g_c], [layers, layers1, layers_g_c])
 
 # initial_state = np.eye(np.shape(A_G)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
@@ -305,8 +305,11 @@ aligned_listA_G = list(map(align, alignments, listA_G))
 centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
 centroid_annealer.Tmax = 2.5
 centroid_annealer.Tmin = 0.05 
-centroid_annealer.steps = 1000
+centroid_annealer.steps = 300
 centroid, min_loss = centroid_annealer.anneal()
+
+centroid, centroid_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_node_mapping)
+
 np.savetxt("centroid.txt", centroid)
 print('Saved: centroid.txt')
 with open("centroid_node_mapping.txt", 'w') as file:

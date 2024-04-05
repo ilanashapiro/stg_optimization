@@ -42,6 +42,20 @@ def adj_matrix_to_graph(A, idx_node_mapping):
 
   return G
 
+def remove_dummy_nodes(A, node_mapping):
+  # Identify non-dummy nodes (nodes with at least one incoming or outgoing edge)
+  non_dummy_indices = np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0]
+  dummy_indices = np.where(np.all(A == 0, axis=0) & np.all(A == 0, axis=1))[0]
+  print(len(non_dummy_indices), len(dummy_indices))
+  
+  # Filter the adjacency matrix to keep only non-dummy nodes
+  filtered_matrix = A[non_dummy_indices][:, non_dummy_indices]
+  
+  # Update the node mapping to only include non-dummy nodes
+  updated_mapping = {new_idx: node_mapping[old_idx] for new_idx, old_idx in enumerate(non_dummy_indices)}
+  
+  return filtered_matrix, updated_mapping
+
 '''
 RULES:
 0. It is valid for *any* node to have zero outgoing or incoming edges (this is called a dummy node). However, if the node does have one or more outgoing or incoming edges, then the following rules must apply:
