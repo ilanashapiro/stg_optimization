@@ -84,7 +84,7 @@ def add_intra_level_linear_chain():
       
       opt.add(start_nodes[i] == (num_outgoing_edges == 1) & (num_incoming_edges == 0))
       opt.add(end_nodes[i] == (num_incoming_edges == 1) & (num_outgoing_edges == 0))
-      opt.add((~start_nodes[i] & ~end_nodes[i]) == ((num_incoming_edges == 1) & (num_outgoing_edges == 1)))
+      opt.add((~start_nodes[i] & ~end_nodes[i]) == ((num_incoming_edges == 1) & (num_outgoing_edges == 1))) # ~, & are the logical operators in Z3
     
     # Ensure exactly one start node and one end node in the partition
     opt.add(z3.Sum([z3.If(start_node, 1, 0) for start_node in start_nodes]) == 1)
