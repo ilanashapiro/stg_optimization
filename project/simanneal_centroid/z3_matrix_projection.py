@@ -3,25 +3,29 @@ import numpy as np
 import json
 import re
 import sys
-import z3_matrix_projection_helpers as helpers 
+import z3_matrix_projection_helpers as z3_helpers 
+import simanneal_centroid_tests as simanneal_tests 
 import math 
 
-centroid = np.loadtxt('centroid1.txt')
-with open("centroid_node_mapping1.txt", 'r') as file:
-  idx_node_mapping = json.load(file)
-  idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+G = simanneal_tests.G1
+centroid = G # np.loadtxt('centroid1.txt')
+# with open("centroid_node_mapping1.txt", 'r') as file:
+#   idx_node_mapping = json.load(file)
+#   idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+
+idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
-opt = z3.Solver()
+opt = z3.Optimizer()
 
-levels_partition = helpers.partition_levels(idx_node_mapping)
+levels_partition = z3_helpers.partition_levels(idx_node_mapping)
 max_seg_level = len(levels_partition.keys()) - 1
 
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
 A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n)] for i in range(n)])
-A_partition_submatrices_list = helpers.create_partition_submatrices(A, idx_node_mapping, node_idx_mapping, levels_partition)
+A_partition_submatrices_list = z3_helpers.create_partition_submatrices(A, idx_node_mapping, node_idx_mapping, levels_partition)
 
 NodeSort = z3.IntSort()
 
@@ -55,7 +59,7 @@ def add_prototype_to_instance_constraints():
 def add_inter_level_parent_counts_constraints():
   for level, partition_nodes in levels_partition.items():
     for node_id in partition_nodes:
-      parsed = helpers.parse_node_id(node_id)
+      parsed = z3_helpers.parse_node_id(node_id)
       if parsed:
         node_index = node_idx_mapping[node_id]
         if level > 0: # top level doesn't have instance parents by construction in simanneal
@@ -139,42 +143,42 @@ def add_level_prototype_and_instance_parent_constraints():
 
 add_prototype_to_instance_constraints()
 print("HERE1")
-# add_inter_level_parent_counts_constraints()
-# print("HERE2")
-# add_intra_level_linear_chain()
-# print("HERE3")
-# add_level_prototype_and_instance_parent_constraints()
-# print("HERE4")
+add_inter_level_parent_counts_constraints()
+print("HERE2")
+add_intra_level_linear_chain()
+print("HERE3")
+add_level_prototype_and_instance_parent_constraints()
+print("HERE4")
 
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
-# opt.minimize(objective)
+opt.minimize(objective)
 print("HERE5")
 
-# if opt.check() == z3.sat:
-#   model = opt.model()
-#   print("Closest valid graph's adjacency matrix:")
-#   for i in range(n):
-#     print([model.evaluate(A[i][j]) for j in range(n)])
-# else:
-#   print("Problem has no solution")
+if opt.check() == z3.sat:
+  model = opt.model()
+  print("Closest valid graph's adjacency matrix:")
+  for i in range(n):
+    print([model.evaluate(A[i][j]) for j in range(n)])
+else:
+  print("Problem has no solution")
 
 # Iteratively refine the solution
-objective_value = math.inf
-while True:
-  if opt.check() == z3.sat:
-      m = opt.model()
-      current_objective_value = m.eval(objective, model_completion=True)
-      print(f"Found solution with objective value: {current_objective_value}")
-      # Update the best known objective value
-      if current_objective_value.as_long() < objective_value:
-          objective_value = current_objective_value
+# objective_value = math.inf
+# while True:
+#   if opt.check() == z3.sat:
+#       m = opt.model()
+#       current_objective_value = m.eval(objective, model_completion=True)
+#       print(f"Found solution with objective value: {current_objective_value}")
+#       # Update the best known objective value
+#       if current_objective_value.as_long() < objective_value:
+#           objective_value = current_objective_value
 
-          # Add a constraint to find a better solution
-          opt.add(objective < objective_value)
-      else:
-          # If no improvement, break from the loop
-          break
-  else:
-      # If unsat, no further solutions can be found; break from the loop
-      print("No more solutions found.")
-      break
+#           # Add a constraint to find a better solution
+#           opt.add(objective < objective_value)
+#       else:
+#           # If no improvement, break from the loop
+#           break
+#   else:
+#       # If unsat, no further solutions can be found; break from the loop
+#       print("No more solutions found.")
+#       break

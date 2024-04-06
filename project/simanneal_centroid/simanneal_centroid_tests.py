@@ -1,6 +1,6 @@
 import networkx as nx
 import numpy as np
-import build_graph
+from project import build_graph
 
 def add_labels(G):
   # Label nodes
@@ -39,7 +39,7 @@ G1.add_edge('PrP0', 'P0O1N2')
 G1.add_edge('PrP1', 'P1O1N1')
 G1.add_edge('PrP1', 'P1O2N3')
 
-G1.add_edge('S0L1N1', 'S1L1N2')
+# G1.add_edge('S0L1N1', 'S1L1N2')
 G1.add_edge('S0L1N1', 'S0L2N1')
 G1.add_edge('S0L1N1', 'S1L2N2')
 G1.add_edge('S1L1N2', 'S0L1N3')
