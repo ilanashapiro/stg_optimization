@@ -206,9 +206,13 @@ class CentroidAnnealer(Annealer):
     }
   
   # i.e. this always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
-  def is_valid_move(self, source, sink, node_mapping):
-    source_info = self.parse_node_name(node_mapping[source])
-    sink_info = self.parse_node_name(node_mapping[sink])
+  def is_valid_move(self, source_idx, sink_idx, node_mapping):
+    # There would be a self-loop if we flip this coordinate
+    if source_idx == sink_idx and self.state[source_idx, sink_idx] == 0:
+      return False
+
+    source_info = self.parse_node_name(node_mapping[source_idx])
+    sink_info = self.parse_node_name(node_mapping[sink_idx])
 
     # The edge is from an instance to a prototype 
     if source_info['type'] == 'instance' and sink_info['type'] == 'prototype':
@@ -253,7 +257,7 @@ class CentroidAnnealer(Annealer):
         attempt_index += 1
 
     if valid_move_found:
-      self.state[coord[0], coord[1]] = 1 - self.state[coord[0], coord[1]] 
+      self.state[source_idx, sink_idx] = 1 - self.state[source_idx, sink_idx] 
       self.step += 1
     else:
       print("No valid move found.")

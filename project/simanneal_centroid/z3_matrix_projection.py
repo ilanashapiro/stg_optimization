@@ -49,7 +49,7 @@ idx_node_mapping_prototype = {idx: node_id for idx, node_id in idx_node_mapping.
 idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.items() if not node_id.startswith("Pr")}
 
 # Constraint: the graph can't have self loops
-def add_no_self_loops_constraint(A, n):
+def add_no_self_loops_constraint():
   for i in range(n):
     opt.add(A[i][i] == False)
 
@@ -74,7 +74,7 @@ def add_prototype_to_instance_constraints():
 def add_prototype_to_prototype_constraints():
   for proto_i in idx_node_mapping_prototype.keys():
     for proto_j in idx_node_mapping_prototype.keys():
-        if proto_i != proto_j:  # Exclude self-loops, if necessary
+        if proto_i != proto_j:  # Exclude self-loops
             opt.add(A[proto_i][proto_j] == False)
 
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
@@ -90,21 +90,18 @@ def add_inter_level_parent_counts_constraints():
           opt.add(z3.Or(parent_count == 1, parent_count == 2))
 
           # Assign the 1 or 2 parents to non-zero level instance nodes for future reference in the constraint about parent orders based on the linear chain
-          for parent_id1 in potential_parents:
-            # Assign the first parent
+          for i, parent_id1 in enumerate(potential_parents):
             parent_condition1, parent_index1 = A[node_idx_mapping[parent_id1]][node_index], node_idx_mapping[parent_id1]
-            opt.add(z3.Implies(parent_condition1, instance_parent1(node_index) == parent_index1))
-            for parent_id2 in potential_parents:
-              parent_condition2, parent_index2 = A[node_idx_mapping[parent_id2]][node_index], node_idx_mapping[parent_id2]
-              if parent_index1 != parent_index2:
-                # Attempt to assign a second parent, ensuring it's different from the first
-                has_two_distinct_parents = z3.And(parent_condition1, parent_condition2) 
-                opt.add(z3.Implies(has_two_distinct_parents, instance_parent2(node_index) == parent_index2))
-          
-          # Ensure instance_parent1 and instance_parent2 are equal if only one parent exists
-          # this is probably redundant
-          only_one_parent = parent_count == 1
-          opt.add(z3.Implies(only_one_parent, instance_parent2(node_index) == instance_parent1(node_index)))
+            # if 1 parent, then instance_parent1 and instance_parent2 are the same
+            opt.add(z3.Implies(z3.And(parent_count == 1, parent_condition1), z3.And(instance_parent1(node_index) == parent_index1, instance_parent2(node_index) == parent_index1))) 
+            
+            for parent_id2 in potential_parents[i+1:]: # ensure we're only looking at distinct tuples of parents, otherwise we are UNSAT
+              if parent_id1 == parent_id2:
+                continue  # Skip the same parent ID, this is most likely unnecessary actually since we're starting at i+1
+              parent_condition2 = A[node_idx_mapping[parent_id2]][node_index]
+              parent_index2 = node_idx_mapping[parent_id2]
+              opt.add(z3.Implies(z3.And(parent_condition1, parent_condition2, parent_count == 2), 
+                                z3.And(instance_parent1(node_index) == parent_index1, instance_parent2(node_index) == parent_index2)))
 
 # Constraint: The instance nodes in every partition should form a linear chain
 def add_intra_level_linear_chain():
@@ -147,7 +144,6 @@ def add_level_prototype_and_instance_parent_constraints():
   for level, (_, idx_node_submap) in A_partition_submatrices_list.items():
     for i, node_id in idx_node_submap.items():
       opt.add(z3.Implies(i != end(level), proto_parent(i) != proto_parent(succ(i)))) # no 2 linearly adjacent nodes can have the same prototype parent
-      
       if level > 0:
         segment_level = re.match(r"S\d+L\d+N\d+", node_id)
         motif_level = re.match(r"P\d+O\d+N\d+", node_id)
@@ -162,20 +158,36 @@ def add_level_prototype_and_instance_parent_constraints():
         else:
           print("ERROR")
           sys.exit(0)
+      
+    for other_level, (_, other_idx_node_submap) in A_partition_submatrices_list.items():
+      # No edges between non-adjacent levels
+      if abs(level - other_level) > 1:
+        for i in idx_node_submap.keys():
+          for j in other_idx_node_submap.keys():
+            opt.add(A[i][j] == False) 
+      # No edges from level i to level i - 1          
+      elif level - other_level == 1:
+        for i in idx_node_submap.keys():
+          for j in other_idx_node_submap.keys():
+            opt.add(A[i][j] == False) 
 
-add_prototype_to_instance_constraints()
+add_no_self_loops_constraint()
 print("HERE1")
-add_inter_level_parent_counts_constraints()
+add_prototype_to_instance_constraints()
 print("HERE2")
-add_intra_level_linear_chain()
+add_prototype_to_prototype_constraints()
 print("HERE3")
-add_level_prototype_and_instance_parent_constraints()
+add_inter_level_parent_counts_constraints()
 print("HERE4")
+add_intra_level_linear_chain()
+print("HERE5")
+add_level_prototype_and_instance_parent_constraints()
+print("HERE6")
 
 print(centroid)
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
 opt.minimize(objective)
-print("HERE5")
+print("HERE7")
 
 if opt.check() == z3.sat:
   model = opt.model()
