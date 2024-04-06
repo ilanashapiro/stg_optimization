@@ -1,9 +1,8 @@
-from pickletools import optimize
-from platform import node
 import z3
 import numpy as np 
 import json
 import re
+import sys
 import z3_matrix_projection_helpers as helpers 
 
 centroid = np.loadtxt('centroid1.txt')
@@ -24,7 +23,6 @@ A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n)] for i in range(n)])
 A_partition_submatrices_list = helpers.create_partition_submatrices(A, idx_node_mapping, node_idx_mapping, levels_partition)
 
 NodeSort = z3.IntSort()
-NO_NODE = -1
 
 # Uninterpreted functions
 is_prototype = z3.Function('is_prototype', NodeSort, z3.BoolSort()) # Int -> Bool
@@ -38,6 +36,8 @@ proto_parent = z3.Function('proto_parent', NodeSort, NodeSort)
 # IMPORTANT: the nodes indices for these functions refer to the RELEVANT PARTITION SUBMATRIX, NOT the entire centroid matrix A!!!
 pred = z3.Function('pred', NodeSort, NodeSort)
 succ = z3.Function('succ', NodeSort, NodeSort)
+start = z3.Function('start', z3.IntSort(), NodeSort) # level -> node index in relevant submatrix
+end = z3.Function('end', z3.IntSort(), NodeSort)
 rank = z3.Function('rank', NodeSort, z3.IntSort())
 
 for index, node_id in idx_node_mapping.items():
@@ -81,7 +81,7 @@ def add_inter_level_parent_counts_constraints():
           opt.add(z3.Or(parent_count == 1, parent_count == 2))
 
           # Assign the 1 or 2 parents to non-zero level instance nodes for future reference in the constraint about parent orders based on the linear chain
-          for parent_id1 in potential_parents:
+          for parent_id1 in enumerate(potential_parents):
             # Assign the first parent
             parent_condition1, parent_index1 = A[node_idx_mapping[parent_id1]][node_index], node_idx_mapping[parent_id1]
             opt.add(z3.Implies(parent_condition1, instance_parent1(node_index) == parent_index1))
@@ -99,31 +99,34 @@ def add_inter_level_parent_counts_constraints():
 
 # Constraint: The instance nodes in every partition should form a linear chain
 def add_intra_level_linear_chain():
-  for (A_sub_matrix, idx_node_submap) in A_partition_submatrices_list.values():
+  for level, (A_sub_matrix, idx_node_submap) in A_partition_submatrices_list.items():
     partition_node_ids = list(idx_node_submap.values())
+    num_partition_nodes = len(partition_node_ids)
     start_nodes = []
     end_nodes = []
     for node in partition_node_ids:
       start_nodes.append(z3.Bool(f"start_{node}"))
       end_nodes.append(z3.Bool(f"end_{node}"))
-      rank[node] = z3.Int(f'rank_{node}')
     
-    for i in range(len(partition_node_ids)):
+    for i in range(num_partition_nodes):
       # Directly use sub-matrix to count incoming/outgoing edges for node i
-      num_incoming_edges = z3.Sum([z3.If(A_sub_matrix[j, i], 1, 0) for j in range(len(partition_node_ids)) if j != i])
-      num_outgoing_edges = z3.Sum([z3.If(A_sub_matrix[i, j], 1, 0) for j in range(len(partition_node_ids)) if j != i])
+      num_incoming_edges = z3.Sum([z3.If(A_sub_matrix[j, i], 1, 0) for j in range(num_partition_nodes) if j != i])
+      num_outgoing_edges = z3.Sum([z3.If(A_sub_matrix[i, j], 1, 0) for j in range(num_partition_nodes) if j != i])
       
       opt.add(start_nodes[i] == (num_outgoing_edges == 1) & (num_incoming_edges == 0))
       opt.add(end_nodes[i] == (num_incoming_edges == 1) & (num_outgoing_edges == 0))
       opt.add((~start_nodes[i] & ~end_nodes[i]) == ((num_incoming_edges == 1) & (num_outgoing_edges == 1))) # ~, & are the logical operators in Z3
+
+      opt.add(z3.Implies(start_nodes[i], start(level) == i))
+      opt.add(z3.Implies(end_nodes[i], end(level) == i))
     
     # Ensure exactly one start node and one end node in the partition
     opt.add(z3.Sum([z3.If(start_node, 1, 0) for start_node in start_nodes]) == 1)
     opt.add(z3.Sum([z3.If(end_node, 1, 0) for end_node in end_nodes]) == 1)
 
     # Define relationships for linearly adjacent nodes
-    for i in range(len(partition_node_ids)):
-      for j in range(len(partition_node_ids)):
+    for i in range(num_partition_nodes):
+      for j in range(num_partition_nodes):
         if i != j:  # Avoid self-loops
           edge_i_to_j = A_sub_matrix[i, j]
           opt.add(z3.Implies(edge_i_to_j, succ(i) == j))
@@ -131,11 +134,25 @@ def add_intra_level_linear_chain():
           opt.add(z3.Implies(edge_i_to_j, rank(i) < rank(j)))
 
 # Constraint: adjacent nodes in the intra-level linear chain should not have the same prototype
-def add_unique_intra_level_consec_prototypes():
-  return
-
-def add_inter_level_parent_relationship_constraints():
-  return
+def add_level_prototype_and_instance_parent_constraints():
+  for level, (_, idx_node_submap) in A_partition_submatrices_list.items():
+    for i, node_id in idx_node_submap.items():
+      opt.add(z3.Implies(i != end(level), proto_parent(i) != proto_parent(succ(i)))) # no 2 linearly adjacent nodes can have the same prototype parent
+      
+      if level > 0:
+        segment_level = re.match(r"S\d+L\d+N\d+", node_id)
+        motif_level = re.match(r"P\d+O\d+N\d+", node_id)
+        if segment_level:
+          # rules for contiguous and total segmentation
+          opt.add(z3.Implies(i != end(level), rank(instance_parent2(i)) <= rank(instance_parent1(succ(i))))) # each node's first parent must not come before the prev node's last parent
+          opt.add(z3.Implies(i == end(level), instance_parent2(i) == end(level - 1))) # the final node must have the prev level's last node as a parent
+          opt.add(z3.Implies(i == start(level), instance_parent1(i) == start(level - 1))) # the first node must have the prev level's first node as a parent
+        elif motif_level:
+          # rules for disjoint, non-contiguous sections
+          opt.add(z3.Implies(i != end(level), rank(instance_parent1(i)) <= rank(instance_parent1(succ(i))))) # each node's first parent must not come before the prev node's first parent (since this is non-contiguous and we can have overlapping motifs)
+        else:
+          print("ERROR")
+          sys.exit(0)
 
 add_prototype_to_instance_constraints()
 print("HERE1")
@@ -143,10 +160,12 @@ add_inter_level_parent_counts_constraints()
 print("HERE2")
 add_intra_level_linear_chain()
 print("HERE3")
+add_level_prototype_and_instance_parent_constraints()
+print("HERE4")
 
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
 opt.minimize(objective)
-print("HERE4")
+print("HERE5")
 if opt.check() == z3.sat:
   model = opt.model()
   print("Closest valid graph's adjacency matrix:")
