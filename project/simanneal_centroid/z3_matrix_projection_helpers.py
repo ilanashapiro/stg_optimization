@@ -1,5 +1,6 @@
 import re
 import numpy as np
+import sys
 
 def parse_node_id(node_id):
   s_match = re.match(r'S(\d+)L(\d+)N(\d+)', node_id)
@@ -38,3 +39,19 @@ def create_partition_submatrices(A, idx_node_mapping, node_idx_mapping, levels_p
     sub_matrix_mapping = {i: idx_node_mapping[node_idx_mapping[node_id]] for i, node_id in enumerate(node_ids)}
     sub_matrices[level] = (sub_matrix, sub_matrix_mapping)
   return sub_matrices
+
+def get_node_type(node_id):
+  seg_proto_match = re.match(r"PrS\d+", node_id)
+  seg_instance_match = re.match(r"S\d+L\d+N\d+", node_id)
+  motif_proto_match = re.match(r"PrP\d+", node_id)
+  motif_instance_match = re.match(r"P\d+O\d+N\d+", node_id)
+  if seg_proto_match:
+    return "SEG_PROTO"
+  elif seg_instance_match:
+    return "SEG_INSTANCE"
+  elif motif_proto_match:
+    return "MOTIF_PROTO"
+  elif motif_instance_match:
+    return "MOTIF_INSTANCE"
+  print("ERROR")
+  sys.exit(0)

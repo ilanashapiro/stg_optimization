@@ -5,10 +5,13 @@ import re
 import sys
 import z3_matrix_projection_helpers as z3_helpers 
 import simanneal_centroid_tests as simanneal_tests 
+import simanneal_centroid_helpers as simanneal_helpers 
 import math 
+import networkx as nx
+import build_graph
 
 G = simanneal_tests.G1
-centroid = G # np.loadtxt('centroid1.txt')
+centroid = nx.to_numpy_array(G) # np.loadtxt('centroid1.txt')
 # with open("centroid_node_mapping1.txt", 'r') as file:
 #   idx_node_mapping = json.load(file)
 #   idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
@@ -17,7 +20,7 @@ idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
-opt = z3.Optimizer()
+opt = z3.Optimize()
 
 levels_partition = z3_helpers.partition_levels(idx_node_mapping)
 max_seg_level = len(levels_partition.keys()) - 1
@@ -45,15 +48,34 @@ rank = z3.Function('rank', NodeSort, z3.IntSort())
 idx_node_mapping_prototype = {idx: node_id for idx, node_id in idx_node_mapping.items() if node_id.startswith("Pr")}
 idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.items() if not node_id.startswith("Pr")}
 
-# Constraint: Every instance node must be the child of exactly one prototype node
+# Constraint: the graph can't have self loops
+def add_no_self_loops_constraint(A, n):
+  for i in range(n):
+    opt.add(A[i][i] == False)
+
+# Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
+# and every proto->instance edge needs to be between nodes of the same type
 def add_prototype_to_instance_constraints():
-  num_prototype_nodes = len(idx_node_mapping_prototype)
-  num_instance_nodes = len(idx_node_mapping_instance)
-  for instance_i in range(num_instance_nodes):
-    incoming_prototype_edges = z3.Sum([z3.If(A[proto_i][instance_i], 1, 0) for proto_i in range(num_prototype_nodes)])
-    opt.add(incoming_prototype_edges == 1)
-    for proto_i in range(num_prototype_nodes): # store the prototype parent info
-      opt.add(z3.Implies(A[proto_i][instance_i], proto_parent(instance_i) == proto_i))
+  for instance_idx in idx_node_mapping_instance.keys():
+    incoming_prototype_edges = z3.Sum([z3.If(A[proto_idx][instance_idx], 1, 0) for proto_idx in idx_node_mapping_prototype.keys()])
+    opt.add(incoming_prototype_edges == 1) # each instance node has exactly 1 proto parent
+
+    for proto_idx in idx_node_mapping_prototype.keys():
+      opt.add(z3.Implies(A[proto_idx][instance_idx], proto_parent(instance_idx) == proto_idx)) # record the proto parent of instance node
+      opt.add(A[instance_idx][proto_idx] == False) # ensure no instance -> proto edges
+
+      proto_type = z3_helpers.get_node_type(idx_node_mapping_prototype[proto_idx]) # ensure no invalid proto-instance connections
+      instance_type = z3_helpers.get_node_type(idx_node_mapping_prototype[proto_idx])
+      if ((proto_type == "SEG_PROTO" and instance_type == "MOTIF_INSTANCE") or 
+          (proto_type == "MOTIF_PROTO" and instance_type == "SEG_INSTANCE")):
+        opt.add(A[proto_idx][instance_idx] == False)
+
+# Constraint: no edges between prototypes
+def add_prototype_to_prototype_constraints():
+  for proto_i in idx_node_mapping_prototype.keys():
+    for proto_j in idx_node_mapping_prototype.keys():
+        if proto_i != proto_j:  # Exclude self-loops, if necessary
+            opt.add(A[proto_i][proto_j] == False)
 
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
 def add_inter_level_parent_counts_constraints():
@@ -150,6 +172,7 @@ print("HERE3")
 add_level_prototype_and_instance_parent_constraints()
 print("HERE4")
 
+print(centroid)
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
 opt.minimize(objective)
 print("HERE5")
@@ -158,7 +181,11 @@ if opt.check() == z3.sat:
   model = opt.model()
   print("Closest valid graph's adjacency matrix:")
   for i in range(n):
-    print([model.evaluate(A[i][j]) for j in range(n)])
+    result = np.array([[1 if model.evaluate(A[i, j]) else 0 for j in range(n)] for i in range(n)])
+    g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)
+    layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
+    layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+    build_graph.visualize_p([G, g], [layers_G, layers_g])
 else:
   print("Problem has no solution")
 

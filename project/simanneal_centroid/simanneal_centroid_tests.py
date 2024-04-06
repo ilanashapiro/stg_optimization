@@ -1,6 +1,9 @@
 import networkx as nx
 import numpy as np
-from project import build_graph
+import sys
+
+sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
+import build_graph
 
 def add_labels(G):
   # Label nodes
