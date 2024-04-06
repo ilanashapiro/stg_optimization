@@ -35,7 +35,7 @@ NodeSort = z3.IntSort()
 # Uninterpreted functions
 instance_parent1 = z3.Function('instance_parent1', NodeSort, NodeSort)
 instance_parent2 = z3.Function('instance_parent2', NodeSort, NodeSort)
-proto_parent = z3.Function('proto_parent', NodeSort, NodeSort)
+proto_parent = z3.Function('proto_parent', NodeSort, NodeSort, NodeSort) # level number, index within level partition -> prototype index in entire centroid matrix A
 
 # orderings for linear chain
 # IMPORTANT: the nodes indices for these functions refer to the RELEVANT PARTITION SUBMATRIX, NOT the entire centroid matrix A!!!
@@ -56,19 +56,23 @@ def add_no_self_loops_constraint():
 # Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
 # and every proto->instance edge needs to be between nodes of the same type
 def add_prototype_to_instance_constraints():
-  for instance_idx in idx_node_mapping_instance.keys():
-    incoming_prototype_edges = z3.Sum([z3.If(A[proto_idx][instance_idx], 1, 0) for proto_idx in idx_node_mapping_prototype.keys()])
-    opt.add(incoming_prototype_edges == 1) # each instance node has exactly 1 proto parent
+  for level, (_, idx_node_submap) in A_partition_submatrices_list.items():
+    for instance_idx_subA, instance_node_id in idx_node_submap.items():
+      instance_idx_A = node_idx_mapping[instance_node_id]
+      incoming_prototype_edges = z3.Sum([z3.If(A[proto_idx][instance_idx_A], 1, 0) for proto_idx in idx_node_mapping_prototype.keys()])
+      opt.add(incoming_prototype_edges == 1) # each instance node has exactly 1 proto parent
 
-    for proto_idx in idx_node_mapping_prototype.keys():
-      opt.add(z3.Implies(A[proto_idx][instance_idx], proto_parent(instance_idx) == proto_idx)) # record the proto parent of instance node
-      opt.add(A[instance_idx][proto_idx] == False) # ensure no instance -> proto edges
+      for proto_idx, proto_node_id, in idx_node_mapping_prototype.items():
+        # level, index in the submatrix partition of instance nodes for that level -> index of proto parent w.r.t. the entire centroid matrix A
+        opt.add(z3.Implies(A[proto_idx][instance_idx_A], proto_parent(level, instance_idx_subA) == proto_idx))
+        # ensure no instance -> proto edges
+        opt.add(A[instance_idx_A][proto_idx] == False) 
 
-      proto_type = z3_helpers.get_node_type(idx_node_mapping_prototype[proto_idx]) # ensure no invalid proto-instance connections
-      instance_type = z3_helpers.get_node_type(idx_node_mapping_prototype[proto_idx])
-      if ((proto_type == "SEG_PROTO" and instance_type == "MOTIF_INSTANCE") or 
-          (proto_type == "MOTIF_PROTO" and instance_type == "SEG_INSTANCE")):
-        opt.add(A[proto_idx][instance_idx] == False)
+        proto_type = z3_helpers.get_node_type(proto_node_id) # ensure no invalid proto-instance connections
+        instance_type = z3_helpers.get_node_type(instance_node_id)
+        if ((proto_type == "SEG_PROTO" and instance_type == "MOTIF_INSTANCE") or 
+            (proto_type == "MOTIF_PROTO" and instance_type == "SEG_INSTANCE")):
+          opt.add(A[proto_idx][instance_idx_A] == False)
 
 # Constraint: no edges between prototypes
 def add_prototype_to_prototype_constraints():
@@ -142,8 +146,8 @@ def add_intra_level_linear_chain():
 # Constraint: adjacent nodes in the intra-level linear chain should not have the same prototype
 def add_level_prototype_and_instance_parent_constraints():
   for level, (_, idx_node_submap) in A_partition_submatrices_list.items():
-    for i, node_id in idx_node_submap.items():
-      opt.add(z3.Implies(i != end(level), proto_parent(i) != proto_parent(succ(i)))) # no 2 linearly adjacent nodes can have the same prototype parent
+    for i, node_id in idx_node_submap.items(): 
+      opt.add(z3.Implies(i != end(level), proto_parent(level, i) != proto_parent(level, succ(i)))) # no 2 linearly adjacent nodes can have the same prototype parent
       if level > 0:
         segment_level = re.match(r"S\d+L\d+N\d+", node_id)
         motif_level = re.match(r"P\d+O\d+N\d+", node_id)
@@ -184,7 +188,6 @@ print("HERE5")
 add_level_prototype_and_instance_parent_constraints()
 print("HERE6")
 
-print(centroid)
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
 opt.minimize(objective)
 print("HERE7")

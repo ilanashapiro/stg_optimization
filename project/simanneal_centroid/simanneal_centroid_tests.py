@@ -38,9 +38,10 @@ G1.add_edge('PrS1', 'S1L1N2')
 G1.add_edge('PrS1', 'S1L2N2')
 G1.add_edge('PrS1', 'S1L2N4')
 G1.add_edge('PrS2', 'S2L2N3')
-G1.add_edge('PrP0', 'P0O1N2')
+# next 3 lines scrambled to invalid for testing
+G1.add_edge('PrP1', 'P0O1N2')
 G1.add_edge('PrP1', 'P1O1N1')
-G1.add_edge('PrP1', 'P1O2N3')
+G1.add_edge('PrP0', 'P1O2N3')
 
 # G1.add_edge('S0L1N1', 'S1L1N2')
 G1.add_edge('S0L1N1', 'S0L2N1')
