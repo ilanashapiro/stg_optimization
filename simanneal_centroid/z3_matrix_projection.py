@@ -4,6 +4,7 @@ import json
 import re
 import sys
 import z3_matrix_projection_helpers as helpers 
+import math 
 
 centroid = np.loadtxt('centroid1.txt')
 with open("centroid_node_mapping1.txt", 'r') as file:
@@ -12,7 +13,7 @@ with open("centroid_node_mapping1.txt", 'r') as file:
 
 node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
-opt = z3.Optimize()
+opt = z3.Solver()
 
 levels_partition = helpers.partition_levels(idx_node_mapping)
 max_seg_level = len(levels_partition.keys()) - 1
@@ -25,9 +26,6 @@ A_partition_submatrices_list = helpers.create_partition_submatrices(A, idx_node_
 NodeSort = z3.IntSort()
 
 # Uninterpreted functions
-is_prototype = z3.Function('is_prototype', NodeSort, z3.BoolSort()) # Int -> Bool
-is_instance = z3.Function('is_instance', NodeSort, z3.BoolSort())
-
 instance_parent1 = z3.Function('instance_parent1', NodeSort, NodeSort)
 instance_parent2 = z3.Function('instance_parent2', NodeSort, NodeSort)
 proto_parent = z3.Function('proto_parent', NodeSort, NodeSort)
@@ -40,33 +38,18 @@ start = z3.Function('start', z3.IntSort(), NodeSort) # level -> node index in re
 end = z3.Function('end', z3.IntSort(), NodeSort)
 rank = z3.Function('rank', NodeSort, z3.IntSort())
 
-for index, node_id in idx_node_mapping.items():
-  proto_match = re.match(r"^Pr", node_id)
-
-  # Ensure that a node cannot be both a prototype and an instance simultaneously
-  # by asserting that one is true implies the other is false.
-  if proto_match:
-    opt.add(is_prototype(index) == True)
-    opt.add(is_instance(index) == False)
-  else:
-    opt.add(is_prototype(index) == False)
-    opt.add(is_instance(index) == True)
+idx_node_mapping_prototype = {idx: node_id for idx, node_id in idx_node_mapping.items() if node_id.startswith("Pr")}
+idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.items() if not node_id.startswith("Pr")}
 
 # Constraint: Every instance node must be the child of exactly one prototype node
 def add_prototype_to_instance_constraints():
-  for i in range(n):
-    opt.add(is_instance(i) == True)
-
-    for j in range(n):
-      if j != i:  # avoid self loops
-        # If j is the proto parent of i, then proto_parent(i) should equal j
-        opt.add(z3.Implies(z3.And(A[j][i], is_prototype(j)), proto_parent(i) == j))
-
-    incoming_prototype_edges = z3.Sum([
-      z3.If(z3.And(A[j][i], is_prototype(j)), 1, 0) for j in range(n)
-      if j != i # avoid self loops
-    ])
+  num_prototype_nodes = len(idx_node_mapping_prototype)
+  num_instance_nodes = len(idx_node_mapping_instance)
+  for instance_i in range(num_instance_nodes):
+    incoming_prototype_edges = z3.Sum([z3.If(A[proto_i][instance_i], 1, 0) for proto_i in range(num_prototype_nodes)])
     opt.add(incoming_prototype_edges == 1)
+    for proto_i in range(num_prototype_nodes): # store the prototype parent info
+      opt.add(z3.Implies(A[proto_i][instance_i], proto_parent(instance_i) == proto_i))
 
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
 def add_inter_level_parent_counts_constraints():
@@ -81,7 +64,7 @@ def add_inter_level_parent_counts_constraints():
           opt.add(z3.Or(parent_count == 1, parent_count == 2))
 
           # Assign the 1 or 2 parents to non-zero level instance nodes for future reference in the constraint about parent orders based on the linear chain
-          for parent_id1 in enumerate(potential_parents):
+          for parent_id1 in potential_parents:
             # Assign the first parent
             parent_condition1, parent_index1 = A[node_idx_mapping[parent_id1]][node_index], node_idx_mapping[parent_id1]
             opt.add(z3.Implies(parent_condition1, instance_parent1(node_index) == parent_index1))
@@ -156,20 +139,42 @@ def add_level_prototype_and_instance_parent_constraints():
 
 add_prototype_to_instance_constraints()
 print("HERE1")
-add_inter_level_parent_counts_constraints()
-print("HERE2")
-add_intra_level_linear_chain()
-print("HERE3")
-add_level_prototype_and_instance_parent_constraints()
-print("HERE4")
+# add_inter_level_parent_counts_constraints()
+# print("HERE2")
+# add_intra_level_linear_chain()
+# print("HERE3")
+# add_level_prototype_and_instance_parent_constraints()
+# print("HERE4")
 
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
-opt.minimize(objective)
+# opt.minimize(objective)
 print("HERE5")
-if opt.check() == z3.sat:
-  model = opt.model()
-  print("Closest valid graph's adjacency matrix:")
-  for i in range(n):
-    print([model.evaluate(A[i][j]) for j in range(n)])
-else:
-  print("Problem has no solution")
+
+# if opt.check() == z3.sat:
+#   model = opt.model()
+#   print("Closest valid graph's adjacency matrix:")
+#   for i in range(n):
+#     print([model.evaluate(A[i][j]) for j in range(n)])
+# else:
+#   print("Problem has no solution")
+
+# Iteratively refine the solution
+objective_value = math.inf
+while True:
+  if opt.check() == z3.sat:
+      m = opt.model()
+      current_objective_value = m.eval(objective, model_completion=True)
+      print(f"Found solution with objective value: {current_objective_value}")
+      # Update the best known objective value
+      if current_objective_value.as_long() < objective_value:
+          objective_value = current_objective_value
+
+          # Add a constraint to find a better solution
+          opt.add(objective < objective_value)
+      else:
+          # If no improvement, break from the loop
+          break
+  else:
+      # If unsat, no further solutions can be found; break from the loop
+      print("No more solutions found.")
+      break
