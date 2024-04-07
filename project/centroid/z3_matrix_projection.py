@@ -27,7 +27,7 @@ node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
 opt = z3.Solver()
 
-levels_partition = z3_helpers.partition_levels(idx_node_mapping)
+levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping)
 max_seg_level = len(levels_partition.keys()) - 1
 
 print("HERE0", time.perf_counter())
@@ -35,7 +35,7 @@ print("HERE0", time.perf_counter())
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
 A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n)] for i in range(n)])
-A_partition_submatrices_list = z3_helpers.create_partition_submatrices(A, idx_node_mapping, node_idx_mapping, levels_partition)
+A_partition_submatrices_list = z3_helpers.create_partition_submatrices(A, node_idx_mapping, levels_partition)
 
 NodeSort = z3.IntSort()
 is_not_dummy = z3.BoolVector('is_not_dummy', n)
