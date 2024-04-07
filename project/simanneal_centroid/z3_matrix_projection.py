@@ -17,7 +17,6 @@ centroid = nx.to_numpy_array(G) # np.loadtxt('centroid1.txt')
 #   idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
 idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
-
 node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
 opt = z3.Optimize()
@@ -83,29 +82,29 @@ def add_prototype_to_prototype_constraints():
 
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
 def add_inter_level_parent_counts_constraints():
-  for level, partition_nodes in levels_partition.items():
-    for node_id in partition_nodes:
+  for level, (_, idx_node_submap) in A_partition_submatrices_list.items():
+    for i_subA, node_id in idx_node_submap.items():
       parsed = z3_helpers.parse_node_id(node_id)
       if parsed:
-        node_index = node_idx_mapping[node_id]
+        i_A = node_idx_mapping[node_id]
         if level > 0: # top level doesn't have instance parents by construction in simanneal
-          potential_parents = levels_partition[level - 1]
-          parent_count = z3.Sum([z3.If(A[node_idx_mapping[parent_id]][node_index], 1, 0) for parent_id in potential_parents])
-          opt.add(z3.Or(parent_count == 1, parent_count == 2))
+          (_, prev_level_idx_node_submap) = A_partition_submatrices_list[level - 1]
+          potential_parents = prev_level_idx_node_submap.values()
 
+          parent_count = z3.Sum([z3.If(A[node_idx_mapping[parent_id]][i_A], 1, 0) for parent_id in potential_parents])
+          opt.add(z3.Or(parent_count == 1, parent_count == 2))
+          
           # Assign the 1 or 2 parents to non-zero level instance nodes for future reference in the constraint about parent orders based on the linear chain
-          for i, parent_id1 in enumerate(potential_parents):
-            parent_condition1, parent_index1 = A[node_idx_mapping[parent_id1]][node_index], node_idx_mapping[parent_id1]
+          prev_level_node_info = list(prev_level_idx_node_submap.items())
+          for list_idx, (parent_index1, parent_id1) in enumerate(prev_level_node_info):
+            parent_condition1 = A[node_idx_mapping[parent_id1]][i_A]
             # if 1 parent, then instance_parent1 and instance_parent2 are the same
-            opt.add(z3.Implies(z3.And(parent_count == 1, parent_condition1), z3.And(instance_parent1(node_index) == parent_index1, instance_parent2(node_index) == parent_index1))) 
+            opt.add(z3.Implies(z3.And(parent_count == 1, parent_condition1), z3.And(instance_parent1(i_subA) == parent_index1, instance_parent2(i_subA) == parent_index1))) 
             
-            for parent_id2 in potential_parents[i+1:]: # ensure we're only looking at distinct tuples of parents, otherwise we are UNSAT
-              if parent_id1 == parent_id2:
-                continue  # Skip the same parent ID, this is most likely unnecessary actually since we're starting at i+1
-              parent_condition2 = A[node_idx_mapping[parent_id2]][node_index]
-              parent_index2 = node_idx_mapping[parent_id2]
+            for parent_index2, parent_id2 in prev_level_node_info[list_idx+1:]: # ensure we're only looking at distinct tuples of parents, otherwise we are UNSAT
+              parent_condition2 = A[node_idx_mapping[parent_id2]][i_A]
               opt.add(z3.Implies(z3.And(parent_condition1, parent_condition2, parent_count == 2), 
-                                z3.And(instance_parent1(node_index) == parent_index1, instance_parent2(node_index) == parent_index2)))
+                                z3.And(instance_parent1(i_subA) == parent_index1, instance_parent2(i_subA) == parent_index2)))
 
 # Constraint: The instance nodes in every partition should form a linear chain
 def add_intra_level_linear_chain():
@@ -164,16 +163,13 @@ def add_level_prototype_and_instance_parent_constraints():
           sys.exit(0)
       
     for other_level, (_, other_idx_node_submap) in A_partition_submatrices_list.items():
-      # No edges between non-adjacent levels
-      if abs(level - other_level) > 1:
-        for i in idx_node_submap.keys():
-          for j in other_idx_node_submap.keys():
-            opt.add(A[i][j] == False) 
-      # No edges from level i to level i - 1          
-      elif level - other_level == 1:
-        for i in idx_node_submap.keys():
-          for j in other_idx_node_submap.keys():
-            opt.add(A[i][j] == False) 
+      # No edges between non-adjacent levels, and no edges from level i to level i - 1
+      if abs(level - other_level) > 1 or level - other_level == 1:
+        for i_node_id in idx_node_submap.values():
+          for j_node_id in other_idx_node_submap.values():
+            i_in_A = node_idx_mapping[i_node_id]
+            j_in_A = node_idx_mapping[j_node_id]
+            opt.add(A[i_in_A][j_in_A] == False)
 
 add_no_self_loops_constraint()
 print("HERE1")
