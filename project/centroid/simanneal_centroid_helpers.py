@@ -43,15 +43,9 @@ def adj_matrix_to_graph(A, idx_node_mapping):
   return G
 
 def remove_dummy_nodes(A, node_mapping):
-  # Identify non-dummy nodes (nodes with at least one incoming or outgoing edge)
-  non_dummy_indices = np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0]
-
-  # Filter the adjacency matrix to keep only non-dummy nodes
-  filtered_matrix = A[non_dummy_indices][:, non_dummy_indices]
-  
-  # Update the node mapping to only include non-dummy nodes
-  updated_mapping = {new_idx: node_mapping[old_idx] for new_idx, old_idx in enumerate(non_dummy_indices)}
-  
+  non_instance_dummy_indices = np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0]
+  filtered_matrix = A[non_instance_dummy_indices][:, non_instance_dummy_indices]
+  updated_mapping = {new_idx: node_mapping[old_idx] for new_idx, old_idx in enumerate(non_instance_dummy_indices)}
   return filtered_matrix, updated_mapping
 
 '''

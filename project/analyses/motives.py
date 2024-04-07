@@ -52,8 +52,9 @@ def write_mirex_motives(motives, out_file, csv_file):
 			f.write(out_str[:-2])
 
 def get_motives():
-	directory = "LOP_database_06_09_17/liszt_classical_archives/1_short_test"
+	directory = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
 	futures = []
+	
 	def process_file(file_path):
 		notes = load_notes_csv(file_path)
 		motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 

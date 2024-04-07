@@ -9,6 +9,8 @@ import json
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
+
+sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
 '''
@@ -118,8 +120,8 @@ class GraphAlignmentAnnealer(Annealer):
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     return dist(self.A_g, align(self.state, self.A_G))
 
-(g, layers, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-(G, layers1, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+(g, layers, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G, layers1, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 # padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([tests.G1, tests.G2])
 # A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
 
@@ -285,8 +287,8 @@ class CentroidAnnealer(Annealer):
     print("LOSS", l, "\n")
     return l
 
-(g, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-(G, _, _) = build_graph.generate_graph('LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+(g, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+(G, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 # list_G = [tests.G1, tests.G2]
 list_G = [g, G]
 listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)

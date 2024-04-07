@@ -366,7 +366,7 @@ def generate_graph(structure_filepath, motives_filepath):
   return (G, layers_with_index, labels_dict)
 
 if __name__ == "__main__":
-  G, layers, _ = generate_graph('LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', 'LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+  G, layers, _ = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
   visualize([G], [layers])
   augment_graph(G)
   # replace_node_ids_with_integers(G)

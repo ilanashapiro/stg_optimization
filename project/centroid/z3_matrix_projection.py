@@ -9,25 +9,28 @@ import simanneal_centroid_helpers as simanneal_helpers
 import math 
 import networkx as nx
 import sys
+import time
 
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-# centroid = np.loadtxt('centroid1.txt')
-# with open("centroid_node_mapping1.txt", 'r') as file:
-#   idx_node_mapping = json.load(file)
-#   idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+centroid = np.loadtxt('centroid.txt')
+with open("centroid_node_mapping.txt", 'r') as file:
+  idx_node_mapping = json.load(file)
+  idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
-G = z3_tests.G1
-centroid = nx.to_numpy_array(G)
-idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
+# G = z3_tests.G1
+# centroid = nx.to_numpy_array(G)
+# idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
-opt = z3.Optimize()
+opt = z3.Solver()
 
 levels_partition = z3_helpers.partition_levels(idx_node_mapping)
 max_seg_level = len(levels_partition.keys()) - 1
+
+print("HERE0", time.perf_counter())
 
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
@@ -181,50 +184,53 @@ def add_level_prototype_and_instance_parent_constraints():
             j_in_A = node_idx_mapping[j_node_id]
             opt.add(A[i_in_A][j_in_A] == False)
 
+
 add_dummys_and_no_self_loops_constraint()
-print("HERE1")
+print("HERE1", time.perf_counter())
 add_prototype_to_instance_constraints()
-print("HERE2")
+print("HERE2", time.perf_counter())
 add_prototype_to_prototype_constraints()
-print("HERE3")
+print("HERE3", time.perf_counter())
 add_inter_level_parent_counts_constraints()
-print("HERE4")
+print("HERE4", time.perf_counter())
 add_intra_level_linear_chain()
-print("HERE5")
+print("HERE5", time.perf_counter())
 add_level_prototype_and_instance_parent_constraints()
-print("HERE6")
+print("HERE6", time.perf_counter())
 
 objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(n) for j in range(n)])
-opt.minimize(objective)
-print("HERE7")
+# opt.minimize(objective)
+print("HERE7", time.perf_counter())
 
-if opt.check() == z3.sat:
-  model = opt.model()
-  print("Closest valid graph's adjacency matrix:", model)
-  for i in range(n):
-    result = np.array([[1 if model.evaluate(A[i, j]) else 0 for j in range(n)] for i in range(n)])
-    G = simanneal_helpers.adj_matrix_to_graph(centroid, idx_node_mapping)
-    g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)
-    layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
-    layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-    build_graph.visualize_p([G, g], [layers_G, layers_g])
-else:
-  print("Problem has no solution")
+# if opt.check() == z3.sat:
+#   model = opt.model()
+#   print("HERE8", time.perf_counter())
+#   print("Closest valid graph's adjacency matrix:", model)
+#   for i in range(n):
+#     result = np.array([[1 if model.evaluate(A[i, j]) else 0 for j in range(n)] for i in range(n)])
+#     G = simanneal_helpers.adj_matrix_to_graph(centroid, idx_node_mapping)
+#     g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)
+#     layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
+#     layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+#     build_graph.visualize_p([G, g], [layers_G, layers_g])
+# else:
+#   print("Problem has no solution")
 
-# objective_value = math.inf
-# while True:
-#   if opt.check() == z3.sat:
-#       m = opt.model()
-#       current_objective_value = m.eval(objective, model_completion=True)
-#       print(f"Found solution with objective value: {current_objective_value}")
+objective_value = math.inf
+while True:
+  if opt.check() == z3.sat:
+      print("HERE8", time.perf_counter())
+      m = opt.model()
+      current_objective_value = m.eval(objective, model_completion=True)
+      print(f"Found solution with objective value: {current_objective_value}")
 
-#       if current_objective_value.as_long() < objective_value:
-#           objective_value = current_objective_value
-#           opt.add(objective < objective_value)
-#       else:
-#           # If no improvement, break from the loop
-#           break
-#   else:
-#       # If unsat, no further solutions can be found; break from the loop
-#       print("No more solutions found.")
-#       break
+      if current_objective_value.as_long() < objective_value:
+          objective_value = current_objective_value
+          opt.add(objective < objective_value)
+      else:
+          # If no improvement, break from the loop
+          break
+  else:
+      # If unsat, no further solutions can be found; break from the loop
+      print("No more solutions found.")
+      break
