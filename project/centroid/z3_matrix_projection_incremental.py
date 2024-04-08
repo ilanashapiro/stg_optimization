@@ -97,38 +97,38 @@ def add_dummys_and_no_self_loops_constraint(submatrix_with_context):
 		opt.add(submatrix_with_context[i][i] == False)
 
 # Constraint: no edges between prototypes
-def add_prototype_to_prototype_constraints(proto_submatrix):
+def add_prototype_to_prototype_constraints(proto_submatrix, idx_node_submap):
 	n = range(len(proto_submatrix))
 	for proto_i in n:
-		for proto_j in n:
-				if proto_i != proto_j:  # Exclude self-loops
+		proto_id1 = idx_node_submap[proto_i]
+		if z3_helpers.is_proto(proto_id1):
+			for proto_j in n:
+				proto_id2 = idx_node_submap[proto_j]
+				if z3_helpers.is_proto(proto_id2) and proto_i != proto_j:  # Exclude self-loops
 						opt.add(A[proto_i][proto_j] == False)
 
 # Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
-# ------------- NEED TO FIX
-def add_prototype_to_instance_constraints(level, A_submatrix, idx_node_submap, valid_proto_ids, idx_node_submap_with_context): # valid mean seg-seg, and motif-motif
+def add_prototype_to_instance_constraints(level, A_submatrix, idx_node_submap, idx_node_submap_with_context): # valid mean seg-seg, and motif-motif
 	node_idx_submap = invert_dict(idx_node_submap)
 	node_idx_submap_with_context = invert_dict(idx_node_submap_with_context)
 	for instance_index, instance_id in idx_node_submap.items():
 		if z3_helpers.is_instance(instance_id):
+			valid_proto_ids = [node_id for node_id in idx_node_submap.values() if z3_helpers.is_proto(node_id)] 
+			print("INSTANCE-PROTO", instance_id, valid_proto_ids)
 			incoming_prototype_edges = z3.Sum([z3.If(A_submatrix[node_idx_submap[proto_id]][instance_index], 1, 0) for proto_id in valid_proto_ids])
+			# opt.add(incoming_prototype_edges == 1)
 			opt.add(z3.Implies(is_not_dummy[node_idx_submap_with_context[instance_id]], incoming_prototype_edges == 1)) # each non-dummy instance node has exactly 1 proto parent
 
-		for proto_id in valid_proto_ids:
-			proto_node_idx = node_idx_submap[proto_id]
-			opt.add(z3.Implies(A_submatrix[proto_node_idx][proto_node_idx], proto_parent(level, proto_node_idx) == proto_node_idx))
-			
-			# ensure no instance -> proto edges
-			opt.add(A_submatrix[instance_index][proto_node_idx] == False) 
+			for proto_id in valid_proto_ids:
+				proto_index = node_idx_submap[proto_id]
+				opt.add(z3.Implies(A_submatrix[proto_index][instance_index], proto_parent(level, instance_index) == proto_index))
+				
+				# ensure no instance -> proto edges
+				opt.add(A_submatrix[instance_index][proto_index] == False) 
 
-			# ensure no invalid proto-instance connections --> REMOVING FOR NOW TO SEE IF I CAN DO W INCREMENTAL SOLVING
-			# proto_type = z3_helpers.get_node_type(proto_node_id) # ensure no invalid proto-instance connections
-			# instance_type = z3_helpers.get_node_type(instance_node_id)
-			# if ((proto_type == "SEG_PROTO" and instance_type == "MOTIF_INSTANCE") or 
-			# 		(proto_type == "MOTIF_PROTO" and instance_type == "SEG_INSTANCE")):
-			# 	opt.add(A[proto_idx][instance_idx_A] == False)
+				# ensure no invalid proto-instance connections --> FIXED WITH INCREMENTAL SOLVING (see nonincremental version for original constraints)
 
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
 # idx_node_submap1 is a level above idx_node_submap2
@@ -228,7 +228,7 @@ def add_objective(submatrix, idx_node_submap):
 										 for (j, node_id2) in idx_node_submap.items()])
 	opt.minimize(objective)
 
-# save state ONLY for that level, and possible prototypes (if any)
+# save state ONLY for that level
 # the submatrix will often contains a pair of adjacent levels -- we're only interested in the relevant level
 def save_instance_level_state(level, submatrix, idx_node_mapping, model):
 	state = []
@@ -246,22 +246,17 @@ def save_instance_level_state(level, submatrix, idx_node_mapping, model):
 					state.append((var, evaluated_var))
 	return state
 
-# save state ONLY for that level, and possible prototypes (if any)
-# the submatrix will often contains a pair of adjacent levels -- we're only interested in the relevant level
-def save_proto_level_state(level, submatrix, idx_node_mapping, model):
+# save state ONLY for that level's prototypes
+def save_proto_level_state(submatrix, idx_node_mapping, model):
 	state = []
 	for i in range(submatrix.shape[0]):
 		node_id = idx_node_mapping[i] # this will be the SOURCE NODE for subsequent edges
-		for j in range(submatrix.shape[1]):
-			var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
-			instance_node_info = z3_helpers.parse_instance_node_id(node_id)
-			if instance_node_info:
-				type = instance_node_info[0]
-				node_level = instance_node_info[2] if type == 'S' else max_seg_level + 1
-				is_instance_at_level = instance_node_info and node_level - 1 == level # since the level in the node-id is 1-indexed
-				if is_instance_at_level:
-					evaluated_var = model.eval(var, model_completion=True)  # Evaluate this variable in the model
-					state.append((var, evaluated_var))
+		if z3_helpers.is_proto(node_id):
+			print("SAVING")
+			for j in range(submatrix.shape[1]):
+				var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
+				evaluated_var = model.eval(var, model_completion=True)  # Evaluate this variable in the model
+				state.append((var, evaluated_var))
 	return state
 
 def restore_level_state(level, level_states):
@@ -319,33 +314,29 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	opt.pop()
 
 
-# for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_submatrices_list_with_proto.items():
-# 	print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
-# 	opt.push()  # Save the current optimizer state for potential backtracking
+for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_submatrices_list_with_proto.items():
+	print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
+	opt.push()  # Save the current optimizer state for potential backtracking
 
-# 	restore_level_state(level, level_states)
+	(_, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
 
-# 	# add_prototype_to_prototype_constraints(instance_proto_submatrix)
+	restore_level_state(level, level_states)
+	add_prototype_to_prototype_constraints(instance_proto_submatrix, idx_node_submap)
+	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap, idx_node_submap_with_context)
  
-# 	(_, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
-# 	kind = 'P' if level == len(instance_levels_partition) - 1 else 'S'
-# 	valid_proto_ids = prototype_kinds_partition[kind]
-# 	print("VALID", valid_proto_ids, idx_node_submap)
-# 	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap, valid_proto_ids, idx_node_submap_with_context)
- 
-# 	add_objective(instance_proto_submatrix, idx_node_submap)
-# 	# print("HERE5", time.perf_counter())
+	add_objective(instance_proto_submatrix, idx_node_submap)
+	# print("HERE5", time.perf_counter())
 
-# 	if opt.check() == z3.sat:
-# 		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
-# 		model = opt.model()
-# 		# print("MODEL AT LEVELS", (parent_level, child_level), ":", str(model))
-# 		level_states[level] = save_level_state(level, instance_proto_submatrix, idx_node_submap1_with_context, model)
-# 		# print("LEVEL STATES SAVED AT LEVELS:", (parent_level, child_level), level_states)
-# 	else:
-# 		print(f"Level {level} is not satisfiable for proto constraints")
+	if opt.check() == z3.sat:
+		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
+		model = opt.model()
+		proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
+		level_states[level] += proto_state
+		# print("LEVEL STATES SAVED AT LEVEL", level, level_states)
+	else:
+		print(f"Level {level} is not satisfiable for proto constraints")
 	
-# 	opt.pop()
+	opt.pop()
 
 # After iterating through all levels, you can check for overall satisfiability
 for level in instance_levels_partition.keys():
