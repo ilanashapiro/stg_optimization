@@ -40,7 +40,7 @@ print("HERE0", time.perf_counter())
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
 A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n_A)] for i in range(n_A)])
 A_partition_instance_submatrices_list = z3_helpers.create_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
-A_partition_instance_submatrices_list_with_proto = z3_helpers.create_instance_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
+A_partition_instance_submatrices_list_with_context = z3_helpers.create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
 A_adj_instance_submatrices_list = z3_helpers.create_adjacent_level_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
 A_adj_instance_submatrices_list_with_proto = z3_helpers.create_adjacent_level_proto_and_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
 
@@ -258,10 +258,11 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	(A_submatrix1, idx_node_submap1) = A_partition_instance_submatrices_list[parent_level]
 	(A_submatrix2, idx_node_submap2) = A_partition_instance_submatrices_list[child_level]
 
-	(A_submatrix1_with_proto, idx_node_submap1_with_proto) = A_partition_instance_submatrices_list_with_proto[parent_level]
-	(A_submatrix2_with_proto, idx_node_submap2_with_proto) = A_partition_instance_submatrices_list_with_proto[child_level]
-	(_, combined_idx_node_submap_with_proto) = A_adj_instance_submatrices_list_with_proto[(parent_level, child_level)]
+	(A_submatrix1_with_proto, idx_node_submap1_with_proto) = A_partition_instance_submatrices_list_with_context[parent_level]
+	(A_submatrix2_with_proto, idx_node_submap2_with_proto) = A_partition_instance_submatrices_list_with_context[child_level]
+	# (_, combined_idx_node_submap_with_proto) = A_adj_instance_submatrices_list_with_proto[(parent_level, child_level)]
 
+	print("INFO", A_submatrix1_with_proto, idx_node_submap1_with_proto)
 	add_dummys_and_no_self_loops_constraint_instances(A_submatrix1_with_proto, idx_node_submap1_with_proto)
 	add_dummys_and_no_self_loops_constraint_instances(A_submatrix2_with_proto, idx_node_submap2_with_proto)
 	print("HERE1", time.perf_counter())
@@ -283,6 +284,7 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	if opt.check() == z3.sat:
 		print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
 		model = opt.model()
+		print("MODEL AT LEVELS", (parent_level, child_level), ":", model)
 		level_states[parent_level] = save_level_state(parent_level, A_submatrix1, idx_node_submap1, model)
 		level_states[child_level] = save_level_state(child_level, A_submatrix2, idx_node_submap2, model)
 		print((child_level, parent_level), level_states)
@@ -300,8 +302,8 @@ for level in instance_levels_partition.keys():
 if opt.check() == z3.sat:
 	print("Final structure across all levels is satisfiable")
 	final_model = opt.model()
-	print(A)
-	result = np.array([[1 if model.eval(A[i, j], model_completion=True) else 0 for j in range(n_A)] for i in range(n_A)])
+	print(final_model)
+	result = np.array([[1 if final_model.eval(A[i, j], model_completion=True) else 0 for j in range(n_A)] for i in range(n_A)])
 	print(result, idx_node_mapping)
 	G = simanneal_helpers.adj_matrix_to_graph(centroid, idx_node_mapping)
 	g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)

@@ -14,14 +14,14 @@ import time
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-centroid = np.loadtxt('centroid.txt')
-with open("centroid_node_mapping.txt", 'r') as file:
-  idx_node_mapping = json.load(file)
-  idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+# centroid = np.loadtxt('centroid.txt')
+# with open("centroid_node_mapping.txt", 'r') as file:
+#   idx_node_mapping = json.load(file)
+#   idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
-# G = z3_tests.G1
-# centroid = nx.to_numpy_array(G)
-# idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
+G = z3_tests.G1
+centroid = nx.to_numpy_array(G)
+idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 node_idx_mapping = {v: k for k, v in idx_node_mapping.items()}
 n = len(idx_node_mapping) 
@@ -35,7 +35,7 @@ print("HERE0", time.perf_counter())
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
 A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n)] for i in range(n)])
-A_partition_submatrices_list = z3_helpers.create_partition_submatrices(A, node_idx_mapping, levels_partition)
+A_partition_submatrices_list = z3_helpers.create_instance_partition_submatrices(A, node_idx_mapping, levels_partition)
 
 NodeSort = z3.IntSort()
 is_not_dummy = z3.BoolVector('is_not_dummy', n)
@@ -96,7 +96,7 @@ def add_prototype_to_prototype_constraints():
 def add_inter_level_parent_counts_constraints():
   for level, (_, idx_node_submap) in A_partition_submatrices_list.items():
     for i_subA, node_id in idx_node_submap.items():
-      parsed = z3_helpers.parse_node_id(node_id)
+      parsed = z3_helpers.parse_instance_node_id(node_id)
       if parsed:
         i_A = node_idx_mapping[node_id]
         if level > 0: # top level doesn't have instance parents by construction in simanneal
@@ -202,20 +202,20 @@ objective = z3.Sum([z3.If(A[i][j] != bool(centroid[i][j]), 1, 0) for i in range(
 # opt.minimize(objective)
 print("HERE7", time.perf_counter())
 
-# if opt.check() == z3.sat:
-#   model = opt.model()
-#   print("HERE8", time.perf_counter())
-#   print("Closest valid graph's adjacency matrix:", model)
-#   for i in range(n):
-#     result = np.array([[1 if model.evaluate(A[i, j]) else 0 for j in range(n)] for i in range(n)])
-#     G = simanneal_helpers.adj_matrix_to_graph(centroid, idx_node_mapping)
-#     g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)
-#     layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
-#     layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-#     build_graph.visualize_p([G, g], [layers_G, layers_g])
-# else:
-#   print("Problem has no solution")
-
+if opt.check() == z3.sat:
+  model = opt.model()
+  print("HERE8", time.perf_counter())
+  print("Closest valid graph's adjacency matrix:", model)
+  for i in range(n):
+    result = np.array([[1 if model.evaluate(A[i, j]) else 0 for j in range(n)] for i in range(n)])
+    G = simanneal_helpers.adj_matrix_to_graph(centroid, idx_node_mapping)
+    g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)
+    layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
+    layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+    build_graph.visualize_p([G, g], [layers_G, layers_g])
+else:
+  print("Problem has no solution")
+sys.exit(0)
 objective_value = math.inf
 while True:
   if opt.check() == z3.sat:
