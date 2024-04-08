@@ -70,13 +70,14 @@ idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.i
 # Constraint: the graph can't have self loops, and set the dummys, for INSTANCES (I realize never need to check if a prototype is a dummy)
 # submatrix_with_context is the submatrix for a single instance level, with context (these are the requirements to check for dummys)
 # context is: nodes from the level below if not the last level, nodes from the level above if not the first level, and the prototype nodes of the same kind as the CURRENT level nodes
-def add_dummys_and_no_self_loops_constraint_instances(submatrix_with_context, idx_node_submap):
-	n = len(submatrix_with_context)
-	for i in range(n):
-		if (z3_helpers.is_instance(idx_node_submap[i])):
-			total_edges = z3.Sum([z3.If(submatrix_with_context[i][j], 1, 0) for j in range(n) if j != i] + [z3.If(submatrix_with_context[j][i], 1, 0) for j in range(n) if j != i])
-			opt.add(is_not_dummy[i] == (total_edges != 0))
-			opt.add(submatrix_with_context[i][i] == False) # the self loops is actually probably redundant if we're using the optimizer
+# NO LONGER DOING VERSION WITH DUMMYS DUE TO TIMEOUT
+# def add_dummys_and_no_self_loops_constraint_instances(submatrix_with_context, idx_node_submap):
+# 	n = len(submatrix_with_context)
+# 	for i in range(n):
+# 		if (z3_helpers.is_instance(idx_node_submap[i])):
+# 			total_edges = z3.Sum([z3.If(submatrix_with_context[i][j], 1, 0) for j in range(n) if j != i] + [z3.If(submatrix_with_context[j][i], 1, 0) for j in range(n) if j != i])
+# 			opt.add(is_not_dummy[i] == (total_edges != 0))
+# 			opt.add(submatrix_with_context[i][i] == False) # the self loops is actually probably redundant if we're using the optimizer
 
 # Constraint: no edges between prototypes
 def add_prototype_to_prototype_constraints(proto_submatrix, idx_node_submap):
@@ -93,19 +94,16 @@ def add_prototype_to_prototype_constraints(proto_submatrix, idx_node_submap):
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
 def add_prototype_to_instance_constraints(level, instance_proto_submatrix, instance_proto_idx_node_submap):
-	(_, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
 	node_idx_submap_instsance_proto = invert_dict(instance_proto_idx_node_submap)
-	# node_idx_submap_with_context = invert_dict(idx_node_submap_with_context)
 	(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
 	define_linearly_adjacent_instance_relations(instance_only_submatrix)
 
-	for instance_index, instance_id in idx_node_submap_instance_only.items():
+	for instance_index in idx_node_submap_instance_only.keys():
 		opt.add(z3.Implies(z3.And(instance_index != end(level)), proto_parent(level, instance_index) != proto_parent(level, succ(instance_index)))) # no 2 linearly adjacent nodes can have the same prototype parent
 
 		valid_proto_ids = [node_id for node_id in idx_node_submap.values() if z3_helpers.is_proto(node_id)]  # valid means seg-seg, and motif-motif
 		incoming_prototype_edges = z3.Sum([z3.If(instance_proto_submatrix[node_idx_submap_instsance_proto[proto_id]][instance_index], 1, 0) for proto_id in valid_proto_ids])
 		opt.add(incoming_prototype_edges == 1)
-		# opt.add(z3.Implies(is_not_dummy[node_idx_submap_with_context[instance_id]], incoming_prototype_edges == 1)) # each non-dummy instance node has exactly 1 proto parent
 
 		for proto_id in valid_proto_ids:
 			proto_index = node_idx_submap_instsance_proto[proto_id]
@@ -122,18 +120,15 @@ def add_prototype_to_instance_constraints(level, instance_proto_submatrix, insta
 def add_instance_parent_count_constraints(combined_submatrix, 
 																					idx_node_submap1, 
 																					idx_node_submap2, 
-																					combined_idx_node_submap, 
-																					combined_idx_node_submap_with_context):
+																					combined_idx_node_submap):
 	combined_node_idx_submap = invert_dict(combined_idx_node_submap)
-	combined_node_idx_submap_with_context = invert_dict(combined_idx_node_submap_with_context)
 	
 	for i_subA2, node_id2 in idx_node_submap2.items():
 		child_idx_combined = combined_node_idx_submap[node_id2]
 		parent_count = z3.Sum([z3.If(combined_submatrix[combined_node_idx_submap[node_id1]][child_idx_combined], 1, 0) 
 														for node_id1
 														in idx_node_submap1.values()])
-		# node_is_dummy = z3.Not(is_not_dummy[combined_node_idx_submap_with_context[node_id2]])
-		opt.add(z3.Or(parent_count == 1, parent_count == 200))#, node_is_dummy))
+		opt.add(z3.Or(parent_count == 1, parent_count == 200))
 
 		# Assign the 1 or 2 parents to non-zero level instance nodes for future reference in the constraint about parent orders based on the linear chain
 		for list_idx, (parent_index1_subA1, parent_id1) in enumerate(list(idx_node_submap1.items())):
@@ -153,9 +148,7 @@ def add_instance_parent_count_constraints(combined_submatrix,
 # Constraint: The instance nodes in the given partition should form a linear chain
 def add_intra_level_linear_chain(level, 
 																 A_submatrix, 
-																 idx_node_submap, 
-																 idx_node_submap_with_context):
-	node_idx_submap_with_context = invert_dict(idx_node_submap_with_context)
+																 idx_node_submap):
 	partition_node_ids = list(idx_node_submap.values())
 	num_partition_nodes = len(partition_node_ids)
 	start_nodes = []
@@ -197,25 +190,18 @@ def define_linearly_adjacent_instance_relations(A_submatrix):
 
 # Constraint: segmentation: each node's first parent must not come before the prev node's last parent in the chain, and start and end must align to start and end above 
 #             motif: node's first parent must not come before the prev node's first parent (since this is non-contiguous and we can have overlapping motifs)
-def add_instance_parent_relationship_constraints(level, idx_node_submap, idx_node_submap_with_context):
-	node_idx_submap_with_context = invert_dict(idx_node_submap_with_context)
+def add_instance_parent_relationship_constraints(level, idx_node_submap):
 	for i_subA, node_id in idx_node_submap.items(): 
-		# opt.add(z3.Implies(z3.And(i_subA != end(level)), proto_parent(level, i_subA) != proto_parent(level, succ(i_subA)))) # no 2 linearly adjacent nodes can have the same prototype parent
 		if level > 0:
 			segment_level = re.match(r"S\d+L\d+N\d+", node_id)
 			motif_level = re.match(r"P\d+O\d+N\d+", node_id)
-			# is_not_dummy_node = is_not_dummy[node_idx_submap_with_context[node_id]]
 			if segment_level:
 				# rules for contiguous and total segmentation
-				# opt.add(z3.Implies(z3.And(is_not_dummy_node, i_subA != end(level)), rank(instance_parent2(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's first parent must not come before the prev node's last parent
-				# opt.add(z3.Implies(z3.And(is_not_dummy_node, i_subA == end(level)), instance_parent2(i_subA) == end(level - 1))) # the final node must have the prev level's last node as a parent
-				# opt.add(z3.Implies(z3.And(is_not_dummy_node, i_subA == start(level)), instance_parent1(i_subA) == start(level - 1))) # the first node must have the prev level's first node as a parent
 				opt.add(z3.Implies(i_subA != end(level), rank(instance_parent2(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's first parent must not come before the prev node's last parent
 				opt.add(z3.Implies(i_subA == end(level), instance_parent2(i_subA) == end(level - 1))) # the final node must have the prev level's last node as a parent
 				opt.add(z3.Implies(i_subA == start(level), instance_parent1(i_subA) == start(level - 1))) # the first node must have the prev level's first node as a parent
 			elif motif_level:
-				# rules for disjoint, non-contiguous sections
-				# opt.add(z3.Implies(z3.And(is_not_dummy_node, i_subA != end(level)), rank(instance_parent1(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's first parent must not come before the prev node's first parent (since this is non-contiguous and we can have overlapping motifs)
+				# rules for disjoint, non-contiguous sections (i.e. motifs)
 				opt.add(z3.Implies(i_subA != end(level), rank(instance_parent1(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's first parent must not come before the prev node's first parent (since this is non-contiguous and we can have overlapping motifs)
 			else:
 				print("ERROR")
@@ -282,28 +268,17 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	(A_submatrix1, idx_node_submap1) = A_partition_instance_submatrices_list[parent_level]
 	(A_submatrix2, idx_node_submap2) = A_partition_instance_submatrices_list[child_level]
 
-	(A_submatrix1_with_context, idx_node_submap1_with_context) = A_partition_instance_submatrices_list_with_context[parent_level]
-	(A_submatrix2_with_context, idx_node_submap2_with_context) = A_partition_instance_submatrices_list_with_context[child_level]
-	(_, combined_idx_node_submap_with_context) = A_adjacent_partition_submatrices_with_context[(parent_level, child_level)]
-
-	# print("CONTEXT1", A_submatrix1_with_context, idx_node_submap1_with_context)
-	# print("CONTEXT2", A_submatrix2_with_context, idx_node_submap2_with_context)
 	if parent_level not in level_states:
-		# add_dummys_and_no_self_loops_constraint_instances(A_submatrix1_with_context, idx_node_submap1_with_context)
-		add_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1, idx_node_submap1_with_context)
+		add_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
 	if child_level not in level_states:
-		# add_dummys_and_no_self_loops_constraint_instances(A_submatrix2_with_context, idx_node_submap2_with_context)
-		add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2, idx_node_submap2_with_context)
-		add_instance_parent_relationship_constraints(child_level, idx_node_submap2, idx_node_submap2_with_context) # we ONLY want to do this for the child node
+		add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2)
+		add_instance_parent_relationship_constraints(child_level, idx_node_submap2) # we ONLY want to do this for the child node
 
-	# print("COMBINED SUBMATRIX AT LEVELS", (parent_level, child_level), A_combined_submatrix, combined_idx_node_submap)
-	# print("INFO1", A_submatrix1, idx_node_submap1)
-	# print("INFO2", A_submatrix2, idx_node_submap2)
-	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap, combined_idx_node_submap_with_context)
+	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap)
 	print("HERE4", time.perf_counter())
  
 	# add_objective(A_combined_submatrix, combined_idx_node_submap)
-	print("HERE5", time.perf_counter())
+	# print("HERE5", time.perf_counter())
 
 	# if opt.check() == z3.sat:
 	# 	print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
