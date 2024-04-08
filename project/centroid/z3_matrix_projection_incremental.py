@@ -31,7 +31,9 @@ def invert_dict(d):
 
 node_idx_mapping = invert_dict(idx_node_mapping)
 n_A = len(idx_node_mapping) 
-opt = z3.Solver()
+opt = z3.Optimize()
+
+opt.set("enable_lns", True)
 
 instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping) # dict: level -> instance nodes at that level
 prototype_kinds_partition = z3_helpers.partition_prototype_kinds(idx_node_mapping) # dict: prototype kind -> prototype nodes of that kind
@@ -43,19 +45,23 @@ print("HERE0", time.perf_counter())
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
 A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n_A)] for i in range(n_A)])
 A_partition_instance_submatrices_list = z3_helpers.create_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
-A_partition_instance_submatrices_list_with_context = z3_helpers.create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
+A_partition_instance_submatrices_list_with_context = z3_helpers.create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition) # USED FOR DUMMYS
 A_partition_instance_submatrices_list_with_proto = z3_helpers.create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
 A_adjacent_instance_submatrices_list = z3_helpers.create_adjacent_level_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
-A_adjacent_partition_submatrices_with_context = z3_helpers.create_adjacent_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
+A_adjacent_partition_submatrices_with_context = z3_helpers.create_adjacent_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition) # USED FOR DUMMYS
 
 NodeSort = z3.IntSort()
-is_not_dummy = z3.BoolVector('is_not_dummy', n_A)
 
 # Uninterpreted functions
 instance_parent1 = z3.Function('instance_parent1', NodeSort, NodeSort)
+# def instance_parent1(child_i):
+# 	assert(isinstance(child_i, int))
+# 	return z3.Const(f"instance_parent1{child_i}", NodeSort)
+
 instance_parent2 = z3.Function('instance_parent2', NodeSort, NodeSort)
 proto_parent = z3.Function('proto_parent', NodeSort, NodeSort, NodeSort) # level number, index within level partition -> prototype index in entire centroid matrix A
 
+# try to reformulate the problem in a PURELY FINITE DOMAIN (i.e. w.o. uninterpreted functions)
 # orderings for linear chain
 # IMPORTANT: the nodes indices for these functions refer to the RELEVANT PARTITION SUBMATRIX, NOT the entire centroid matrix A!!!
 pred = z3.Function('pred', NodeSort, NodeSort)
@@ -128,7 +134,7 @@ def add_instance_parent_count_constraints(combined_submatrix,
 		parent_count = z3.Sum([z3.If(combined_submatrix[combined_node_idx_submap[node_id1]][child_idx_combined], 1, 0) 
 														for node_id1
 														in idx_node_submap1.values()])
-		opt.add(z3.Or(parent_count == 1, parent_count == 200))
+		opt.add(z3.Or(parent_count == 1, parent_count == 2))
 
 		# Assign the 1 or 2 parents to non-zero level instance nodes for future reference in the constraint about parent orders based on the linear chain
 		for list_idx, (parent_index1_subA1, parent_id1) in enumerate(list(idx_node_submap1.items())):
@@ -166,7 +172,6 @@ def add_intra_level_linear_chain(level,
 		opt.add(start_nodes[i_subA] == z3.And(num_outgoing_edges == 1, num_incoming_edges == 0))
 		opt.add(end_nodes[i_subA] == z3.And(num_incoming_edges == 1, num_outgoing_edges == 0))
 
-		# is_not_dummy_node = is_not_dummy[node_idx_submap_with_context[node_id]]
 		is_intermediate_chain_node = z3.And(z3.Not(start_nodes[i_subA]), z3.Not(end_nodes[i_subA]))#, is_not_dummy_node)
 		opt.add(is_intermediate_chain_node == ((num_incoming_edges == 1) & (num_outgoing_edges == 1)))
 
@@ -179,6 +184,9 @@ def add_intra_level_linear_chain(level,
 
 	define_linearly_adjacent_instance_relations(A_submatrix)
 
+# consider: A_submatrix has only one 1 in each row/col bc it's the submatrix of a single instance level that forms a linear chain
+# can encode rank as integers and compare ints directly, but still asymptotically an overhead
+# try to associate a bitvector with each index, and this directly gives us succ, pred, rank, start, and end 
 def define_linearly_adjacent_instance_relations(A_submatrix):
 	for i in range(len(A_submatrix)):
 		for j in range(len(A_submatrix)):
@@ -224,9 +232,9 @@ def add_objective(submatrix, idx_node_submap):
 # the submatrix will often contains a pair of adjacent levels -- we're only interested in the relevant level
 def save_instance_level_state(level, submatrix, idx_node_mapping, model):
 	state = []
-	for i in range(submatrix.shape[0]):
+	for i in range(len(submatrix)):
 		node_id = idx_node_mapping[i] # this will be the SOURCE NODE for subsequent edges
-		for j in range(submatrix.shape[1]):
+		for j in range(len(submatrix)):
 			var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
 			instance_node_info = z3_helpers.parse_instance_node_id(node_id)
 			if instance_node_info:
@@ -277,40 +285,29 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap)
 	print("HERE4", time.perf_counter())
  
-	# add_objective(A_combined_submatrix, combined_idx_node_submap)
-	# print("HERE5", time.perf_counter())
+	add_objective(A_combined_submatrix, combined_idx_node_submap)
+	print("HERE5", time.perf_counter())
 
-	# if opt.check() == z3.sat:
-	# 	print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
-	# 	model = opt.model()
-	# 	level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, model)
-	# 	if child_level == len(instance_levels_partition) - 1:
-	# 		level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, model)
-	# else:
-	# 	print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
+	with open(f"smtlib{(parent_level, child_level)}.txt", 'w') as file:
+		file.write(opt.sexpr())
+		# z3.set_param(verbose = 4)
 
-	objective_value = math.inf
-	while True:
-		if opt.check() == z3.sat:
-			print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
-			model = opt.model()
-			level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, model)
-			if child_level == len(instance_levels_partition) - 1:
-				level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, model)
+	def on_model(m):
+		# print("MODEL INTERMEDIATE", m)
+		objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
+		current_objective_value = m.eval(objective, model_completion=True).as_long()
+		print("CURRENT COST", current_objective_value)
+		# sys.stdout.flush()
+	opt.set_on_model(on_model)
 
-			objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
-			current_objective_value = model.eval(objective, model_completion=True).as_long()
-			print("CURRENT COST", current_objective_value)
-			if current_objective_value < objective_value:
-					objective_value = current_objective_value
-					opt.add(objective < objective_value)
-			else:
-					# If no improvement, break from the loop
-					break
-		else:
-				# If unsat, no further solutions can be found; break from the loop
-				print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
-				break
+	if opt.check() == z3.sat:
+		print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
+		model = opt.model()
+		level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, model)
+		if child_level == len(instance_levels_partition) - 1:
+			level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, model)
+	else:
+		print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
 
 	opt.pop()
 
@@ -319,45 +316,28 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	opt.push()  # Save the current optimizer state for potential backtracking
 
 	restore_level_state(level, level_states)
-	# (submatrix_with_context, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
-	# print("SUBMATRIX WITH CONTEXT PROTO", submatrix_with_context, idx_node_submap_with_context)
-	# add_dummys_and_no_self_loops_constraint_instances(submatrix_with_context, idx_node_submap_with_context)
 	add_prototype_to_prototype_constraints(instance_proto_submatrix, idx_node_submap)
 	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap)
 
-	# add_objective(instance_proto_submatrix, idx_node_submap)
+	add_objective(instance_proto_submatrix, idx_node_submap)
 
-	# if opt.check() == z3.sat:
-	# 	print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
-	# 	model = opt.model()
-	# 	print(f"MODEL AT LEVEL {level}", model)
-	# 	proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
-	# 	level_states[level] += proto_state
-	# 	# print("LEVEL STATES SAVED AT LEVEL", level, level_states)
-	# else:
-	# 	print(f"Level {level} is not satisfiable for proto constraints")
-
-	objective_value = math.inf
-	while True:
-		if opt.check() == z3.sat:
-			print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
-			model = opt.model()
-			proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
-			level_states[level] += proto_state
-
-			objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
-			current_objective_value = model.eval(objective, model_completion=True).as_long()
-			print("CURRENT COST", current_objective_value)
-			if current_objective_value < objective_value:
-					objective_value = current_objective_value
-					opt.add(objective < objective_value)
-			else:
-					# If no improvement, break from the loop
-					break
-		else:
-				# If unsat, no further solutions can be found; break from the loop
-				print(f"Level {level} is not satisfiable for proto constraints")
-				break
+	def on_model(m):
+		# print("MODEL INTERMEDIATE", m)
+		objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
+		current_objective_value = m.eval(objective, model_completion=True).as_long()
+		print("CURRENT COST", current_objective_value)
+		# sys.stdout.flush()
+	opt.set_on_model(on_model)
+	
+	if opt.check() == z3.sat:
+		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
+		model = opt.model()
+		print(f"MODEL AT LEVEL {level}", model)
+		proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
+		level_states[level] += proto_state
+		# print("LEVEL STATES SAVED AT LEVEL", level, level_states)
+	else:
+		print(f"Level {level} is not satisfiable for proto constraints")
 
 	opt.pop()
 
