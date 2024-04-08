@@ -138,6 +138,7 @@ def get_unsorted_layers_from_graph_by_index(G):
   # Convert the grouped dictionary into a list of nested lists
   layers = list(partition_structure_grouped.values())
   layers.append(partition_motives)
+  layers = [lst for lst in layers if lst]
 
   def vertical_sort_key(layer):
     id = layer[0]['id'] 
@@ -146,7 +147,7 @@ def get_unsorted_layers_from_graph_by_index(G):
       level = int(parts[0].split('L')[1])
       return (0, level)  # 0 as the first element to prioritize 'S' prefixed ids
     else: 
-      return (1, 0)  # 1 to deprioritize 'P' prefixed ids, 0 as a placeholder for level since it's irrelevant for motifs
+      return (1, 0)  # 1 to deprioritize 'P' prefixed ids, 0 as a placeholder for level since it's irrelevant for motif
 
   layers = sorted(layers, key=vertical_sort_key)
   return layers
@@ -342,9 +343,9 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
     ax = axes_flat[idx]
     # Draw the graph
     nx.draw_networkx_nodes(G, pos, ax=ax, node_size=500, node_color="lightblue")
-    nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray", arrows=True)
+    nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
     proto_edges = [(u, v) for u, v in G.edges() if u in prototype_nodes]
-    nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True)
+    nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
     nx.draw_networkx_labels(G, pos, labels=labels_dict, ax=ax, font_size=8)
     
     ax.set_title(f"Graph {idx + 1}")

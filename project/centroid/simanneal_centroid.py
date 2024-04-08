@@ -134,11 +134,11 @@ class GraphAlignmentAnnealer(Annealer):
 # with open("centroid_node_mapping.txt", 'r') as file:
 #   centroid_node_mapping = json.load(file)
 #   centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
-# # layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
-# # layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
+layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
+layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
 # g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
 # layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
-# build_graph.visualize_p([g, G, g_c], [layers, layers1, layers_g_c])
+build_graph.visualize_p([tests.G1, tests.G2], [layers1, layers2])
 
 # initial_state = np.eye(np.shape(A_G)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)

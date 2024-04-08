@@ -72,8 +72,9 @@ def partition_instance_levels(idx_node_mapping):
       elif node_kind == 'P': # collect the motif/pattern nodes and add to levels after the max seg level is determined
         motif_nodes.append(node_id)
   
-  node_levels[max_seg_level + 1] = motif_nodes
-  print("GET LEVELS inST", node_levels)
+  if len(motif_nodes) > 0:
+    node_levels[max_seg_level + 1] = motif_nodes
+
   return node_levels
 
 def create_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition):
@@ -100,6 +101,19 @@ def create_adjacent_level_instance_partition_submatrices(A, node_idx_mapping, le
     sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
     adjacent_level_submatrices[(level - 1, level)] = (sub_matrix, sub_matrix_mapping)
   return adjacent_level_submatrices
+
+def create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
+  instance_level_submatrices_with_proto = {}
+  for level in range(len(instance_levels_partition)):
+    instance_node_ids = instance_levels_partition[level]
+    kind = 'P' if level == len(instance_levels_partition) - 1 else 'S'
+    prototype_node_ids = prototype_kinds_partition.get(kind, [])
+    combined_node_ids = instance_node_ids + prototype_node_ids
+    indices_A = [node_idx_mapping[node_id] for node_id in combined_node_ids]
+    sub_matrix = A[np.ix_(indices_A, indices_A)]
+    sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
+    instance_level_submatrices_with_proto[level] = (sub_matrix, sub_matrix_mapping)
+  return instance_level_submatrices_with_proto
 
 def create_adjacent_level_proto_and_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
   adjacent_level_submatrices = {}
@@ -128,45 +142,41 @@ def create_adjacent_level_proto_and_instance_partition_submatrices(A, node_idx_m
 
   return adjacent_level_submatrices
 
-def create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
-    level_submatrices_with_context = {}
-    total_levels = len(instance_levels_partition)
+def create_adjacent_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
+  adjacent_level_submatrices_with_context = {}
+  total_levels = len(instance_levels_partition)
+  
+  for level1 in range(total_levels):  # Iterate to the second-to-last level to ensure pairs
+    if level1 == total_levels - 1:
+      break
 
-    for level, node_ids in instance_levels_partition.items():
-        # Determine kinds for prototype inclusion for current level
-        if level == total_levels - 1:  # Check if it's the last level
-            kinds = ['S', 'P']
-        else:
-            kinds = ['S']
+    level2 = level1 + 1
+    combined_node_ids = instance_levels_partition[level1] + instance_levels_partition[level2]
+    
+    # Include nodes from the level above level1 if not the first level
+    if level1 > 0:
+      combined_node_ids.extend(instance_levels_partition[level1 - 1])
 
-        # Initialize combined_node_ids with current level node IDs
-        combined_node_ids = list(node_ids)  # Create a copy to avoid modifying the original
+    # Include nodes from the level below level2 if not the last level
+    if level2 < total_levels - 1:
+      combined_node_ids.extend(instance_levels_partition[level2 + 1])
+    
+    # Include prototype nodes for both levels
+    prototypes_set = set()
+    for lvl in [level1, level2]:
+      kind = 'P' if lvl == total_levels - 1 else 'S'
+      prototype_node_ids = prototype_kinds_partition.get(kind, [])
+      prototypes_set.update(prototype_node_ids)
+    
+    combined_node_ids.extend(prototypes_set)
 
-        # Include nodes from the level above if not the first level
-        if level > 0:
-            prev_level_node_ids = instance_levels_partition[level - 1]
-            combined_node_ids.extend(prev_level_node_ids)
+    indices = [node_idx_mapping[node_id] for node_id in combined_node_ids]
+    sub_matrix = A[np.ix_(indices, indices)]
+    sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
 
-        # Include nodes from the level below if not the last level
-        if level < total_levels - 1:
-            next_level_node_ids = instance_levels_partition[level + 1]
-            combined_node_ids.extend(next_level_node_ids)
-
-        # Include prototype nodes of the same kind as the current level nodes
-        prototype_node_ids = []
-        for kind in kinds:
-            prototype_node_ids.extend(prototype_kinds_partition.get(kind, []))
-        combined_node_ids.extend(prototype_node_ids)
-
-        # Map node IDs to their indices and create the submatrix
-        indices = [node_idx_mapping[node_id] for node_id in combined_node_ids]
-        sub_matrix = A[np.ix_(indices, indices)]
-        sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
-
-        # Store the submatrix with context for the current level
-        level_submatrices_with_context[level] = (sub_matrix, sub_matrix_mapping)
-
-    return level_submatrices_with_context
+    adjacent_level_submatrices_with_context[(level1, level2)] = (sub_matrix, sub_matrix_mapping)
+  
+  return adjacent_level_submatrices_with_context
 
 def create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
   level_submatrices_with_context = {}
