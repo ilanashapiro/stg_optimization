@@ -20,7 +20,7 @@ import build_graph
 # 	idx_node_mapping = json.load(file)
 # 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
-G = simanneal_centroid_tests.G1
+G = z3_tests.G1
 centroid = nx.to_numpy_array(G)
 idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
@@ -46,8 +46,6 @@ A_partition_instance_submatrices_list_with_proto = z3_helpers.create_instance_wi
 A_adjacent_instance_submatrices_list = z3_helpers.create_adjacent_level_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
 A_adjacent_partition_submatrices_with_context = z3_helpers.create_adjacent_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
 
-
-print("INFO", A_adjacent_partition_submatrices_with_context, "DONE")
 NodeSort = z3.IntSort()
 is_not_dummy = z3.BoolVector('is_not_dummy', n_A)
 
@@ -67,34 +65,16 @@ rank = z3.Function('rank', NodeSort, z3.IntSort())
 idx_node_mapping_prototype = {idx: node_id for idx, node_id in idx_node_mapping.items() if node_id.startswith("Pr")}
 idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.items() if not node_id.startswith("Pr")}
 
-# Constraint: the graph can't have self loops, and set the dummys, for instances
-# submatrix_with_proto is the submatrix for a single instance level, with the possible prototypes (these are the requirements to check for dummys)
+# Constraint: the graph can't have self loops, and set the dummys, for INSTANCES (I realize never need to check if a prototype is a dummy)
+# submatrix_with_context is the submatrix for a single instance level, with context (these are the requirements to check for dummys)
+# context is: nodes from the level below if not the last level, nodes from the level above if not the first level, and the prototype nodes of the same kind as the CURRENT level nodes
 def add_dummys_and_no_self_loops_constraint_instances(submatrix_with_context, idx_node_submap):
 	n = len(submatrix_with_context)
 	for i in range(n):
 		if (z3_helpers.is_instance(idx_node_submap[i])):
 			total_edges = z3.Sum([z3.If(submatrix_with_context[i][j], 1, 0) for j in range(n) if j != i] + [z3.If(submatrix_with_context[j][i], 1, 0) for j in range(n) if j != i])
 			opt.add(is_not_dummy[i] == (total_edges != 0))
-			opt.add(submatrix_with_context[i][i] == False)
-
-# Constraint: the graph can't have self loops, and set the dummys, for instances
-# submatrix_with_proto is the submatrix for a single instance level, with the possible prototypes (these are the requirements to check for dummys)
-def add_dummys_and_no_self_loops_constraint_protos(submatrix_with_context, idx_node_submap):
-	n = submatrix_with_context.size[0]
-	for i in range(n):
-		if (z3_helpers.is_proto(idx_node_submap[i])):
-			total_edges = z3.Sum([z3.If(submatrix_with_context[i][j], 1, 0) for j in range(n) if j != i] + [z3.If(submatrix_with_context[j][i], 1, 0) for j in range(n) if j != i])
-			opt.add(is_not_dummy[i] == (total_edges != 0))
-			opt.add(submatrix_with_context[i][i] == False)
-
-# Constraint: the graph can't have self loops, and set the dummys, for both node kinds (instances and proto)
-# submatrix_with_proto is the submatrix for a single instance level, with the possible prototypes (these are the requirements to check for dummys)
-def add_dummys_and_no_self_loops_constraint(submatrix_with_context):
-	n = submatrix_with_context.size[0]
-	for i in range(n):
-		total_edges = z3.Sum([z3.If(submatrix_with_context[i][j], 1, 0) for j in range(n) if j != i] + [z3.If(submatrix_with_context[j][i], 1, 0) for j in range(n) if j != i])
-		opt.add(is_not_dummy[i] == (total_edges != 0))
-		opt.add(submatrix_with_context[i][i] == False)
+			# opt.add(submatrix_with_context[i][i] == False) the self loops is actually probably redundant if we're using the optimizer
 
 # Constraint: no edges between prototypes
 def add_prototype_to_prototype_constraints(proto_submatrix, idx_node_submap):
@@ -110,30 +90,37 @@ def add_prototype_to_prototype_constraints(proto_submatrix, idx_node_submap):
 # Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
-def add_prototype_to_instance_constraints(level, A_submatrix, idx_node_submap, idx_node_submap_with_context): # valid mean seg-seg, and motif-motif
-	node_idx_submap = invert_dict(idx_node_submap)
+def add_prototype_to_instance_constraints(level, instance_proto_submatrix, instance_proto_idx_node_submap):
+	(_, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
+	node_idx_submap_instsance_proto = invert_dict(instance_proto_idx_node_submap)
 	node_idx_submap_with_context = invert_dict(idx_node_submap_with_context)
-	for instance_index, instance_id in idx_node_submap.items():
-		if z3_helpers.is_instance(instance_id):
-			valid_proto_ids = [node_id for node_id in idx_node_submap.values() if z3_helpers.is_proto(node_id)] 
-			print("INSTANCE-PROTO", instance_id, valid_proto_ids)
-			incoming_prototype_edges = z3.Sum([z3.If(A_submatrix[node_idx_submap[proto_id]][instance_index], 1, 0) for proto_id in valid_proto_ids])
-			# opt.add(incoming_prototype_edges == 1)
-			opt.add(z3.Implies(is_not_dummy[node_idx_submap_with_context[instance_id]], incoming_prototype_edges == 1)) # each non-dummy instance node has exactly 1 proto parent
+	(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
+	define_linearly_adjacent_instance_relations(instance_only_submatrix)
 
-			for proto_id in valid_proto_ids:
-				proto_index = node_idx_submap[proto_id]
-				opt.add(z3.Implies(A_submatrix[proto_index][instance_index], proto_parent(level, instance_index) == proto_index))
-				
-				# ensure no instance -> proto edges
-				opt.add(A_submatrix[instance_index][proto_index] == False) 
+	for instance_index, instance_id in idx_node_submap_instance_only.items():
+		opt.add(z3.Implies(z3.And(instance_index != end(level)), proto_parent(level, instance_index) != proto_parent(level, succ(instance_index)))) # no 2 linearly adjacent nodes can have the same prototype parent
 
-				# ensure no invalid proto-instance connections --> FIXED WITH INCREMENTAL SOLVING (see nonincremental version for original constraints)
+		valid_proto_ids = [node_id for node_id in idx_node_submap.values() if z3_helpers.is_proto(node_id)]  # valid means seg-seg, and motif-motif
+		incoming_prototype_edges = z3.Sum([z3.If(instance_proto_submatrix[node_idx_submap_instsance_proto[proto_id]][instance_index], 1, 0) for proto_id in valid_proto_ids])
+		opt.add(z3.Implies(is_not_dummy[node_idx_submap_with_context[instance_id]], incoming_prototype_edges == 1)) # each non-dummy instance node has exactly 1 proto parent
+
+		for proto_id in valid_proto_ids:
+			proto_index = node_idx_submap_instsance_proto[proto_id]
+			opt.add(z3.Implies(instance_proto_submatrix[proto_index][instance_index], proto_parent(level, instance_index) == proto_index))
+			
+			# ensure no instance -> proto edges
+			opt.add(instance_proto_submatrix[instance_index][proto_index] == False) 
+
+			# ensure no invalid proto-instance connections --> FIXED WITH INCREMENTAL SOLVING (see nonincremental version for original constraints)
 
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
 # idx_node_submap1 is a level above idx_node_submap2
 # A_sub_matrix1, idx_node_submap1 are the parents of/level above A_sub_matrix2, idx_node_submap2
-def add_instance_parent_count_constraints(combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap, combined_idx_node_submap_with_context):
+def add_instance_parent_count_constraints(combined_submatrix, 
+																					idx_node_submap1, 
+																					idx_node_submap2, 
+																					combined_idx_node_submap, 
+																					combined_idx_node_submap_with_context):
 	combined_node_idx_submap = invert_dict(combined_idx_node_submap)
 	combined_node_idx_submap_with_context = invert_dict(combined_idx_node_submap_with_context)
 	
@@ -161,7 +148,10 @@ def add_instance_parent_count_constraints(combined_submatrix, idx_node_submap1, 
 													z3.And(instance_parent1(i_subA2) == parent_index1_subA1, instance_parent2(i_subA2) == parent_index2_subA1)))
 
 # Constraint: The instance nodes in the given partition should form a linear chain
-def add_intra_level_linear_chain(level, A_submatrix, idx_node_submap, idx_node_submap_with_context):
+def add_intra_level_linear_chain(level, 
+																 A_submatrix, 
+																 idx_node_submap, 
+																 idx_node_submap_with_context):
 	node_idx_submap_with_context = invert_dict(idx_node_submap_with_context)
 	partition_node_ids = list(idx_node_submap.values())
 	num_partition_nodes = len(partition_node_ids)
@@ -191,9 +181,11 @@ def add_intra_level_linear_chain(level, A_submatrix, idx_node_submap, idx_node_s
 	opt.add(z3.Sum([z3.If(start_node, 1, 0) for start_node in start_nodes]) == 1)
 	opt.add(z3.Sum([z3.If(end_node, 1, 0) for end_node in end_nodes]) == 1)
 
-	# Define relationships for linearly adjacent nodes
-	for i in range(num_partition_nodes):
-		for j in range(num_partition_nodes):
+	define_linearly_adjacent_instance_relations(A_submatrix)
+
+def define_linearly_adjacent_instance_relations(A_submatrix):
+	for i in range(len(A_submatrix)):
+		for j in range(len(A_submatrix)):
 			if i != j:  # Avoid self-loops
 				edge_i_to_j = A_submatrix[i, j]
 				opt.add(z3.Implies(edge_i_to_j, succ(i) == j)) # again, these indices are all w.r.t. the SINGLE LEVEL INSTANCE ONLY partition
@@ -228,7 +220,7 @@ def add_objective(submatrix, idx_node_submap):
 										 for (j, node_id2) in idx_node_submap.items()])
 	opt.minimize(objective)
 
-# save state ONLY for that level
+# save state ONLY for that level's instances
 # the submatrix will often contains a pair of adjacent levels -- we're only interested in the relevant level
 def save_instance_level_state(level, submatrix, idx_node_mapping, model):
 	state = []
@@ -252,7 +244,6 @@ def save_proto_level_state(submatrix, idx_node_mapping, model):
 	for i in range(submatrix.shape[0]):
 		node_id = idx_node_mapping[i] # this will be the SOURCE NODE for subsequent edges
 		if z3_helpers.is_proto(node_id):
-			print("SAVING")
 			for j in range(submatrix.shape[1]):
 				var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
 				evaluated_var = model.eval(var, model_completion=True)  # Evaluate this variable in the model
@@ -318,18 +309,20 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
 	opt.push()  # Save the current optimizer state for potential backtracking
 
-	(_, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
-
 	restore_level_state(level, level_states)
+	(submatrix_with_context, idx_node_submap_with_context) = A_partition_instance_submatrices_list_with_context[level]
+	print("SUBMATRIX WITH CONTEXT PROTO", submatrix_with_context, idx_node_submap_with_context)
+	add_dummys_and_no_self_loops_constraint_instances(submatrix_with_context, idx_node_submap_with_context)
 	add_prototype_to_prototype_constraints(instance_proto_submatrix, idx_node_submap)
-	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap, idx_node_submap_with_context)
- 
+	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap)
+
 	add_objective(instance_proto_submatrix, idx_node_submap)
 	# print("HERE5", time.perf_counter())
 
 	if opt.check() == z3.sat:
 		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
 		model = opt.model()
+		print(f"MODEL AT LEVEL {level}", model)
 		proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
 		level_states[level] += proto_state
 		# print("LEVEL STATES SAVED AT LEVEL", level, level_states)

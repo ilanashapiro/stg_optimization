@@ -87,7 +87,6 @@ def create_instance_partition_submatrices(A, node_idx_mapping, instance_levels_p
   return sub_matrices
 
 def create_adjacent_level_instance_partition_submatrices(A, node_idx_mapping, levels_partition):
-  print("LEVELS PARTITION ------", levels_partition, "--------")
   adjacent_level_submatrices = {}
   for level, node_ids in levels_partition.items():
     if level == 0:
@@ -200,12 +199,9 @@ def create_level_partition_submatrices_with_context(A, node_idx_mapping, instanc
     prototype_node_ids = prototype_kinds_partition.get(kind, [])
     combined_node_ids.extend(prototype_node_ids)
 
-    # Map node IDs to their indices and create the submatrix
     indices = [node_idx_mapping[node_id] for node_id in combined_node_ids]
     sub_matrix = A[np.ix_(indices, indices)]
     sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
-
-    # Store the submatrix with context for the current level
     level_submatrices_with_context[level] = (sub_matrix, sub_matrix_mapping)
 
   return level_submatrices_with_context

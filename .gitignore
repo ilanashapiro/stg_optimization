@@ -11,3 +11,5 @@ centroid.txt
 centroid_node_mapping.txt
 centroid1.txt
 centroid_node_mapping1.txt
+.metals/
+.vscode/
