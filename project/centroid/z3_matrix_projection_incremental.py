@@ -15,14 +15,16 @@ import time
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-# centroid = np.loadtxt('centroid.txt')
-# with open("centroid_node_mapping.txt", 'r') as file:
-# 	idx_node_mapping = json.load(file)
-# 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+centroid = np.loadtxt('centroid.txt')
+with open("centroid_node_mapping.txt", 'r') as file:
+	idx_node_mapping = json.load(file)
+	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
-G = z3_tests.G1
-centroid = nx.to_numpy_array(G)
-idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
+centroid, idx_node_mapping = simanneal_helpers.remove_dummy_nodes(centroid, idx_node_mapping)
+
+# G = z3_tests.G1
+# centroid = nx.to_numpy_array(G)
+# idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 def invert_dict(d):
 	return {v: k for k, v in d.items()}
@@ -30,7 +32,7 @@ def invert_dict(d):
 node_idx_mapping = invert_dict(idx_node_mapping)
 n_A = len(idx_node_mapping) 
 opt = z3.Optimize()
-print("MAPPING", idx_node_mapping)
+
 instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping) # dict: level -> instance nodes at that level
 prototype_kinds_partition = z3_helpers.partition_prototype_kinds(idx_node_mapping) # dict: prototype kind -> prototype nodes of that kind
 max_seg_level = len(instance_levels_partition.keys()) - 1
@@ -214,11 +216,11 @@ def add_instance_parent_relationship_constraints(level, idx_node_submap, idx_nod
 				print("ERROR")
 				sys.exit(0)
 
-def add_objective(submatrix, idx_node_submap):
-	objective = z3.Sum([z3.If(submatrix[i][j] != bool(centroid[node_idx_mapping[node_id1]][node_idx_mapping[node_id2]]), 1, 0) 
+def get_objective(submatrix, idx_node_submap):
+	return z3.Sum([z3.If(submatrix[i][j] != bool(centroid[node_idx_mapping[node_id1]][node_idx_mapping[node_id2]]), 1, 0) 
 										 for (i, node_id1) in idx_node_submap.items()
 										 for (j, node_id2) in idx_node_submap.items()])
-	opt.minimize(objective)
+	# opt.minimize(objective)
 
 # save state ONLY for that level's instances
 # the submatrix will often contains a pair of adjacent levels -- we're only interested in the relevant level
@@ -256,7 +258,7 @@ def restore_level_state(level, level_states):
 
 level_states = {}
 # parent_level < next_level, meaning parent_level is HIGHER in the hierarchy than next_level (i.e. parent level of next_level)
-for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in A_adjacent_instance_submatrices_list.items():
+for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items()):
 	print(f"LEVELS {parent_level, child_level}", time.perf_counter())
 	opt.push()  # Save the current optimizer state for potential backtracking
 
@@ -288,22 +290,34 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap, combined_idx_node_submap_with_context)
 	print("HERE4", time.perf_counter())
  
-	add_objective(A_combined_submatrix, combined_idx_node_submap)
+	# add_objective(A_combined_submatrix, combined_idx_node_submap)
 	print("HERE5", time.perf_counter())
 
-	if opt.check() == z3.sat:
-		print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
-		model = opt.model()
-		# print("MODEL AT LEVELS", (parent_level, child_level), ":", str(model))
-		level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, model)
-		if child_level == len(instance_levels_partition) - 1:
-			level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, model)
-		# print("LEVEL STATES SAVED AT LEVELS:", (parent_level, child_level), level_states)
-	else:
-		print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
-	
-	opt.pop()
+	objective_value = math.inf
+	while True:
+		if opt.check() == z3.sat:
+			print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
+			model = opt.model()
+			# print("MODEL AT LEVELS", (parent_level, child_level), ":", str(model))
+			level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, model)
+			if child_level == len(instance_levels_partition) - 1:
+				level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, model)
+			# print("LEVEL STATES SAVED AT LEVELS:", (parent_level, child_level), level_states)
 
+			objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
+			current_objective_value = model.eval(objective, model_completion=True).as_long()
+			if current_objective_value < objective_value:
+					objective_value = current_objective_value
+					opt.add(objective < objective_value)
+			else:
+					# If no improvement, break from the loop
+					break
+		else:
+				# If unsat, no further solutions can be found; break from the loop
+				print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
+				break
+
+	opt.pop()
 
 for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_submatrices_list_with_proto.items():
 	print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
@@ -316,19 +330,33 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	add_prototype_to_prototype_constraints(instance_proto_submatrix, idx_node_submap)
 	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap)
 
-	add_objective(instance_proto_submatrix, idx_node_submap)
+	# add_objective(instance_proto_submatrix, idx_node_submap)
 	# print("HERE5", time.perf_counter())
 
-	if opt.check() == z3.sat:
-		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
-		model = opt.model()
-		print(f"MODEL AT LEVEL {level}", model)
-		proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
-		level_states[level] += proto_state
-		# print("LEVEL STATES SAVED AT LEVEL", level, level_states)
-	else:
-		print(f"Level {level} is not satisfiable for proto constraints")
-	
+	objective_value = math.inf
+	while True:
+		if opt.check() == z3.sat:
+			print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
+			model = opt.model()
+			print(f"MODEL AT LEVEL {level}", model)
+			proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
+			level_states[level] += proto_state
+			# print("LEVEL STATES SAVED AT LEVEL", level, level_states)
+
+			objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
+			current_objective_value = model.eval(objective, model_completion=True).as_long()
+			print("CURRENT COST", current_objective_value)
+			if current_objective_value < objective_value:
+					objective_value = current_objective_value
+					opt.add(objective < objective_value)
+			else:
+					# If no improvement, break from the loop
+					break
+		else:
+				# If unsat, no further solutions can be found; break from the loop
+				print(f"Level {level} is not satisfiable for proto constraints")
+				break
+
 	opt.pop()
 
 # After iterating through all levels, you can check for overall satisfiability
