@@ -2,7 +2,7 @@ import sys
 sys.path.append('/Users/ilanashapiro/Documents/motif_discovery') # https://github.com/Tsung-Ping/motif_discovery
 
 import os
-from concurrent.futures import ThreadPoolExecutor
+from multiprocessing import Process
 import pandas as pd
 import mido
 import csv
@@ -10,6 +10,9 @@ import numpy as np
 import SIA
 # import vmo
 
+directory = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/albeniz"
+# directory = "/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db/mozart/mz_331_3"
+ 
 # code modified from https://github.com/Tsung-Ping/motif_discovery/blob/main/experiments.py 
 def load_notes_csv(filename):
 	dt = [
@@ -51,27 +54,34 @@ def write_mirex_motives(motives, out_file, csv_file):
 	with open(out_file, "w") as f:
 			f.write(out_str[:-2])
 
-def get_motives():
-	directory = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
-	futures = []
-	
-	def process_file(file_path):
+def process_file(file_path):
 		notes = load_notes_csv(file_path)
 		motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
-														 adjacentTolerance=(2, 12), min_notes=8, min_cardinality=0.8)
+														 adjacentTolerance=(1, 12), min_notes=8, min_cardinality=0.7)
 		# motives_test = [[[(174., 84.), (174.5, 57.), (175., 52.), (175.5, 54.)], [(178., 79.), (178.5, 52.), (179., 50.), (179.5, 48.)], [(186., 79.), (186.5, 52.), (187., 50.), (187.5, 48.)], [(194., 79.), (194.5, 52.), (195., 50.), (195.5, 48.)], [(198., 79.), (198.5, 52.), (199., 50.), (199.5, 48.)]], [[(174.5, 57.), (175., 52.), (175.5, 54.), (176., 55.)], [(180., 83.), (180.5, 79.), (181., 79.), (181.5, 79.)], [(188., 83.), (188.5, 79.), (189., 79.), (189.5, 79.)]]]
 		write_mirex_motives(motives, file_path[:-4] + "_motives.txt", file_path) # "_data.csv" has length 9
-	
-	with ThreadPoolExecutor() as executor:
-		for root, _, files in os.walk(directory):
-			for filename in files:
-				if filename.endswith(".csv"):
-					file_path = os.path.join(root, filename)
-					future = executor.submit(process_file, file_path)
-					futures.append(future)
-				
-get_motives()
 
+
+def get_motives(timeout_secs):
+	for root, _, files in os.walk(directory):
+		for filename in files:
+			if filename.endswith(".csv"):
+				file_path = os.path.join(root, filename)
+			
+				p = Process(target=process_file, args=(file_path,))
+				p.start()
+				p.join(timeout=timeout_secs)
+				
+				# If the process is still alive after the timeout, terminate it
+				if p.is_alive():
+					p.terminate()
+					p.join()  # Ensure the process has cleaned up before continuing
+					print(f"Processing of {file_path} timed out and was terminated.")
+				else:
+					print(f"Processing of {file_path} completed within timeout.")
+
+if __name__ == '__main__':
+	get_motives(10)
 #---------------------------------------------USING VMO FOR MOTIF EXTXRACTION------------------------------------------------------------
 # vmo is MUCH faster than the newer paper I'm using for this, which can detect longer patterns of specified length
 # however, VMO seems to almost exclusively detect very very short patterns (2 notes), in this example there's only
