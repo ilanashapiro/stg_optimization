@@ -20,12 +20,6 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
-def normalize(value, lower_bound, upper_bound):
-  # Avoid division by zero if max_value == min_value
-  if upper_bound == lower_bound:
-    return 0
-  return (value - lower_bound) / (upper_bound - lower_bound)
-
 # current centroid g, list of alignments list_a to the graphs in the corpus list_G
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
   # based on the current alignments
@@ -120,8 +114,9 @@ class GraphAlignmentAnnealer(Annealer):
   def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
     return dist(self.A_g, align(self.state, self.A_G))
 
-(g, layers, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-(G, layers1, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+# ---------------------------------------- TEST CODE: --------------------------------------------------------------------------------
+# (g, layers, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+# (G, layers1, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
 # padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([tests.G1, tests.G2])
 # A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
 
@@ -134,18 +129,17 @@ class GraphAlignmentAnnealer(Annealer):
 # with open("centroid_node_mapping.txt", 'r') as file:
 #   centroid_node_mapping = json.load(file)
 #   centroid_node_mapping = {int(k): v for k, v in centroid_node_mapping.items()}
-layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
-layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
+# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
+# layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
 # g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_node_mapping)
 # layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
-build_graph.visualize_p([tests.G1, tests.G2], [layers1, layers2])
+# build_graph.visualize_p([g_c], [layers_g_c])
 
 # initial_state = np.eye(np.shape(A_G)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
 # graph_aligner.Tmax = 1.25
 # graph_aligner.Tmin = 0.01 
 # graph_aligner.steps = 5000 
-
 # alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
 
 # print("Best cost1", cost)
@@ -155,8 +149,8 @@ build_graph.visualize_p([tests.G1, tests.G2], [layers1, layers2])
 # graph_aligner.Tmin = 0.01 
 # graph_aligner.steps = 5000 
 
-
 # print("Best cost2", cost)
+# ---------------------------------------- :TEST CODE --------------------------------------------------------------------------------
 
 def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps):
   alignments = []
@@ -287,34 +281,35 @@ class CentroidAnnealer(Annealer):
     print("LOSS", l, "\n")
     return l
 
-(g, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-(G, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
-# list_G = [tests.G1, tests.G2]
-list_G = [g, G]
-listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
-initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
-# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
+if __name__ == "main":
+  (g, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/albeniz/alb_esp1/alb_esp1scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/albeniz/alb_esp1/alb_esp1_motives.txt')
+  # (G, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+  # list_G = [tests.G1, tests.G2]
+  list_G = [g]
+  listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
+  initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
+  alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_node_mapping, 2.5, 0.01, 10000)
 
-# for i, alignment in enumerate(alignments):
-#   file_name = f'alignment_{i}.txt'
-#   np.savetxt(file_name, alignment)
-#   print(f'Saved: {file_name}')
+  # for i, alignment in enumerate(alignments):
+  #   file_name = f'alignment_{i}.txt'
+  #   np.savetxt(file_name, alignment)
+  #   print(f'Saved: {file_name}')
 
-alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
-aligned_listA_G = list(map(align, alignments, listA_G))
+  # alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
+  aligned_listA_G = list(map(align, alignments, listA_G))
 
-centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
-centroid_annealer.Tmax = 2.5
-centroid_annealer.Tmin = 0.05 
-centroid_annealer.steps = 300
-centroid, min_loss = centroid_annealer.anneal()
+  centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_node_mapping)
+  centroid_annealer.Tmax = 2.5
+  centroid_annealer.Tmin = 0.05 
+  centroid_annealer.steps = 50
+  centroid, min_loss = centroid_annealer.anneal()
 
-centroid, centroid_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_node_mapping)
+  centroid, centroid_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_node_mapping)
 
-np.savetxt("centroid.txt", centroid)
-print('Saved: centroid.txt')
-with open("centroid_node_mapping.txt", 'w') as file:
-  json.dump(centroid_node_mapping, file)
-print('Saved: centroid_node_mapping.txt')
-print("Best centroid", centroid)
-print("Best loss", min_loss)
+  np.savetxt("centroid_test.txt", centroid)
+  print('Saved: centroid_test.txt')
+  with open("centroid_node_mapping_test.txt", 'w') as file:
+    json.dump(centroid_node_mapping, file)
+  print('Saved: centroid_node_mapping_test.txt')
+  print("Best centroid", centroid)
+  print("Best loss", min_loss)
