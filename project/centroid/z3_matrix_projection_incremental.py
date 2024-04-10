@@ -15,8 +15,8 @@ import time
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-centroid = np.loadtxt('centroid.txt')
-with open("centroid_node_mapping.txt", 'r') as file:
+centroid = np.loadtxt('centroid_test.txt')
+with open("centroid_node_mapping_test.txt", 'r') as file:
 	idx_node_mapping = json.load(file)
 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
@@ -31,9 +31,11 @@ def invert_dict(d):
 
 node_idx_mapping = invert_dict(idx_node_mapping)
 n_A = len(idx_node_mapping) 
-opt = z3.Optimize()
+opt = z3.Solver()
+opt.set('timeout', 300000) # in milliseconds. 300000ms = 5mins
 
-opt.set("enable_lns", True)
+
+# opt.set("enable_lns", True)
 
 instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping) # dict: level -> instance nodes at that level
 prototype_kinds_partition = z3_helpers.partition_prototype_kinds(idx_node_mapping) # dict: prototype kind -> prototype nodes of that kind
@@ -285,8 +287,8 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap)
 	print("HERE4", time.perf_counter())
  
-	add_objective(A_combined_submatrix, combined_idx_node_submap)
-	print("HERE5", time.perf_counter())
+	# add_objective(A_combined_submatrix, combined_idx_node_submap)
+	# print("HERE5", time.perf_counter())
 
 	with open(f"smtlib{(parent_level, child_level)}.txt", 'w') as file:
 		file.write(opt.sexpr())
@@ -298,7 +300,7 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 		current_objective_value = m.eval(objective, model_completion=True).as_long()
 		print("CURRENT COST", current_objective_value)
 		# sys.stdout.flush()
-	opt.set_on_model(on_model)
+	# opt.set_on_model(on_model)
 
 	if opt.check() == z3.sat:
 		print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
@@ -319,7 +321,7 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	add_prototype_to_prototype_constraints(instance_proto_submatrix, idx_node_submap)
 	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap)
 
-	add_objective(instance_proto_submatrix, idx_node_submap)
+	# add_objective(instance_proto_submatrix, idx_node_submap)
 
 	def on_model(m):
 		# print("MODEL INTERMEDIATE", m)
@@ -327,7 +329,7 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 		current_objective_value = m.eval(objective, model_completion=True).as_long()
 		print("CURRENT COST", current_objective_value)
 		# sys.stdout.flush()
-	opt.set_on_model(on_model)
+	# opt.set_on_model(on_model)
 	
 	if opt.check() == z3.sat:
 		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())

@@ -2,6 +2,9 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import math 
 import re
+import os
+import glob
+import json 
 
 def parse_form_file(file_path):
   with open(file_path, 'r') as file:
@@ -355,6 +358,50 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
   
   plt.tight_layout()
   plt.show()
+
+# segment_identifier should be _{boundary algorithm name}_{labeling algorithm name}_segments.txt
+def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.txt", motif_identifier = "motives.txt"):
+  augmented_graphs = [] 
+  for f1 in os.listdir(dirname):
+    f1_path = os.path.join(dirname, f1)
+    if os.path.isdir(f1_path):
+      for f2 in os.listdir(f1_path):
+        f2_path = os.path.join(f1_path, f2)
+        if os.path.isdir(f2_path):
+          graph_filename = os.path.join(f2_path, "augmented_graph.edgelist")
+          layers_filename = os.path.join(f2_path, "layers_with_index.json")
+
+          # Load existing graph and layers if they exist
+          if os.path.exists(graph_filename) and os.path.exists(layers_filename):
+            G = nx.read_edgelist(graph_filename)
+            with open(layers_filename, 'r') as file:
+              layers_with_index = json.load(file)
+            augmented_graphs.append((G, layers_with_index))
+            print(f"Loaded graph and layers from {f2_path}")
+            continue
+
+          # Else, proceed to parse and generate graph
+          segments_file = next(glob.iglob(f2_path + f'/*{segment_identifier}.txt'), None)
+          motives_file = next(glob.iglob(f2_path + f'/*{motif_identifier}.txt'), None)
+
+          if segments_file and motives_file:
+            layers = parse_form_file(segments_file)
+            layers.append(parse_motives_file(motives_file))
+
+            G = create_graph(layers)
+            augment_graph(G)
+
+            layers_with_index = get_unsorted_layers_from_graph_by_index(G)
+            augmented_graphs.append((G, layers_with_index))
+
+            nx.write_edgelist(G, graph_filename)
+            with open(layers_filename, 'w') as file:
+              json.dump(layers_with_index, file)
+            print(f"Graph and layers saved in {f2_path}")
+          else:
+            print(f"{f2_path} does not have complete analysis files")
+
+  return augmented_graphs
 
 def generate_graph(structure_filepath, motives_filepath):
   layers = parse_form_file(structure_filepath)

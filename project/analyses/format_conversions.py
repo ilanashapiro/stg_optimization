@@ -6,6 +6,7 @@ import os
 from pydub import AudioSegment
 
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
+# DIRECTORY = "/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db"
 
 def ticks_to_secs_with_tempo_changes(tick, tempo_changes, ticks_per_beat):
 	# Calculate the time in seconds for a given tick considering all tempo changes.
@@ -78,8 +79,11 @@ def convert_dataset_midi_to_csv():
 					future = executor.submit(midi_to_csv, midi_path)
 					futures.append(future)
 
+# convert_dataset_midi_to_csv()
+
 def convert_dataset_midi_to_mp3():
-	soundfont_filepath = "GeneralUser GS 1.471/GeneralUser GS v1.471.sf2"
+	soundfont_filepath = "GeneralUser GS v1.471.sf2"
+	# soundfont_filepath = "/home/jonsuss/Ilana_Shapiro/constraints/GeneralUser GS 1.471/GeneralUser GS v1.471.sf2"
 	fs = FluidSynth(sound_font=soundfont_filepath)
 	futures = []
 	
@@ -104,6 +108,4 @@ def convert_dataset_midi_to_mp3():
 					future = executor.submit(process_file, midi_path)
 					futures.append(future)
 											
-convert_dataset_midi_to_mp3()
-				
-				
+# convert_dataset_midi_to_mp3()
