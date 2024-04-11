@@ -272,7 +272,17 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]
-		nx.draw(G, pos, labels=labels_dict, with_labels=True, node_size=900, node_color="#00ffff", font_size=6, font_weight="bold", edge_color="black", linewidths=0, arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5")
+		# Draw all nodes except the last layer with the default color
+		non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
+		nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+		
+		# Draw the last layer nodes with yellow color
+		last_layer_nodes = [node['id'] for node in layers[-1]]
+		nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+		
+		# Draw edges and labels for all nodes
+		nx.draw_networkx_edges(G, pos, edge_color="black", arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
 	
 	# Hide any unused subplots in the grid
@@ -327,13 +337,43 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]
-		# Draw the graph
-		nx.draw_networkx_nodes(G, pos, ax=ax, node_size=500, node_color="lightblue")
-		nx.draw_networkx_edges(G, pos, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
-		proto_edges = [(u, v) for u, v in G.edges() if u in prototype_nodes]
-		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
-		nx.draw_networkx_labels(G, pos, labels=labels_dict, ax=ax, font_size=8)
 		
+		# Draw all nodes except the last layer with the default color
+		non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
+		nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+		
+		# Draw the last layer nodes with yellow color
+		last_layer_nodes = [node['id'] for node in layers[-1]]
+		nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+
+		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+
+		# Edge setup
+		all_edges = set(G.edges())
+		intra_level_edges = []
+		inter_level_edges = []
+		proto_edges = []
+
+		def extract_level(node_id):
+			# Match patterns like 'S1L2N3' or 'P1O2N3' and extract the level part (n2)
+			match = re.search(r'S\d+L(\d+)N\d+', node_id)
+			return match.group(1) if match else None
+
+		for u, v in all_edges:
+				if u in prototype_nodes or v in prototype_nodes:
+						proto_edges.append((u, v))
+				elif extract_level(u) == extract_level(v):
+						intra_level_edges.append((u, v))
+				else:
+						inter_level_edges.append((u, v))
+
+		# Drawing edges
+		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		
+		# Labels and titles
+		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
 	
 	for ax in axes_flat[n:]:
@@ -391,14 +431,12 @@ def generate_graph(structure_filepath, motives_filepath):
 	motive_layer = parse_motives_file(motives_filepath)
 	layers.append(motive_layer)
 	G = create_graph(layers)
-	layers_with_index = get_unsorted_layers_from_graph_by_index(G) # for rendering purposes
+	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
 	# G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-	G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_motives4.txt')
-	visualize([G], [layers])
+	G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_motives1.txt')
+	# visualize([G], [layers])
 	augment_graph(G)
-	# replace_node_ids_with_integers(G)
-	# layers = get_sorted_layers_from_graph_by_structure(G)
 	visualize_p([G], [layers])
