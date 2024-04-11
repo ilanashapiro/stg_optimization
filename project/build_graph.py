@@ -243,39 +243,6 @@ def augment_graph(G):
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
-# def replace_node_ids_with_integers(G):
-#     # Step 1: Generate a new mapping for node IDs to integers, skipping prototype nodes
-#     id_mapping = {}
-#     new_id_counter = 1  # Start counter for new IDs
-
-#     for node in list(G.nodes()):  # Use list to make a copy of node iterator
-#         isNotPrototype = bool(re.search(r'N\d+$', node))
-#         if isNotPrototype:  # Skip prototype nodes
-#             # Assign a new unique integer ID
-#             id_mapping[node] = new_id_counter
-#             new_id_counter += 1
-
-#     # Step 2: Create new nodes with integer IDs and transfer attributes
-#     for old_id, new_id in id_mapping.items():
-#         G.add_node(new_id, **G.nodes[old_id])
-
-#     # Step 3: Update edges to use the new node IDs
-#     # First, copy the edges because we'll modify the graph in-place
-#     edges_to_update = [(u, v, d) for u, v, d in G.edges(data=True) if u in id_mapping or v in id_mapping]
-
-#     # Remove old edges and add updated ones
-#     for u, v, d in edges_to_update:
-#         G.remove_edge(u, v)
-#         new_u = id_mapping.get(u, u)  # Get new ID or keep the original if it's a prototype
-#         new_v = id_mapping.get(v, v)  # Same as above
-#         G.add_edge(new_u, new_v, **d)
-
-#     # Step 4: Remove old nodes
-#     for old_id in id_mapping.keys():
-#         G.remove_node(old_id)
-
-#     return G
-
 def visualize(graph_list, layers_list, labels_dicts = None):
 	n = len(graph_list)
 	
@@ -284,7 +251,7 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 	rows = int(math.ceil(n / cols))
 	
 	# Create a figure with subplots arranged in the calculated grid
-	_, axes = plt.subplots(rows, cols, figsize=(8 * cols, 12 * rows))
+	_, axes = plt.subplots(rows, cols, figsize=(10 * cols, 14 * rows))
 	
 	# Flatten axes array for easy iteration if it's 2D (which happens with multiple rows and columns)
 	axes_flat = axes.flatten() if n > 1 else [axes]
@@ -293,7 +260,8 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 		layers = layers_list[idx]
 		labels_dict = labels_dicts[idx] if labels_dicts else None
 		pos = {}  # Positions dictionary: node -> (x, y)
-		layer_height = 1.0 / (len(layers) + 1)
+		layer_spacing_factor = 1
+		layer_height = 1.0 / (layer_spacing_factor * (len(layers) + 1))
 		for i, layer in enumerate(layers):
 			y = 1 - (i + 1) * layer_height
 			layer = sorted(layer, key=lambda node: node['index'])
@@ -304,14 +272,14 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]
-		nx.draw(G, pos, labels=labels_dict, with_labels=True, node_size=500, node_color="lightblue", font_size=8, edge_color="gray", arrows=True, ax=ax)
+		nx.draw(G, pos, labels=labels_dict, with_labels=True, node_size=900, node_color="#00ffff", font_size=6, font_weight="bold", edge_color="black", linewidths=0, arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5")
 		ax.set_title(f"Graph {idx + 1}")
 	
 	# Hide any unused subplots in the grid
 	for ax in axes_flat[n:]:
 			ax.axis('off')
 	
-	plt.tight_layout()
+	# plt.tight_layout()
 	plt.show()
 
 def visualize_p(graph_list, layers_list, labels_dicts=None):
@@ -361,7 +329,7 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		ax = axes_flat[idx]
 		# Draw the graph
 		nx.draw_networkx_nodes(G, pos, ax=ax, node_size=500, node_color="lightblue")
-		nx.draw_networkx_edges(G, pos, ax=ax, edge_color="gray", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
+		nx.draw_networkx_edges(G, pos, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
 		proto_edges = [(u, v) for u, v in G.edges() if u in prototype_nodes]
 		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.9,head_width=0.65")
 		nx.draw_networkx_labels(G, pos, labels=labels_dict, ax=ax, font_size=8)
@@ -424,13 +392,11 @@ def generate_graph(structure_filepath, motives_filepath):
 	layers.append(motive_layer)
 	G = create_graph(layers)
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G) # for rendering purposes
-	augment_graph(G)
-	labels_dict = {d['id']: d['label'] for layer in layers_with_index for d in layer}
-	return (G, layers_with_index, labels_dict)
+	return (G, layers_with_index)
 
 if __name__ == "__main__":
-	# G, layers, _ = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-	G, layers, _ = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/clementi/clementi_opus36_4_3/clementi_opus36_4_3_scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/clementi/clementi_opus36_4_3/clementi_opus36_4_3_motives3.txt')
+	# G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
+	G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_motives4.txt')
 	visualize([G], [layers])
 	augment_graph(G)
 	# replace_node_ids_with_integers(G)

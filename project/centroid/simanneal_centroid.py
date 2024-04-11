@@ -281,9 +281,9 @@ class CentroidAnnealer(Annealer):
     print("LOSS", l, "\n")
     return l
 
-if __name__ == "main":
-  (g, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/albeniz/alb_esp1/alb_esp1scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/albeniz/alb_esp1/alb_esp1_motives.txt')
-  # (G, _, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
+if __name__ == "__main__":
+  (g, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/clementi/clementi_opus36_4_3/clementi_opus36_4_3_scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/clementi/clementi_opus36_4_3/clementi_opus36_4_3_motives3.txt')
+  # (G, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
   # list_G = [tests.G1, tests.G2]
   list_G = [g]
   listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
