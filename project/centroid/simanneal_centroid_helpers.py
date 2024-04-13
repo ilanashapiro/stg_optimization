@@ -16,11 +16,10 @@ def pad_adj_matrices(graphs):
     
     for node in G.nodes():
       for neighbor in G.neighbors(node):
-        if G.has_edge(node, neighbor): # Since all STGs are directed this ONLY handles the directed case
-          new_A[node_idx_mapping[node], node_idx_mapping[neighbor]] = 1
+          new_A[node_idx_mapping[node], node_idx_mapping[neighbor]] = 1 # Since all STGs are directed this ONLY handles the directed case
     
     new_adj_matrices.append(new_A)
-
+    
   return new_adj_matrices, idx_node_mapping
 
 def adj_matrix_to_graph(A, idx_node_mapping):
@@ -47,6 +46,12 @@ def remove_dummy_nodes(A, node_mapping):
   filtered_matrix = A[non_instance_dummy_indices][:, non_instance_dummy_indices]
   updated_mapping = {new_idx: node_mapping[old_idx] for new_idx, old_idx in enumerate(non_instance_dummy_indices)}
   return filtered_matrix, updated_mapping
+
+# Generates random n x n permutation alignment matrix
+def random_alignment(n):
+	perm_indices = np.random.permutation(n)
+	identity = np.eye(n)
+	return identity[perm_indices]
 
 '''
 RULES:
