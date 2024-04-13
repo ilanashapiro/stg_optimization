@@ -96,22 +96,14 @@ def get_motives(timeout_secs):
 	# file_paths = prepare_file_paths(DIRECTORY)
 	# file_paths = []
 	vals_paths = []
-	dirs = ['/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7', # 167 -- NUM NOTES
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/schumann/scn15_4', # 220
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/schumann/scn15_13', # 236
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/clementi/clementi_opus36_2_2', # 253
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/clementi/clementi_opus36_3_2', # 274
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p20', # 286
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/haydn/haydn_8_2', # 290
-				'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/haydn/haydn_8_3'] # 344
-	for dir in dirs:
-		for root, _, files in os.walk(dir):#DIRECTORY):
-			for filename in files:
-				if filename.endswith(".csv"):
-					file_path = os.path.join(root, filename)
-					n = process_file(file_path)
-					# vals_paths.append((n, file_path))
-					# file_paths.append(file_path)
+
+	for root, _, files in os.walk(DIRECTORY):
+		for filename in files:
+			if filename.endswith(".csv"):
+				file_path = os.path.join(root, filename)
+				n = process_file(file_path)
+				# vals_paths.append((n, file_path))
+				# file_paths.append(file_path)
 	
 	# for pair in sorted(vals_paths, key=lambda x: x[0])[:20]:
 	# 	print(pair)

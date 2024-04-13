@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 from pydub import AudioSegment
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/telemann"
 # DIRECTORY = "/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db"
 
 def ticks_to_secs_with_tempo_changes(tick, tempo_changes, ticks_per_beat):
@@ -79,7 +79,7 @@ def convert_dataset_midi_to_csv():
 					future = executor.submit(midi_to_csv, midi_path)
 					futures.append(future)
 
-# convert_dataset_midi_to_csv()
+convert_dataset_midi_to_csv()
 
 def convert_dataset_midi_to_mp3():
 	soundfont_filepath = "GeneralUser GS v1.471.sf2"
@@ -108,4 +108,4 @@ def convert_dataset_midi_to_mp3():
 					future = executor.submit(process_file, midi_path)
 					futures.append(future)
 											
-# convert_dataset_midi_to_mp3()
+convert_dataset_midi_to_mp3()

@@ -40,7 +40,7 @@ def process_file(file_path):
 
 
 def segment_audio():
-	directory = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/albeniz"
+	directory = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/bach"
 	# directory = '/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db'
 	# directory = "/home/ubuntu/project/classical_piano_midi_db/bach"
 

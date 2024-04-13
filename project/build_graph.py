@@ -159,12 +159,11 @@ def compress_graph(G):
 	instance_labels = {}
 	motif_occurrence_counts = {}
 
-	# top level instance nodes WITH THEIR PROTOTYPES
-	def find_top_level_nodes(G):
-		potential_top_levels = set(G.nodes())
+	def find_top_level_instance_nodes(G):
+		potential_top_levels = set()
 		for from_node, to_node in G.edges():
-				if 'Pr' not in from_node:
-					potential_top_levels.discard(to_node)
+				if 'Pr' in from_node:
+					potential_top_levels.add(to_node)
 		return potential_top_levels
 	
 	def get_proto_parents(node_id):
@@ -197,10 +196,10 @@ def compress_graph(G):
 				raise ValueError("No prototype parent found for child")
 			assign_labels_and_levels(child, level+1, i, proto_parents[0])
 
-	top_level_nodes = find_top_level_nodes(G)
+	top_level_instance_nodes = find_top_level_instance_nodes(G)
 
 	# For each root node, determine its level (0) and assign labels
-	for index, root_node in enumerate(sorted(top_level_nodes, key=lambda node_label: int(node_label.split('N')[-1]))):
+	for index, root_node in enumerate(sorted(top_level_instance_nodes, key=lambda node_label: int(node_label.split('N')[-1]))):
 		proto_parents = get_proto_parents(root_node)
 		if proto_parents:
 			assign_labels_and_levels(root_node, 0, index, proto_parents[0])
@@ -323,6 +322,8 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		proto_y_step = 1.0 / (len(prototype_list_sorted) + 1)
 		for index, prototype in enumerate(prototype_list_sorted):
 			y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
+			if y == 0.5:
+				y = y + 0.05
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
 
@@ -345,7 +346,6 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		# Draw the last layer nodes with yellow color
 		last_layer_nodes = [node['id'] for node in layers[-1]]
 		nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
-
 		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 
 		# Edge setup

@@ -15,7 +15,7 @@ import time
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-composer = 'haydn'
+composer = 'bach'
 centroid_composer_path = f'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/{composer}'
 # centroid_composer_path = f'/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db/{composer}'
 approx_centroid = np.loadtxt(os.path.join(centroid_composer_path, f'centroid_{composer}.txt'))
@@ -25,9 +25,9 @@ with open(os.path.join(centroid_composer_path, f'centroid_node_mapping_{composer
 
 approx_centroid, idx_node_mapping = simanneal_helpers.remove_dummy_nodes(approx_centroid, idx_node_mapping)
 
-# G = z3_tests.G1
-# approx_centroid = nx.to_numpy_array(G)
-# idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
+G = z3_tests.G1
+approx_centroid = nx.to_numpy_array(G)
+idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 def invert_dict(d):
 	return {v: k for k, v in d.items()}
@@ -296,20 +296,24 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	# 	file.write(opt.sexpr())
 		# z3.set_param(verbose = 4)
 
-	def on_model(m):
-		objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
-		current_objective_value = m.eval(objective, model_completion=True).as_long()
-		print("CURRENT COST", current_objective_value)
-		# sys.stdout.flush()
-	opt.set_on_model(on_model)
+	# def on_model(m):
+	# 	objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
+	# 	current_objective_value = m.eval(objective, model_completion=True).as_long()
+	# 	print("CURRENT COST", current_objective_value)
+	# 	sys.stdout.flush()
+	# opt.set_on_model(on_model)
 
-	if opt.check() == z3.sat:
-		print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
+	result = opt.check()
+	if result != z3.unsat:
+		if result != z3.sat:
+			print(f"Continuing with best-effort guess after timeout for instance levels {parent_level} and {child_level}")
+		else:
+			print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
 		model = opt.model()
 		level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, model)
 		if child_level == len(instance_levels_partition) - 1:
 			level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, model)
-	else:
+	elif result == z3.unsat:
 		print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
 
 	opt.pop()
@@ -326,15 +330,18 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 
 	# add_objective(instance_proto_submatrix, idx_node_submap)
 
-	def on_model(m):
-		objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
-		current_objective_value = m.eval(objective, model_completion=True).as_long()
-		print("CURRENT COST", current_objective_value)
-		# sys.stdout.flush()
-	opt.set_on_model(on_model)
+	# def on_model(m):
+	# 	objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
+	# 	current_objective_value = m.eval(objective, model_completion=True).as_long()
+	# 	print("CURRENT COST", current_objective_value)
+	# 	# sys.stdout.flush()
+	# opt.set_on_model(on_model)
 	
-	if opt.check() == z3.sat:
-		print(f"Levels {level} is satisfiable for proto constraints", time.perf_counter())
+	if opt.check() != z3.unsat:
+		if result != z3.sat:
+			print(f"Continuing with best-effort guess after timeout for proto level {level} ")
+		else:
+			print(f"Level {level} is satisfiable for proto constraints", time.perf_counter())
 		model = opt.model()
 		print(f"MODEL AT LEVEL {level}", model)
 		proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
@@ -364,7 +371,7 @@ if opt.check() == z3.sat:
 
 	print(g.edges())
 
-	final_centroid_filename = os.path.join(centroid_composer_path, f'centroid_{composer}_final')
+	final_centroid_filename = os.path.join(centroid_composer_path, f'centroid_{composer}_final.txt')
 	layers_filename = os.path.join(centroid_composer_path, f'centroid_node_mapping_{composer}_final.txt')
 	nx.write_edgelist(g, final_centroid_filename)
 	with open(layers_filename, 'w') as file:
