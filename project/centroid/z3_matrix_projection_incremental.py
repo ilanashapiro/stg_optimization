@@ -12,11 +12,12 @@ import networkx as nx
 import sys
 import time
 
+# sys.path.append("/home/jonsuss/Ilana_Shapiro/constraints")
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-centroid = np.loadtxt('centroid_test.txt')
-with open("centroid_node_mapping_test.txt", 'r') as file:
+centroid = np.loadtxt('centroid.txt')
+with open("centroid_node_mapping.txt", 'r') as file:
 	idx_node_mapping = json.load(file)
 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
@@ -38,8 +39,6 @@ opt.set("enable_lns", True)
 instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping) # dict: level -> instance nodes at that level
 prototype_kinds_partition = z3_helpers.partition_prototype_kinds(idx_node_mapping) # dict: prototype kind -> prototype nodes of that kind
 max_seg_level = len(instance_levels_partition.keys()) - 1
-
-print("HERE0", time.perf_counter())
 
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
@@ -262,11 +261,18 @@ def restore_level_state(level, level_states):
 	for var, evaluated_var in level_states[level]:
 		opt.add(var == evaluated_var)
 
+def add_soft_constraints_for_submap(idx_node_submap):
+	for (i_subA, node_id1) in idx_node_submap.items():
+		for (j_subA, node_id2) in idx_node_submap.items():
+			opt.add_soft(A_combined_submatrix[i_subA][j_subA] == bool(centroid[node_idx_mapping[node_id1]][node_idx_mapping[node_id2]]))
+
 level_states = {}
 # parent_level < next_level, meaning parent_level is HIGHER in the hierarchy than next_level (i.e. parent level of next_level)
 for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items()):
 	print(f"LEVELS {parent_level, child_level}", time.perf_counter())
 	opt.push()  # Save the current optimizer state for potential backtracking
+
+	add_soft_constraints_for_submap(combined_idx_node_submap)
 
 	if parent_level in level_states:
 		restore_level_state(parent_level, level_states)
@@ -283,17 +289,14 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 		add_instance_parent_relationship_constraints(child_level, idx_node_submap2) # we ONLY want to do this for the child node
 
 	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap)
-	print("HERE4", time.perf_counter())
  
 	# add_objective(A_combined_submatrix, combined_idx_node_submap)
-	# print("HERE5", time.perf_counter())
 
 	# with open(f"smtlib{(parent_level, child_level)}.txt", 'w') as file:
 	# 	file.write(opt.sexpr())
 		# z3.set_param(verbose = 4)
 
 	def on_model(m):
-		# print("MODEL INTERMEDIATE", m)
 		objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
 		current_objective_value = m.eval(objective, model_completion=True).as_long()
 		print("CURRENT COST", current_objective_value)
@@ -315,6 +318,8 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
 	opt.push()  # Save the current optimizer state for potential backtracking
 
+	add_soft_constraints_for_submap(idx_node_submap)
+	
 	restore_level_state(level, level_states)
 	add_prototype_to_prototype_constraints(instance_proto_submatrix, idx_node_submap)
 	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap)
@@ -322,7 +327,6 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	# add_objective(instance_proto_submatrix, idx_node_submap)
 
 	def on_model(m):
-		# print("MODEL INTERMEDIATE", m)
 		objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
 		current_objective_value = m.eval(objective, model_completion=True).as_long()
 		print("CURRENT COST", current_objective_value)
