@@ -23,26 +23,21 @@ def parse_form_file(file_path):
 	
 	# fix section labels so each new label encountered is increasing from the previous
 	for idx, layer in enumerate(layers):
-		# Step 1: Identify all unique S values and map them to new values
 		s_num_mapping = {}
 		new_s_num_counter = 0
 		for node in layer:
-			# Extract the 'n1' part of the 'id'
 			s_num = node['id'].split('L')[0][1:]  # This splits the id at 'L', takes the 'S{n1}' part, and then removes 'S' to get 'n1'
 			if s_num not in s_num_mapping:
 				s_num_mapping[s_num] = new_s_num_counter
 				new_s_num_counter += 1
 
-		# Step 2: Update each dictionary in the list according to the n1 mapping
 		updated_nodes = []
 		for node in layer:
 			old_s_num = node['id'].split('L')[0][1:]
 			new_s_num = s_num_mapping[old_s_num]
-			# Decompose the original 'id' and 'label' to reconstruct them with the new 'n1'
 			parts = node['id'].split('L')
 			new_id = f'S{new_s_num}L{parts[1]}'
-			# Assuming 'label' should be updated the same way as 'id'
-			new_label = new_id
+			new_label = new_id # update labels too, not just node id's
 			updated_nodes.append({'start': node['start'], 'end': node['end'], 'id': new_id, 'label': new_label})
 		layers[idx] = updated_nodes
 
@@ -84,8 +79,7 @@ def parse_motives_file(file_path):
 	for idx, item in enumerate(motif_layer):
 		item['id'] += f"N{idx}"
 		item['label'] += f"N{idx}"
-	
-	
+
 	return motif_layer
 
 def create_graph(layers):
@@ -155,6 +149,7 @@ def get_unsorted_layers_from_graph_by_index(G):
 	layers = sorted(layers, key=vertical_sort_key)
 	return layers
 
+# this doesn't work properly need to debug
 def compress_graph(G):
 	instance_labels = {}
 	motif_occurrence_counts = {}
@@ -162,8 +157,8 @@ def compress_graph(G):
 	def find_top_level_instance_nodes(G):
 		potential_top_levels = set()
 		for from_node, to_node in G.edges():
-				if 'Pr' in from_node:
-					potential_top_levels.add(to_node)
+			if 'Pr' in from_node:
+				potential_top_levels.add(to_node)
 		return potential_top_levels
 	
 	def get_proto_parents(node_id):
@@ -212,33 +207,28 @@ def compress_graph(G):
 def augment_graph(G):
 	layers = get_unsorted_layers_from_graph_by_index(G)
 	
-	# Step 1: Add prototype nodes and edges to instances
+	# Add prototype nodes and edges to instances
 	for layer in layers:
 		for node_info in layer:
-			# Determine prototype label
 			if 'L' in node_info['id']:
 				proto_node_id = 'PrS' + node_info['id'].split('S')[1].split('L')[0]
-			else:  # 'O' in node_info['id']
+			else:
 				proto_node_id = 'PrP' + node_info['id'].split('P')[1].split('O')[0]
 
-			# Add prototype node if not already present
 			if proto_node_id not in G:
 				G.add_node(proto_node_id, label=proto_node_id)
 
-			# Add edge from prototype node to instance node
 			if not G.has_edge(proto_node_id, node_info['id']):
 				G.add_edge(proto_node_id, node_info['id'])
 
-	# Step 2: Add intra-level edges based on index
+	# Add intra-level edges based on index
 	for layer in layers:
 		# Sort nodes within each layer by their index to ensure proper sequential connections
 		sorted_layer_nodes = sorted(layer, key=lambda x: x['index'])
 		
-		# Iterate through sorted nodes to add edges
 		for i in range(len(sorted_layer_nodes)-1):
 			current_node_id = sorted_layer_nodes[i]['id']
 			next_node_id = sorted_layer_nodes[i+1]['id']
-			# Add directed edge from current node to next
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
@@ -288,7 +278,7 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 	for ax in axes_flat[n:]:
 			ax.axis('off')
 	
-	# plt.tight_layout()
+	plt.tight_layout()
 	plt.show()
 
 def visualize_p(graph_list, layers_list, labels_dicts=None):
@@ -312,6 +302,7 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		
 		# Prototype node positioning
 		prototype_list = [node for node in G.nodes() if not bool(re.search(r'N\d+$', node))]
+		
 		# Custom order: "S" prototypes first, then "P", both sorted numerically within their groups
 		def proto_sort(proto):
 			order = {'PrS': 0, 'PrP': 1}  # Define custom order for the first characters
@@ -327,7 +318,6 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
 
-		# Regular node positioning
 		layer_height = 1.0 / (len(layers) + 1)
 		for i, layer in enumerate(layers):
 			layer = sorted(layer, key=lambda node: node['index'])
@@ -339,40 +329,35 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		
 		ax = axes_flat[idx]
 		
-		# Draw all nodes except the last layer with the default color
+		# segmentation nodes one color
 		non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
 		nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 		
-		# Draw the last layer nodes with yellow color
+		# motif nodes new color
 		last_layer_nodes = [node['id'] for node in layers[-1]]
 		nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 
-		# Edge setup
 		all_edges = set(G.edges())
 		intra_level_edges = []
 		inter_level_edges = []
 		proto_edges = []
 
 		def extract_level(node_id):
-			# Match patterns like 'S1L2N3' or 'P1O2N3' and extract the level part (n2)
 			match = re.search(r'S\d+L(\d+)N\d+', node_id)
 			return match.group(1) if match else None
 
 		for u, v in all_edges:
-				if u in prototype_nodes or v in prototype_nodes:
-						proto_edges.append((u, v))
-				elif extract_level(u) == extract_level(v):
-						intra_level_edges.append((u, v))
-				else:
-						inter_level_edges.append((u, v))
+			if u in prototype_nodes or v in prototype_nodes:
+				proto_edges.append((u, v))
+			elif extract_level(u) == extract_level(v):
+				intra_level_edges.append((u, v))
+			else:
+				inter_level_edges.append((u, v))
 
-		# Drawing edges
 		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
-		
-		# Labels and titles
 		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
 	

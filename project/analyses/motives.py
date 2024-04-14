@@ -2,13 +2,11 @@ import sys
 sys.path.append('/Users/ilanashapiro/Documents/motif_discovery') # https://github.com/Tsung-Ping/motif_discovery
 
 import os
-from multiprocessing import Process, Pool, process
+from multiprocessing import Pool
 import pandas as pd
-import mido
 import csv
 import numpy as np
 import SIA
-import math
 # import vmo
 
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
@@ -56,81 +54,47 @@ def write_mirex_motives(motives, out_file, csv_file):
 			f.write(out_str[:-2])
 
 def process_file(file_path):
-		# print("PROCESSING", file_path)
-		notes = load_notes_csv(file_path)
-		if len(notes) < 1500:
-			motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
+	print("PROCESSING", file_path)
+	notes = load_notes_csv(file_path)
+	if len(notes) < 1500:
+		motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
 															adjacentTolerance=(1, 6), min_notes=5, min_cardinality=0.7)
-			# motives_test = [[[(174., 84.), (174.5, 57.), (175., 52.), (175.5, 54.)], [(178., 79.), (178.5, 52.), (179., 50.), (179.5, 48.)], [(186., 79.), (186.5, 52.), (187., 50.), (187.5, 48.)], [(194., 79.), (194.5, 52.), (195., 50.), (195.5, 48.)], [(198., 79.), (198.5, 52.), (199., 50.), (199.5, 48.)]], [[(174.5, 57.), (175., 52.), (175.5, 54.), (176., 55.)], [(180., 83.), (180.5, 79.), (181., 79.), (181.5, 79.)], [(188., 83.), (188.5, 79.), (189., 79.), (189.5, 79.)]]]
-			write_mirex_motives(motives, file_path[:-4] + "_motives4.txt", file_path) # "_data.csv" has length 9
-		return len(notes)
+		# motives_test = [[[(174., 84.), (174.5, 57.), (175., 52.), (175.5, 54.)], [(178., 79.), (178.5, 52.), (179., 50.), (179.5, 48.)], [(186., 79.), (186.5, 52.), (187., 50.), (187.5, 48.)], [(194., 79.), (194.5, 52.), (195., 50.), (195.5, 48.)], [(198., 79.), (198.5, 52.), (199., 50.), (199.5, 48.)]], [[(174.5, 57.), (175., 52.), (175.5, 54.), (176., 55.)], [(180., 83.), (180.5, 79.), (181., 79.), (181.5, 79.)], [(188., 83.), (188.5, 79.), (189., 79.), (189.5, 79.)]]]
+		write_mirex_motives(motives, file_path[:-4] + "_motives4.txt", file_path) # "_data.csv" has length 9
+	return len(notes)
 
-def check_conditions_for_csv(directory, filename):
-		"""Check if conditions are met for processing the CSV file."""
-		for file in os.listdir(directory):
-				if file.endswith("motives4.txt"):
-						return False  # Skip this directory as it contains a motives3.txt file
-
-		# Condition 2: Check the CSV file for required columns and the last row's condition
-		# file_path = os.path.join(directory, filename)
-		# with open(file_path, mode='r', newline='') as csvfile:
-		# 		reader = csv.DictReader(csvfile)
-		# 		# Read to the last row and check the condition on onset_seconds
-		# 		for row in reader:
-		# 				pass  # Iterate to the last row
-		# 		if float(row['onset_seconds']) > 180:
-		# 				return False  # The last row's onset_seconds value is more than 180
-		
-		return True  # All conditions met
+def check_conditions_for_csv(directory):
+	for file in os.listdir(directory):
+		if file.endswith("motives4.txt"):
+			return False  # Skip this directory as it contains the desired motives file already
+	return True
 
 def prepare_file_paths(directory):
-		"""Prepare and return a list of file paths that meet the specific conditions."""
-		valid_file_paths = []
-		for root, _, files in os.walk(directory):
-				for filename in files:
-						if filename.endswith(".csv") and check_conditions_for_csv(root, filename):
-								valid_file_paths.append(os.path.join(root, filename))
-		return valid_file_paths
+	valid_file_paths = []
+	for root, _, files in os.walk(directory):
+		for filename in files:
+			if filename.endswith(".csv") and check_conditions_for_csv(root):
+				valid_file_paths.append(os.path.join(root, filename))
+	return valid_file_paths
 
-def get_motives(timeout_secs):
+def get_motives():
 	# file_paths = prepare_file_paths(DIRECTORY)
 	# file_paths = []
-	vals_paths = []
 
 	for root, _, files in os.walk(DIRECTORY):
 		for filename in files:
 			if filename.endswith(".csv"):
 				file_path = os.path.join(root, filename)
-				n = process_file(file_path)
-				# vals_paths.append((n, file_path))
+				process_file(file_path)
 				# file_paths.append(file_path)
-	
-	# for pair in sorted(vals_paths, key=lambda x: x[0])[:20]:
-	# 	print(pair)
 
 	# Create a pool of workers and distribute the file processing tasks
 	# with Pool() as pool:
 	# 	pool.map(process_file, file_paths)
 
-	# for root, _, files in os.walk(DIRECTORY):
-	# 	for filename in files:
-	# 		if filename.endswith(".csv"):
-	# 			file_path = os.path.join(root, filename)
-			
-	# 			p = Process(target=process_file, args=(file_path,))
-	# 			p.start()
-	# 			p.join(timeout=timeout_secs)
-				
-	# 			# If the process is still alive after the timeout, terminate it
-	# 			if p.is_alive():
-	# 				p.terminate()
-	# 				p.join()  # Ensure the process has cleaned up before continuing
-	# 				print(f"Processing of {file_path} timed out and was terminated.")
-	# 			else:
-	# 				print(f"Processing of {file_path} completed within timeout.")
-
 if __name__ == '__main__':
-	get_motives(300)
+	get_motives()
+
 #---------------------------------------------USING VMO FOR MOTIF EXTXRACTION------------------------------------------------------------
 # vmo is MUCH faster than the newer paper I'm using for this, which can detect longer patterns of specified length
 # however, VMO seems to almost exclusively detect very very short patterns (2 notes), in this example there's only

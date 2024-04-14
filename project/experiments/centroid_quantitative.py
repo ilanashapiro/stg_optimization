@@ -75,9 +75,6 @@ def generate_centroid(composer_dir, composer):
 	print("GENERATING CENTROID FOR", composer)
 	STG_augmented_list = generate_augmented_graphs([composer_dir])
 	listA_G, centroid_node_mapping = simanneal_centroid_helpers.pad_adj_matrices(STG_augmented_list)
-	# print(len(list(STG_augmented_list[0].nodes)))
-	# print(len(listA_G[0]))
-	# print(len(simanneal_centroid_helpers.remove_dummy_nodes(listA_G[0], idx_node_mapping)[0]))
 	
 	initial_alignment_files = [os.path.join(composer_dir, f'alignments/initial_alignment_{i}.txt') for i in range(len(listA_G))]
 	initial_centroid_file = os.path.join(composer_dir, 'alignments/initial_centroid.txt')

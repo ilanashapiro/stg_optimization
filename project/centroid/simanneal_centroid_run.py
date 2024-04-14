@@ -2,7 +2,7 @@ import simanneal_centroid
 import numpy as np
 import simanneal_centroid
 
-def align_graph_pair(A_G1, A_G2, index_node_mapping, Tmax = 1.25, Tmin = 0.01, steps = 200):
+def align_graph_pair(A_G1, A_G2, index_node_mapping, Tmax = 1.25, Tmin = 0.01, steps = 1000):
   if A_G1.shape != A_G2.shape:
     raise ValueError("Graphs must be of the same size to align.")
   initial_state = np.eye(np.shape(A_G1)[0]) # or A_G2

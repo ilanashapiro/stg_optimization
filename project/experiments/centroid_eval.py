@@ -59,15 +59,6 @@ clementi_A_g = padded_A_g_list[2]
 haydn_A_g = padded_A_g_list[3]
 schumann_A_g = padded_A_g_list[4]
 
-# for i, A_G in enumerate(padded_STG_list):
-# 	_, albeniz_cost = simanneal_centroid_run.align_graph_pair(A_G, albeniz_A_g, idx_node_mapping)
-# 	_, bach_cost = simanneal_centroid_run.align_graph_pair(A_G, bach_A_g, idx_node_mapping)
-# 	_, clementi_cost = simanneal_centroid_run.align_graph_pair(A_G, clementi_A_g, idx_node_mapping)
-# 	_, haydn_cost = simanneal_centroid_run.align_graph_pair(A_G, haydn_A_g, idx_node_mapping)
-# 	_, schumann_cost = simanneal_centroid_run.align_graph_pair(A_G, schumann_A_g, idx_node_mapping)
-# 	print(info_list[0])
-# 	print("ALBENIZ:", albeniz_cost, "BACH", bach_cost, "CLEMENTI", clementi_cost, "HAYDN", haydn_cost, "SCHUMANN", schumann_cost)
-	
 def align_and_compute_costs(A_G):
     # The function receives one graph and computes the costs for all alignments
     _, albeniz_cost = simanneal_centroid_run.align_graph_pair(A_G, albeniz_A_g, idx_node_mapping)
