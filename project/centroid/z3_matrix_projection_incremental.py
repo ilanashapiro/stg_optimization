@@ -15,7 +15,7 @@ import time
 sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
-composer = 'bach'
+composer = 'albeniz'
 centroid_composer_path = f'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/{composer}'
 # centroid_composer_path = f'/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db/{composer}'
 approx_centroid = np.loadtxt(os.path.join(centroid_composer_path, f'centroid_{composer}.txt'))
@@ -25,9 +25,9 @@ with open(os.path.join(centroid_composer_path, f'centroid_node_mapping_{composer
 
 approx_centroid, idx_node_mapping = simanneal_helpers.remove_dummy_nodes(approx_centroid, idx_node_mapping)
 
-G = z3_tests.G1
-approx_centroid = nx.to_numpy_array(G)
-idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
+# G = z3_tests.G1
+# approx_centroid = nx.to_numpy_array(G)
+# idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
 
 def invert_dict(d):
 	return {v: k for k, v in d.items()}
@@ -289,21 +289,21 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 		add_instance_parent_relationship_constraints(child_level, idx_node_submap2) # we ONLY want to do this for the child node
 
 	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap)
- 
-	# add_objective(A_combined_submatrix, combined_idx_node_submap)
+	add_objective(A_combined_submatrix, combined_idx_node_submap)
 
 	# with open(f"smtlib{(parent_level, child_level)}.txt", 'w') as file:
 	# 	file.write(opt.sexpr())
 		# z3.set_param(verbose = 4)
 
+	# crashes with timeout bc the model might be unsat
 	# def on_model(m):
 	# 	objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
 	# 	current_objective_value = m.eval(objective, model_completion=True).as_long()
 	# 	print("CURRENT COST", current_objective_value)
-	# 	sys.stdout.flush()
 	# opt.set_on_model(on_model)
 
 	result = opt.check()
+	print("HRERE2134")
 	if result != z3.unsat:
 		if result != z3.sat:
 			print(f"Continuing with best-effort guess after timeout for instance levels {parent_level} and {child_level}")
@@ -323,18 +323,16 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 	opt.push()  # Save the current optimizer state for potential backtracking
 
 	add_soft_constraints_for_submap(instance_proto_submatrix, idx_node_submap)
-	
 	restore_level_state(level, level_states)
 	add_prototype_to_prototype_constraints(idx_node_submap)
 	add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap)
+	add_objective(instance_proto_submatrix, idx_node_submap)
 
-	# add_objective(instance_proto_submatrix, idx_node_submap)
-
+	# crashes with timeout bc the model might be unsat
 	# def on_model(m):
 	# 	objective = get_objective(A_combined_submatrix, combined_idx_node_submap)
 	# 	current_objective_value = m.eval(objective, model_completion=True).as_long()
 	# 	print("CURRENT COST", current_objective_value)
-	# 	# sys.stdout.flush()
 	# opt.set_on_model(on_model)
 	
 	if opt.check() != z3.unsat:
@@ -342,11 +340,10 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 			print(f"Continuing with best-effort guess after timeout for proto level {level} ")
 		else:
 			print(f"Level {level} is satisfiable for proto constraints", time.perf_counter())
+			
 		model = opt.model()
-		print(f"MODEL AT LEVEL {level}", model)
 		proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
 		level_states[level] += proto_state
-		# print("LEVEL STATES SAVED AT LEVEL", level, level_states)
 	else:
 		print(f"Level {level} is not satisfiable for proto constraints")
 
