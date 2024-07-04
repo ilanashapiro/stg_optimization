@@ -4,9 +4,11 @@ from midi2audio import FluidSynth
 from concurrent.futures import ThreadPoolExecutor
 import os
 from pydub import AudioSegment
+import multiprocessing
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/telemann"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
 # DIRECTORY = "/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db"
+DIRECTORY = "/home/ilshapiro/project/datasets"
 
 def ticks_to_secs_with_tempo_changes(tick, tempo_changes, ticks_per_beat):
 	# Calculate the time in seconds for a given tick considering all tempo changes.
@@ -25,6 +27,11 @@ def ticks_to_secs_with_tempo_changes(tick, tempo_changes, ticks_per_beat):
 # CSV format from https://github.com/Wiilly07/Beethoven_motif 
 def midi_to_csv(filename):
 	output_filename = filename[:-4] + ".csv"
+	
+	if os.path.exists(output_filename):
+		print(f"CSV file already exists for {filename}, skipping conversion.")
+		return
+
 	print("Converting " + filename + " to " + output_filename)
 
 	mid = mido.MidiFile(filename)
@@ -70,42 +77,53 @@ def midi_to_csv(filename):
 # midi_to_csv()
 
 def convert_dataset_midi_to_csv():
-	futures = []
-	with ThreadPoolExecutor() as executor:
-		for root, _, files in os.walk(DIRECTORY):
-			for filename in files:
-				if filename.endswith(".mid"):
-					midi_path = os.path.join(root, filename)
-					future = executor.submit(midi_to_csv, midi_path)
-					futures.append(future)
+	midi_files = []
+	for root, _, files in os.walk(DIRECTORY):
+		for filename in files:
+			if filename.endswith(".mid"):
+				midi_path = os.path.join(root, filename)
+				csv_path = midi_path[:-4] + ".csv"
+				if not os.path.exists(csv_path): 
+					midi_files.append(midi_path)
+					
+	with multiprocessing.Pool() as pool:
+				pool.map(midi_to_csv, midi_files)
 
-convert_dataset_midi_to_csv()
+def midi_to_mp3(midi_path):
+	soundfont_filepath = "GeneralUser GS v1.471.sf2"
+	fs = FluidSynth(sound_font=soundfont_filepath)
+	mp3_path = midi_path[:-4] + ".mp3"
+
+	if os.path.exists(mp3_path):
+		print(f"MP3 file already exists for {midi_path}, skipping conversion.")
+		return
+
+	wav_path = midi_path[:-4] + ".wav"
+	fs.midi_to_audio(midi_path, wav_path)
+	print("Converted", midi_path, "to WAV")
+
+	mp3_path = midi_path[:-4] + ".mp3"
+	audio = AudioSegment.from_wav(wav_path)
+	audio.export(mp3_path, format="mp3", bitrate="192k", parameters=["-ar", "44100", "-ac", "2"])
+	print("Converted", wav_path, "to MP3")
+
+	os.remove(wav_path)
+	print("Removed", wav_path)
 
 def convert_dataset_midi_to_mp3():
-	soundfont_filepath = "GeneralUser GS v1.471.sf2"
-	# soundfont_filepath = "/home/jonsuss/Ilana_Shapiro/constraints/GeneralUser GS 1.471/GeneralUser GS v1.471.sf2"
-	fs = FluidSynth(sound_font=soundfont_filepath)
-	futures = []
+	midi_files = []
 	
-	def process_file(midi_path):
-		wav_path = midi_path[:-4] + ".wav"
-		fs.midi_to_audio(midi_path, wav_path)
-		print("Converted", midi_path, "to WAV")
-
-		mp3_path = midi_path[:-4] + ".mp3"
-		audio = AudioSegment.from_wav(wav_path)
-		audio.export(mp3_path, format="mp3", bitrate="192k", parameters=["-ar", "44100", "-ac", "2"])
-		print("Converted", wav_path, "to MP3")
-
-		os.remove(wav_path)
-		print("Removed", wav_path)
-	
-	with ThreadPoolExecutor() as executor:
-		for root, _, files in os.walk(DIRECTORY):
-			for filename in files:
-				if filename.endswith(".mid"):
-					midi_path = os.path.join(root, filename)
-					future = executor.submit(process_file, midi_path)
-					futures.append(future)
+	for root, _, files in os.walk(DIRECTORY):
+		for filename in files:
+			if filename.endswith(".mid"):
+				midi_path = os.path.join(root, filename)
+				mp3_path = midi_path[:-4] + ".mp3"
+				if not os.path.exists(mp3_path):  # Check if the MP3 file does not exist
+					midi_files.append(midi_path)
 											
-convert_dataset_midi_to_mp3()
+	with multiprocessing.Pool() as pool:
+		pool.map(midi_to_mp3, midi_files)
+
+if __name__ == "__main__":
+	# convert_dataset_midi_to_csv()
+	convert_dataset_midi_to_mp3()

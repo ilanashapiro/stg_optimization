@@ -9,8 +9,8 @@ import numpy as np
 import SIA
 # import vmo
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
-# DIRECTORY = "/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db"
+DIRECTORY = "/home/jonsuss/Ilana_Shapiro/constraints/datasets"
  
 # code modified from https://github.com/Tsung-Ping/motif_discovery/blob/main/experiments.py 
 def load_notes_csv(filename):
@@ -58,7 +58,7 @@ def process_file(file_path):
 	notes = load_notes_csv(file_path)
 	if len(notes) < 1500:
 		motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
-															adjacentTolerance=(1, 6), min_notes=5, min_cardinality=0.7)
+															adjacentTolerance=(2, 6), min_notes=10, min_cardinality=0.4)
 		# motives_test = [[[(174., 84.), (174.5, 57.), (175., 52.), (175.5, 54.)], [(178., 79.), (178.5, 52.), (179., 50.), (179.5, 48.)], [(186., 79.), (186.5, 52.), (187., 50.), (187.5, 48.)], [(194., 79.), (194.5, 52.), (195., 50.), (195.5, 48.)], [(198., 79.), (198.5, 52.), (199., 50.), (199.5, 48.)]], [[(174.5, 57.), (175., 52.), (175.5, 54.), (176., 55.)], [(180., 83.), (180.5, 79.), (181., 79.), (181.5, 79.)], [(188., 83.), (188.5, 79.), (189., 79.), (189.5, 79.)]]]
 		write_mirex_motives(motives, file_path[:-4] + "_motives4.txt", file_path) # "_data.csv" has length 9
 	return len(notes)
