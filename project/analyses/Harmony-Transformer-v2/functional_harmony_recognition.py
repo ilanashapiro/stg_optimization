@@ -1,702 +1,665 @@
 import numpy as np
-import tensorflow as tf # version = 1.8.0
-import time
-import random
+import itertools
+import numpy.lib.recfunctions as rfn
 import math
+import matplotlib.pyplot as plt
+import xlrd
+import copy
+from scipy.ndimage import gaussian_filter1d
+from scipy.spatial.distance import euclidean
 import pickle
-from collections import Counter, namedtuple
-import chord_recognition_models as crm
-import string 
-import sys
+from collections import Counter, OrderedDict
+import os, glob, sys
+from joblib import dump, load
+import string
 
-# Disables AVX/FMA
-import os, sys
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+def save_data(data, file_path):
+		with open(file_path, 'wb') as file:
+				pickle.dump(data, file)
+				print("Wrote:", file_path)
 
-# Mappings of functional harmony
-'''key: 7 degrees * 3 accidentals * 2 modes + 1 padding= 43'''
-key_dict = {}
-for i_a, accidental in enumerate(['', '#', 'b']):
-		for i_t, tonic in enumerate(['C', 'D', 'E', 'F', 'G', 'A', 'B', 'c', 'd', 'e', 'f', 'g', 'a', 'b']):
-				key_dict[tonic + accidental] = i_a * 14 + i_t
-				if accidental == '#':
-						key_dict[tonic + '+'] = i_a * 14 + i_t
-				elif accidental == 'b':
-						key_dict[tonic + '-'] = i_a * 14 + i_t
-key_dict['pad'] = 42
+def load_data(file_path):
+		with open(file_path, 'rb') as file:
+			print("Opened:", file_path)
+			return pickle.load(file)
 
-'''degree1: 10 (['1', '2', '3', '4', '5', '6', '7', '-2', '-7', 'pad'])'''
-degree1_dict = {d1: i for i, d1 in enumerate(['1', '2', '3', '4', '5', '6', '7', '-2', '-7', 'pad'])}
+def strided_axis1(a, window, hop):
+		n_pad = window // 2
+		b = np.lib.pad(a, ((0, 0), (n_pad, n_pad)), 'constant', constant_values=0)
+		# Length of 3D output array along its axis=1
+		nd1 = int((b.shape[1] - window) / hop) + 1
+		# Store shape and strides info
+		m, n = b.shape
+		s0, s1 = b.strides
+		# Finally use strides to get the 3D array view
+		return np.lib.stride_tricks.as_strided(b, shape=(nd1, m, window), strides=(s1 * hop, s0, s1))
 
-'''degree2: 15 ['1', '2', '3', '4', '5', '6', '7', '+1', '+3', '+4', '-2', '-3', '-6', '-7', 'pad'])'''
-degree2_dict = {d2: i for i, d2 in enumerate(['1', '2', '3', '4', '5', '6', '7', '+1', '+3', '+4', '-2', '-3', '-6', '-7', 'pad'])}
+def pianoroll2chromagram(pianoRoll, smoothing=False, window=17):
+		"""pianoRoll with shape = [88, time]"""
+		pianoRoll_T = np.transpose(pianoRoll.astype(np.float32)) # [time, 88]
+		pianoRoll_T_pad = np.pad(pianoRoll_T, [(0, 0), (9, 11)], 'constant') # [time, 108]
+		pianoRoll_T = np.split(pianoRoll_T_pad, indices_or_sections=(pianoRoll_T_pad.shape[1]//12), axis=1) # [9, time, 12]
+		chromagram_T = np.sum(pianoRoll_T, axis=0) # [time,  12]
+		if smoothing:
+				n_pad = window // 2
+				chromagram_T_pad = np.pad(chromagram_T, ((n_pad, n_pad), (0, 0)), 'constant', constant_values=0)
+				chromagram_T_smoothed = np.array([np.mean(chromagram_T_pad[(time+n_pad)-window//2:(time+n_pad)+window//2+1, :], axis=0) for time in range(chromagram_T.shape[0])])
+				chromagram_T = chromagram_T_smoothed # [time,  12]
+		L1_norm = chromagram_T.sum(axis=1) # [time]
+		L1_norm[L1_norm == 0] = 1 # replace zeros with ones
+		chromagram_T_norm = chromagram_T / L1_norm[:, np.newaxis] # L1 normalization, [time, 12]
+		chromagram = np.transpose(chromagram_T_norm) # [12, time]
+		return chromagram
 
-'''quality: 11 (['M', 'm', 'a', 'd', 'M7', 'm7', 'D7', 'd7', 'h7', 'a6', 'pad'])'''
-quality_dict = {q: i for i, q in enumerate(['M', 'm', 'a', 'd', 'M7', 'm7', 'D7', 'd7', 'h7', 'a6', 'pad'])}
-quality_dict['a7'] = [v for k, v in quality_dict.items() if k == 'a'][0]
+def load_pieces(c, resolution=4):
+		"""
+		:param resolution: time resolution, default = 4 (16th note as 1unit in piano roll)
+		:param representType: 'pianoroll' or 'onset_duration'
+		:return: pieces, tdeviation
+		"""
+		print('Message: load note data ...')
+		# dir = os.getcwd() + "/BPS_FH_Dataset/"
+		base_dir = "/home/ubuntu/project/datasets/"
+		# dt = [('onset', 'float'), ('pitch', 'int'), ('mPitch', 'int'), ('duration', 'float'), ('staffNum', 'int'), ('measure', 'int')] # datatype
+		dt = [('onset', 'float'), ('onset_seconds', 'float'), ('pitch', 'int'), ('duration', 'float'), ('staff', 'int')] # datatype for ilana
+		highest_pitch = 0
+		lowest_pitch = 256
+		# pieces = {str(k): {'pianoroll': None, 'chromagram': None, 'start_time': None} for k in range(1,33)}
+		# pieces = {f: {'pianoroll': None, 'chromagram': None, 'start_time': None} for f in os.listdir(dir) if  os.path.isdir(os.path.join(dir, f)) and 'estimations' not in f} # ilana
+		pieces = {}
 
-def invert_dict(d):
-	return {v: k for k, v in d.items()}
-
-def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, eval_mask_values):
-	'''pred_cc_values:
-	Each row corresponds to a sequence in the batch.
-	Each column corresponds to a time step within that sequence.
-	The values (0 or 1) indicate the model's prediction for whether a chord change occurs at that time step.
-	
-	pred_k_values:
-	Each row corresponds to a sequence in the batch.
-	Each column corresponds to a time step within that sequence.
-	The values are integers representing the predicted key for each time step.
-	
-	pred_r_values:
-	Each row corresponds to a sequence in the batch.
-	Each column corresponds to a time step within that sequence.
-	The values are integers representing the predicted Roman numeral, which can be decoded back to musical terms using degree1_dict, degree2_dict, quality_dict, and inversion.
-	
-	The eval_mask tensor is used to distinguish between valid and padding parts of the sequences during evaluation.
-	same dimensions
-	'''
-
-	# In the reshaped pianoroll array stored in corpus_aug_reshape[shift_id][piece_name]['pianoroll'], the axes represent the following:
-	# Axis 0: Represents the sequences or segments of the pianoroll.
-	# Axis 1: Represents the time steps within each sequence.
-	# Axis 2: Represents the MIDI pitches.
-
-	# from original processing: 
-	# time = range(onset, end)
-	# pianoroll[pitch-21, time] = 1 # add note to representation
-	# if time = range(onset, end), then pianoroll[pitch-21, time] = 1 effectively sets all the time steps 
-	# within the range onset to end for a given pitch to 1, indicating that a note of that pitch is active 
-	# during those time steps.
-
-	#  Padding and Reshaping
-	# After padding and reshaping, the pianoroll is segmented into smaller sequences:
-
-	# Padding:
-	# pianoroll_pad has shape [total_length + n_pad, 88].
-	# Padding ensures that the length is divisible by n_steps.
-
-	# Reshaping:
-	# pianoroll_pad is reshaped into sequences of fixed length (n_steps).
-
-	# Reshaped pianoroll Structure
-	# The reshaped pianoroll stored in corpus_aug_reshape[shift_id][piece_name]['pianoroll'] has shape [-1, n_steps, 88].
-	# Axis 0: Represents the sequences (segments) of the pianoroll.
-	# Axis 1: Represents the time steps within each sequence.
-	# Axis 2: Represents the MIDI pitches.
-	
-
-	[inv_key_dict, inv_degree1_dict, inv_degree2_dict, inv_quality_dict] = [invert_dict(d) for d in [key_dict, degree1_dict, degree2_dict, quality_dict]]
-
-	results = []
-
-	pianoroll = data['pianoroll'] # shape: (n_sequences, n_timesteps_per_padded_seq, n_pitches)
-	piece_ids = data['piece_id']
-	start_times = data['start_time']
-
-	# The len array tells you the length of each UNPADDED sequence in the pianoroll array.
-	# e.g. the first value in len corresponds to the length of the first sequence in pianoroll.
-	lens = data['len']
-	num_sequences = len(pred_cc_values)
-
-	all_original_timesteps = []
-	current_time = 0
-	current_piece_id = piece_ids[0]  # Initialize with the first piece_id
-
-	for seq_idx, seq_len in enumerate(lens):
-		all_original_timesteps.append(np.arange(current_time, current_time + seq_len))
-		current_time += seq_len
-		
-		# Check if we have reached the end of a piece
-		if seq_idx < len(piece_ids) - 1 and piece_ids[seq_idx + 1] != current_piece_id:
-			# Move to the start of the next piece
-			current_piece_id = piece_ids[seq_idx + 1]
-			current_time = 0  # Reset current_time for the new piece
-
-	prev_chord = {}
-	for seq_idx in range(num_sequences):
-		valid_timesteps_mask = eval_mask_values[seq_idx]
-		# valid_pred_cc = pred_cc_values[seq_idx][valid_timesteps_mask] # dimensions: [num_valid_timesteps]
-		valid_pred_k = pred_k_values[seq_idx][valid_timesteps_mask] # dimensions: [num_valid_timesteps]
-		valid_pred_r = pred_r_values[seq_idx][valid_timesteps_mask] # dimensions: [num_valid_timesteps]
-
-		piece_id = piece_ids[seq_idx]
-		original_timesteps = all_original_timesteps[seq_idx]
-		start_time = start_times[seq_idx]
-
-		for t_idx, t in enumerate(original_timesteps):
-			# val_cc = valid_pred_cc[t_idx] # this is the chord change value predicted by the neural net. however, it may not be totally accurate, i.e. align with pred_k and pred_r changing
-			# if val_cc: # if we encounter a chord change at this timestep
-				val_r = valid_pred_r[t_idx]
-				if val_r == 9 * 14 * 10 * 4:  # Padding
-					print("ERROR IN", piece_id, "AT", t) # this should have been removed because eval_mask was already applied
-					sys.exit(0)
-
-				# test_data_label_roman = test_data_label_degree1 * 14 * 10 * 4 + test_data_label_degree2 * 10 * 4 + test_data_label_quality * 4 + test_data_label_inversion
-				# test_data_label_roman[test_data['label']['key'] == 'pad'] = 9 * 14 * 10 * 4
-				degree1 = val_r // (14 * 10 * 4)
-				val_r %= (14 * 10 * 4)
-				degree2 = val_r // (10 * 4)
-				val_r %= (10 * 4)
-				quality = val_r // 4
-				inversion = val_r % 4
-
-				val_k = inv_key_dict[valid_pred_k[t_idx]] # Since pred_cc is binary (0 or 1), no decoding needed
+		for composer_folder in os.listdir(base_dir):
+			composer_path = os.path.join(base_dir, composer_folder)
+			if not os.path.isdir(composer_path) or not composer_folder.startswith(c):# (composer_folder.startswith(c[0]) and composer_folder[:2] <= c):
+				continue
+			
+			for subfolder in ['classical_piano_midi_db', 'kunstderfuge']:
+				subfolder_path = os.path.join(composer_path, subfolder)
+				if not os.path.isdir(subfolder_path):
+					continue
 				
-				def are_chords_equal(chord1_dict, chord2_dict):
-					# List of keys to compare, excluding 'timestep'
-					keys_to_compare = ['piece_id', 'key', 'degree1', 'degree2', 'quality', 'inversion']
-					for key in keys_to_compare:
-						if chord1_dict.get(key) != chord2_dict.get(key):
-							return False
-					return True
+				for piece_name in os.listdir(subfolder_path):
+					piece_folder_path = os.path.join(subfolder_path, piece_name)
+					if os.path.isdir(piece_folder_path) and not any(s == piece_name for s in ['estimations', 'read']) and glob.glob(os.path.join(piece_folder_path, '*_motives3.txt')):
+						fileDir = os.path.join(piece_folder_path, piece_name + ".csv")
+						# notes = np.genfromtxt(fileDir, delimiter=',', dtype=dt) # read notes from .csv file
+						notes = np.genfromtxt(fileDir, delimiter=',', dtype=dt, skip_header=1) # read notes from .csv file ilana
+						start_time = min(notes['onset'])
+						total_length = math.ceil((max(notes['onset'] + notes['duration']) - start_time) * resolution) # length of pianoroll
+						pianoroll = np.zeros(shape=[88, total_length], dtype=np.int32) # piano range: 21-108 (A0 to C8)
+						for note in notes:
+								if note['duration'] == 0: # "Ornament"
+										continue
+								pitch = note['pitch']
+								onset = int(math.floor((note['onset'] - start_time)*resolution))
+								end = int(math.ceil((note['onset'] + note['duration'] - start_time)*resolution))
+								if onset == end:
+										print('piece', piece_name)
+										print('Error: note onset = note end')
+										exit(1)
+								time = range(onset, end)
 
-				curr_chord = {
-					'timestep': t + start_time,
-					'piece_id': piece_id,
-					# 'chord_change': val_cc,
-					'key': val_k,
-					'degree1': degree1,
-					'degree2': degree2,
-					'quality': quality,
-					'inversion': inversion
-				}
+								# print(pitch, start_time, time, piece_folder_path)
+								pianoroll[pitch-21, time] = 1 # add note to representation
 
-				if not are_chords_equal(curr_chord, prev_chord): 
-					results.append(curr_chord)
+								if pitch > highest_pitch:
+										highest_pitch = pitch
+								if pitch < lowest_pitch:
+										lowest_pitch = pitch
 
-				prev_chord = curr_chord
+						pieces[piece_name] = {
+							'pianoroll': pianoroll, # [88, time]
+							'chromagram': pianoroll2chromagram(pianoroll), # [12, time]
+							'start_time': start_time
+						}
+						
+						# print('lowest pitch =', lowest_pitch, 'highest pitch = ', highest_pitch)
+		return pieces
 
-	return results
+def load_chord_labels(vocabulary='MIREX_Mm'):
+		print('Message: load chord labels...')
+		dir = os.getcwd() + "/BPS_FH_Dataset/"
+		dt = [('onset', 'float'), ('duration', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10')] # datatype
+		chord_labels = {str(k): None for k in range(1,33)}
+		for i in range(1,33):
+				fileDir = dir + str(i) + "/chords.xlsx"
+				workbook = xlrd.open_workbook(fileDir)
+				sheet = workbook.sheet_by_index(0)
+				labels = []
+				for i_row in range(sheet.nrows):
+						values = sheet.row_values(i_row)
+						onset = values[0]
+						durarion = values[1] - values[0]
+						key = values[2]
+						values[3] = str(int(values[3])) if isinstance(values[3], float) else values[3]
+						degree1 = '1' if '/' not in values[3] else values[3].split('/')[1]
+						degree2 = values[3] if '/' not in values[3] else values[3].split('/')[0]
+						quality = values[4]
+						inversion = int(values[5])
+						rchord = values[6]
+						labels.append((onset, durarion, key, degree1, degree2, quality, inversion, rchord))
+				labels = np.array(labels, dtype=dt) # convert to structured array
+				chord_labels[str(i)] = derive_chordSymbol_from_romanNumeral(labels, vocabulary) # translate rchords to tchords
+		return chord_labels
 
-def load_data_unlabeled(filepath, chunk_size=20):
-		print(f"Loading data in {filepath}...")
-		with open(filepath, 'rb') as file:
-				corpus_reshape = pickle.load(file)
+def get_framewise_labels_unlabeled(c, pieces, resolution=4):
+		"""
+		:param pieces:
+		:param resolution: time resolution, default=4 (16th note as 1 unit of a pianoroll)
+		:return: images, image_labels
+		"""
+		print("Message: get framewise labels unlabeled ...")
+		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10')] # label datatype
+		empty_label = (0.0, 0.0, "", "", "", "", 0, "", "", "")
+		base_dir = "/home/ubuntu/project/datasets/"
 		
-		number_of_pieces = len(corpus_reshape.keys())
-		print("Number of pieces", number_of_pieces)
+		for composer_folder in os.listdir(base_dir):
+			composer_path = os.path.join(base_dir, composer_folder)
+			if not os.path.isdir(composer_path) or not composer_folder.startswith(c):# (composer_folder.startswith(c[0]) and composer_folder[:2] <= c):
+				continue
+			
+			for subfolder in ['classical_piano_midi_db', 'kunstderfuge']:
+				subfolder_path = os.path.join(composer_path, subfolder)
+				if not os.path.isdir(subfolder_path):
+					continue
+				
+				for piece_name in os.listdir(subfolder_path):
+					piece_folder_path = os.path.join(subfolder_path, piece_name)
+					if os.path.isdir(piece_folder_path) and not any(s == piece_name for s in ['estimations', 'read']) and glob.glob(os.path.join(piece_folder_path, '*_motives3.txt')):
+						# Split Piano Roll into frames of the same size (88, wsize)
+						pianoroll = pieces[piece_name]['pianoroll'] # [88, time]
+						n_frames = pianoroll.shape[1]
+						start_time = pieces[piece_name]['start_time']
+						
+						frame_labels = []
+						for n in range(n_frames):
+								frame_time = n * (1 / resolution) + start_time
+								frame_label = tuple([piece_name, frame_time] + list(empty_label)[2:])
+								frame_labels.append(frame_label)
+						
+						frame_labels = np.array(frame_labels, dtype=dt)
+						chord_change = [1] + [0 for _ in range(1, n_frames)]  # No chord change
+						chord_change = np.array([(cc) for cc in chord_change], dtype=[('chord_change', 'int')])
+						pieces[piece_name]['label'] = rfn.merge_arrays([frame_labels, chord_change], flatten=True, usemask=False)
+		return pieces
 
-		pianorolls = []
-		tonal_centroids = []
-		lens = []
-		piece_ids = []
-		start_times = []
+def get_framewise_labels(pieces, chord_labels, resolution=4):
+		"""
+		:param pieces:
+		:param chord_labels:
+		:param resolution: time resolution, default=4 (16th note as 1 unit of a pianoroll)
+		:return: images, image_labels
+		"""
+		print("Message: get framewise labels ...")
+		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10')] # label datatype
+		for p in range(1,33):
+				# Split Piano Roll into frames of the same size (88, wsize)
+				pianoroll = pieces[str(p)]['pianoroll'] # [88, time]
+				labels = chord_labels[str(p)]
+				start_time = pieces[str(p)]['start_time']
+				n_frames = pianoroll.shape[1]
 
-		for piece_id in corpus_reshape.keys():
-			# After reshaping, the pianoroll in corpus_reshape will have the shape [num_sequences, n_steps, 88]
-			# Here, num_sequences is the total number of sequences after padding and reshaping.
-			# n_steps is the fixed number of time steps per sequence (128 in your case).
-			# 88 corresponds to the MIDI pitch range (if MIDI note values range from 0 to 87).
-			pianorolls.append(corpus_reshape[piece_id]['pianoroll'])
-			sequence_lens = corpus_reshape[piece_id]['len']
-			num_sequences = len(sequence_lens)
-			lens.append(sequence_lens)
-			piece_ids.append([piece_id] * num_sequences)
-			start_times.append([corpus_reshape[piece_id]['start_time']] * num_sequences)
+				frame_labels = []
+				for n in range(n_frames):
+						frame_time = n*(1/resolution) + start_time
+						try:
+								label = labels[(labels['onset'] <= frame_time) & (labels['onset'] + labels['duration'] > frame_time)][0]
+								frame_label = tuple([str(p), frame_time] + list(label)[2:])
+								frame_labels.append(frame_label)
+						except:
+								print('Error: cannot get label !')
+								print('piece =', p)
+								print('frame time =', frame_time)
+								exit(1)
+				frame_labels = np.array(frame_labels, dtype=dt)
+				chord_change = [1] + [0 if frame_labels[n]['root']+frame_labels[n]['tquality'] == frame_labels[n-1]['root']+frame_labels[n-1]['tquality'] else 1 for n in range(1, n_frames)] # chord change labels
+				chord_change = np.array([(cc) for cc in chord_change], dtype=[('chord_change', 'int')])
+				pieces[str(p)]['label'] = rfn.merge_arrays([frame_labels, chord_change], flatten=True, usemask=False)
+		return pieces
 
-		data = {
-				'pianoroll': np.concatenate(pianorolls, axis=0),
-				'len': np.concatenate(lens, axis=0),
-				'piece_id': np.concatenate(piece_ids, axis=0),
-				'start_time': np.concatenate(start_times, axis=0)
-		}
+def load_dataset(resolution, vocabulary):
+		pieces = load_pieces(resolution=resolution) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float}...}
+		chord_labels = load_chord_labels(vocabulary=vocabulary) # {'no':  array}
+		corpus = get_framewise_labels(pieces, chord_labels, resolution=resolution) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float, 'label': array, 'chord_change': array},  ...}
+		pianoroll_lens = [x['pianoroll'].shape[1] for x in corpus.values()]
+		print('max_length =', max(pianoroll_lens))
+		print('min_length =', min(pianoroll_lens))
+		print('keys in corpus[\'op\'] =', corpus['1'].keys())
+		print('label fields = ', corpus['1']['label'].dtype)
+		return corpus
 
-		print('Keys in corpus_reshape[\'piece_id\'] =', list(corpus_reshape.values())[0].keys())
-		print('Keys in data =', data.keys())
-		return data
+def load_dataset_unlabeled(c, resolution, vocabulary):
+	# pieces_file = os.path.join(save_dir, 'pieces.pickle')
+	# if os.path.exists(pieces_file):
+	# 	print(f"Loading pieces from {pieces_file}...")
+	# 	pieces = load_data(pieces_file)
+	# else:
+	# 	print("Computing pieces...")
+	# 	pieces = load_pieces(c, resolution=resolution) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float}...}
+	# 	save_data(pieces, pieces_file)
+	
+	# corpus_file = os.path.join(save_dir, 'corpus.pickle')
+	# if os.path.exists(corpus_file):
+	# 	print(f"Loading corpus from {corpus_file}...")
+	# 	corpus = load_data(corpus_file)
+	# else:
+	# 	print("Computing pieces...")
+	# 	corpus = get_framewise_labels_unlabeled(c, pieces, resolution=resolution) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float, 'chord_change': array},  ...}
+	# 	save_data(corpus, corpus_file)
 
-def load_data_functional(dir, test_set_id=1, sequence_with_overlap=True):
-		if test_set_id not in [1, 2, 3, 4]:
-				print('Invalid testing_set_id.')
-				exit(1)
+	pieces = load_pieces(c, resolution=resolution) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float}...}
+	corpus = get_framewise_labels_unlabeled(c, pieces, resolution=resolution) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float, 'chord_change': array},  ...}
+	pianoroll_lens = [x['pianoroll'].shape[1] for x in list(corpus.values())]
+	print('max_length =', max(pianoroll_lens))
+	print('min_length =', min(pianoroll_lens))
+	print('keys in corpus[\'piece_id\'] =', list(corpus.values())[0].keys())
+	return corpus
 
-		print("Load functional harmony data ...")
-		print('test_set_id =', test_set_id)
-		with open(dir, 'rb') as file:
-				corpus_aug_reshape = pickle.load(file)
+def augment_data(corpus):
+		print('Running Message: augment data...')
+		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10'), ('chord_change', 'int')] # label datatype
+		chroma_scale = ['C', 'C+', 'D', 'D+', 'E', 'F', 'F+', 'G', 'G+', 'A', 'A+', 'B']
+		def shift_labels(label, shift):
+				def shift_key(key, shift):
+						accidental = '' if len(key) == 1 else key[1]
+						key_without_accidental = key[0]
+						key_id_shift = (chroma_scale.index(key_without_accidental.upper()) + shift) % 12
+						if accidental != '':
+								key_id_shift = (key_id_shift + 1)%12 if accidental == '+' else (key_id_shift - 1) % 12
+						key_shift = chroma_scale[key_id_shift]
+						if key_without_accidental.islower():
+								key_shift = key_shift.lower()
+						return key_shift
+				def shift_root(root, shift):
+						root_id_shift = (chroma_scale.index(root) + shift) % 12
+						return chroma_scale[root_id_shift]
+				return (label['op'], label['onset'], shift_key(label['key'], shift), label['degree1'], label['degree2'], label['quality'], label['inversion'], label['rchord'], shift_root(label['root'], shift), label['tquality'], label['chord_change'])
+
+		corpus_aug = {}
+		for shift in range(-3,7):
+				shift_id = 'shift_' + str(shift)
+				corpus_aug[shift_id] = {}
+				for op in range(1,33):
+						pianoroll_shift = np.roll(corpus[str(op)]['pianoroll'], shift=shift, axis=0)
+						chromagram_shift = np.roll(corpus[str(op)]['chromagram'], shift=shift, axis=0)
+						tonal_centroid = compute_Tonal_centroids(chromagram_shift)
+						start_time = corpus[str(op)]['start_time']
+						labels_shift = np.array([shift_labels(l, shift) for l in corpus[str(op)]['label']], dtype=dt)
+						corpus_aug[shift_id][str(op)] = {'pianoroll': pianoroll_shift, 'tonal_centroid': tonal_centroid, 'start_time': start_time, 'label': labels_shift}
+		print('keys in corpus_aug[\'shift_id\'][\'op\'] =', corpus_aug['shift_0']['1'].keys())
+		return corpus_aug
+
+# def augment_data_unlabeled(c, corpus):
+# 		print('Running Message: augment data unlabeled...')
+# 		chroma_scale = ['C', 'C+', 'D', 'D+', 'E', 'F', 'F+', 'G', 'G+', 'A', 'A+', 'B']
+# 		corpus_aug = {}
+# 		for shift in range(-3,7):
+# 				shift_id = 'shift_' + str(shift)
+# 				corpus_aug[shift_id] = {}
+# 				base_dir = "/home/ubuntu/project/datasets/"
+				
+# 				for composer_folder in os.listdir(base_dir):
+# 					composer_path = os.path.join(base_dir, composer_folder)
+# 					if not os.path.isdir(composer_path) or not composer_folder.startswith(c):# (composer_folder.startswith(c[0]) and composer_folder[:2] <= c):
+# 						continue
+					
+# 					for subfolder in ['classical_piano_midi_db', 'kunstderfuge']:
+# 						subfolder_path = os.path.join(composer_path, subfolder)
+# 						if not os.path.isdir(subfolder_path):
+# 							continue
+						
+# 						for piece_name in os.listdir(subfolder_path):
+# 							piece_folder_path = os.path.join(subfolder_path, piece_name)
+# 							if os.path.isdir(piece_folder_path) and not any(s == piece_name for s in ['estimations', 'read']) and glob.glob(os.path.join(piece_folder_path, '*_motives3.txt')):
+# 								fileDir = os.path.join(piece_folder_path, piece_name + ".csv")
+# 								pianoroll_shift = np.roll(corpus[piece_name]['pianoroll'], shift=shift, axis=0)
+# 								chromagram_shift = np.roll(corpus[piece_name]['chromagram'], shift=shift, axis=0)
+# 								tonal_centroid = compute_Tonal_centroids(chromagram_shift)
+# 								start_time = corpus[piece_name]['start_time']
+# 								corpus_aug[shift_id][piece_name] = {'pianoroll': pianoroll_shift, 'tonal_centroid': tonal_centroid, 'start_time': start_time}
+
+# 		print('keys in corpus_aug[\'shift_id\'][\'piece_name\'] =', list(corpus_aug['shift_0'].values())[0].keys())
+# 		return corpus_aug
+
+def reshape_data(corpus_aug, n_steps=128, hop_size=16):
+		'''n_steps: default = 128 frames (equals to 32 quater notes)
+				 hop_size: default = 16 frames (equals to 4 quater notes)'''
+		print('Running Message: reshape data...')
+		corpus_aug_reshape = copy.deepcopy(corpus_aug)
+		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10'), ('chord_change', 'int')]  # label datatype
+		for shift_id, op_dict in corpus_aug.items():
+				for op,  piece in op_dict.items():
+						label_padding = np.array([(op, -1, 'pad', 'pad', 'pad', 'pad', -1, 'pad', 'pad', 'pad', 0)], dtype=dt)
+						length = piece['pianoroll'].shape[1]
+						n_pad = n_steps - (length % n_steps) if length % n_steps != 0 else 0
+						n_sequences = (length + n_pad)//n_steps
+						n_overlapped_sequences = (n_sequences - 1) * (n_steps//hop_size) + 1
+
+						# padding
+						pianoroll_pad = np.pad(piece['pianoroll'], [(0, 0), (0, n_pad)], 'constant').T # [time, 88]
+						tonal_centroid_pad = np.pad(piece['tonal_centroid'], [(0, 0), (0, n_pad)], 'constant').T # [time, 6]
+						label_pad = np.pad(piece['label'], (0, n_pad), 'constant', constant_values=label_padding) # [time]
+
+						# segment into sequences without overlap
+						corpus_aug_reshape[shift_id][op]['pianoroll'] = [np.reshape(pianoroll_pad, newshape=[-1, n_steps, 88])]
+						corpus_aug_reshape[shift_id][op]['tonal_centroid'] = [np.reshape(tonal_centroid_pad, newshape=[-1, n_steps, 6])]
+						corpus_aug_reshape[shift_id][op]['label'] = [np.reshape(label_pad, newshape=[-1, n_steps])]
+						seq_lens = [n_steps for _ in range(n_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_sequences)]
+						corpus_aug_reshape[shift_id][op]['len'] = [np.array(seq_lens, dtype=np.int32)]
+
+						# segment into sequences with overlap
+						corpus_aug_reshape[shift_id][op]['pianoroll'].append(np.stack([pianoroll_pad[i:i+n_steps] for i in range(0,length+n_pad-n_steps+1, hop_size)], axis=0))
+						corpus_aug_reshape[shift_id][op]['tonal_centroid'].append(np.stack([tonal_centroid_pad[i:i+n_steps] for i in range(0,length+n_pad-n_steps+1, hop_size)], axis=0))
+						corpus_aug_reshape[shift_id][op]['label'].append(np.stack([label_pad[i:i+n_steps] for i in range(0,length+n_pad-n_steps+1, hop_size)], axis=0))
+						overlapped_seq_lens = [n_steps for _ in range(n_overlapped_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_overlapped_sequences)]
+						corpus_aug_reshape[shift_id][op]['len'].append(np.array(overlapped_seq_lens, dtype=np.int32))
+
+						'''corpus_aug_reshape[shift_id][op]['key'][0]: non-overlaped sequences
+												corpus_aug_reshape[shift_id][op]['key'][1]: overlapped sequences'''
 		print('keys in corpus_aug_reshape[\'shift_id\'][\'op\'] =', corpus_aug_reshape['shift_0']['1'].keys())
+		print('sequence_len_non_overlaped =', sorted(set([l for shift_dict in corpus_aug_reshape.values() for op_dict in shift_dict.values() for l in op_dict['len'][0]])))
+		print('sequence_len_overlaped =', sorted(set([l for shift_dict in corpus_aug_reshape.values() for op_dict in shift_dict.values() for l in op_dict['len'][1]])))
+		return corpus_aug_reshape
 
-		shift_list = sorted(corpus_aug_reshape.keys())
-		number_of_pieces = len(corpus_aug_reshape['shift_0'].keys())
-		train_op_list = [str(i + 1) for i in range(number_of_pieces) if i % 4 + 1 != test_set_id]
-		test_op_list = [str(i + 1) for i in range(number_of_pieces) if i % 4 + 1 == test_set_id]
-		print('shift_list =', shift_list)
-		print('train_op_list =', train_op_list)
-		print('test_op_list =', test_op_list)
+def reshape_data_unlabeled(corpus_reshape, n_steps=128, hop_size=16):
+		'''n_steps: default = 128 frames (equals to 32 quater notes)
+				 hop_size: default = 16 frames (equals to 4 quater notes)'''
+		print('Running Message: reshape data...')
+		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10'), ('chord_change', 'int')]  # label datatype
+		# print("CORPUS RESHAPE", corpus_reshape)
+		for piece_name, piece in corpus_reshape.items():
+			label_padding = np.array([(piece_name, -1, 'pad', 'pad', 'pad', 'pad', -1, 'pad', 'pad', 'pad', 0)], dtype=dt)
+			length = piece['pianoroll'].shape[1]
+			n_pad = n_steps - (length % n_steps) if length % n_steps != 0 else 0
+			n_sequences = (length + n_pad)//n_steps
+			n_overlapped_sequences = (n_sequences - 1) * (n_steps//hop_size) + 1
 
-		overlap = int(sequence_with_overlap)
+			# padding
+			pianoroll_pad = np.pad(piece['pianoroll'], [(0, 0), (0, n_pad)], 'constant').T # [time, 88]
 
-		# Training set
-		train_data = {'pianoroll': np.concatenate([corpus_aug_reshape[shift_id][op]['pianoroll'][overlap] for shift_id in shift_list for op in train_op_list], axis=0),
-									'tonal_centroid': np.concatenate([corpus_aug_reshape[shift_id][op]['tonal_centroid'][overlap] for shift_id in shift_list for op in train_op_list], axis=0),
-									'len': np.concatenate([corpus_aug_reshape[shift_id][op]['len'][overlap] for shift_id in shift_list for op in train_op_list], axis=0),
-									'label': np.concatenate([corpus_aug_reshape[shift_id][op]['label'][overlap] for shift_id in shift_list for op in train_op_list], axis=0)}
+			# segment into sequences without overlap
+			corpus_reshape[piece_name]['pianoroll'] = np.reshape(pianoroll_pad, newshape=[-1, n_steps, 88])
+			seq_lens = [n_steps for _ in range(n_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_sequences)]
+			corpus_reshape[piece_name]['len'] = np.array(seq_lens, dtype=np.int32)
 
-		train_data_label_key = np.zeros_like(train_data['label'], dtype=np.int32)
-		train_data_label_degree1 = np.zeros_like(train_data['label'], dtype=np.int32)
-		train_data_label_degree2 = np.zeros_like(train_data['label'], dtype=np.int32)
-		train_data_label_quality = np.zeros_like(train_data['label'], dtype=np.int32)
-		train_data_label_inversion = train_data['label']['inversion']
+		print('keys in corpus_reshape[\'piece_name\'] =', list(corpus_reshape.values())[0].keys())
+		print('sequence_len_non_overlaped =', sorted(set([l for piece in corpus_reshape.values() for l in piece['len']])))
+		return corpus_reshape
 
-		# Functional harmony labels
-		'''key: 42'''
-		for k, v in key_dict.items():
-				train_data_label_key[train_data['label']['key'] == k] = v
-		'''degree1: 9'''
-		for k, v in degree1_dict.items():
-				train_data_label_degree1[train_data['label']['degree1'] == k] = v
-		'''degree2: 14'''
-		for k, v in degree2_dict.items():
-				train_data_label_degree2[train_data['label']['degree2'] == k] = v
-		'''quality: 10'''
-		for k, v in quality_dict.items():
-				train_data_label_quality[train_data['label']['quality'] == k] = v
-		'''inversion: 4'''
-		train_data_label_inversion[train_data_label_inversion == -1] = 4
-		'''roman numeral: (degree1, degree2, quality, inversion)'''
-		train_data_label_roman = train_data_label_degree1 * 14 * 10 * 4 + train_data_label_degree2 * 10 * 4 + train_data_label_quality * 4 + train_data_label_inversion
-		train_data_label_roman[train_data['label']['key'] == 'pad'] = 9 * 14 * 10 * 4
+def compute_Tonal_centroids(chromagram, filtering=True, sigma=8):
+		# define transformation matrix - phi
+		Pi = math.pi
+		r1, r2, r3 = 1, 1, 0.5
+		phi_0 = r1 * np.sin(np.array(range(12)) * 7 * Pi / 6)
+		phi_1 = r1 * np.cos(np.array(range(12)) * 7 * Pi / 6)
+		phi_2 = r2 * np.sin(np.array(range(12)) * 3 * Pi / 2)
+		phi_3 = r2 * np.cos(np.array(range(12)) * 3 * Pi / 2)
+		phi_4 = r3 * np.sin(np.array(range(12)) * 2 * Pi / 3)
+		phi_5 = r3 * np.cos(np.array(range(12)) * 2 * Pi / 3)
+		phi_ = [phi_0, phi_1, phi_2, phi_3, phi_4, phi_5]
+		phi = np.concatenate(phi_).reshape(6, 12) # [6, 12]
+		phi_T = np.transpose(phi) # [12, 6]
 
-		train_data['key'] = train_data_label_key
-		train_data['degree1'] = train_data_label_degree1
-		train_data['degree2'] = train_data_label_degree2
-		train_data['quality'] = train_data_label_quality
-		train_data['inversion'] = train_data_label_inversion
-		train_data['roman'] = train_data_label_roman
+		chromagram_T = np.transpose(chromagram) # [time, 12]
+		TC_T = chromagram_T.dot(phi_T) # convert to tonal centiod representations, [time, 6]
+		TC = np.transpose(TC_T) # [6, time]
+		if filtering: # Gaussian filtering
+				TC = gaussian_filter1d(TC, sigma=sigma, axis=1)
+		return TC.astype(np.float32) # [6, time]
 
-		# Test set
-		test_data = {'pianoroll': np.concatenate([corpus_aug_reshape['shift_0'][op]['pianoroll'][0] for op in test_op_list], axis=0),
-								 'tonal_centroid': np.concatenate([corpus_aug_reshape['shift_0'][op]['tonal_centroid'][0] for op in test_op_list], axis=0),
-								 'len': np.concatenate([corpus_aug_reshape['shift_0'][op]['len'][0] for op in test_op_list], axis=0),
-								 'label': np.concatenate([corpus_aug_reshape['shift_0'][op]['label'][0] for op in test_op_list], axis=0)}
+key_dict = {'C': 0, 'C-': 11, 'C+': 1,
+						'D': 2, 'D-': 1, 'D+': 3,
+						'E': 4, 'E-': 3, 'E+': 5,
+						'F': 5, 'F-': 4, 'F+': 6,
+						'G': 7, 'G-': 6, 'G+': 8,
+						'A': 9, 'A-': 8, 'A+': 10,
+						'B': 11, 'B-': 10, 'B+': 0,
+						'c': 12, 'c-': 23, 'c+': 13,
+						'd': 14, 'd-': 13, 'd+': 15,
+						'e': 16, 'e-': 15, 'e+': 17,
+						'f': 17, 'f-': 16, 'f+': 18,
+						'g': 19, 'g-': 18, 'g+': 20,
+						'a': 21, 'a-': 20, 'a+': 22,
+						'b': 23, 'b-': 22, 'b+': 12,
+						'PAD': 24}
+quality_dict = {'M': 0, 'm': 1, 'a': 2, 'd': 3, 'M7': 4, 'm7': 5, 'D7': 6, 'd7': 7, 'h7': 8, 'a6': 9, 'PAD': 10}
 
-		test_data_label_key = np.zeros_like(test_data['label'], dtype=np.int32)
-		test_data_label_degree1 = np.zeros_like(test_data['label'], dtype=np.int32)
-		test_data_label_degree2 = np.zeros_like(test_data['label'], dtype=np.int32)
-		test_data_label_quality = np.zeros_like(test_data['label'], dtype=np.int32)
-		test_data_label_inversion = test_data['label']['inversion']
+def rlabel_indexing(labels):
+		def analyze_label(label):
+				def analyze_degree(degree):
+						if '/' not in degree:
+								pri_degree = 1
+								sec_degree = translate_degree(degree)
+						else:
+								sec_degree = degree.split('/')[0]
+								pri_degree = degree.split('/')[1]
+								sec_degree = translate_degree(sec_degree)
+								pri_degree = translate_degree(pri_degree)
+						return pri_degree, sec_degree
+				key = label['key']
+				degree = label['degree']
+				quality = label['quality']
+				inversion = label['inversion']
 
-		# Functional harmony labels
-		'''key: 42'''
-		for k, v in key_dict.items():
-				test_data_label_key[test_data['label']['key'] == k] = v
-		'''degree1: 9'''
-		for k, v in degree1_dict.items():
-				test_data_label_degree1[test_data['label']['degree1'] == k] = v
-		'''degree2: 14'''
-		for k, v in degree2_dict.items():
-				test_data_label_degree2[test_data['label']['degree2'] == k] = v
-		'''quality: 10'''
-		for k, v in quality_dict.items():
-				test_data_label_quality[test_data['label']['quality'] == k] = v
-		'''inversion: 4'''
-		test_data_label_inversion[test_data_label_inversion == -1] = 4
-		'''roman numeral'''
-		test_data_label_roman = test_data_label_degree1 * 14 * 10 * 4 + test_data_label_degree2 * 10 * 4 + test_data_label_quality * 4 + test_data_label_inversion
-		test_data_label_roman[test_data['label']['key'] == 'pad'] = 9 * 14 * 10 * 4
+				key_idx = key_dict[key]
+				pri_degree, sec_degree = analyze_degree(degree)
+				pri_degree_idx = pri_degree - 1
+				sec_degree_idx = sec_degree - 1
+				quality_idx = quality_dict[quality]
+				inversion_idx = inversion
+				return (key_idx, pri_degree_idx, sec_degree_idx, quality_idx, inversion_idx)
+		dt = [('key', int), ('pri_degree', int), ('sec_degree', int), ('quality', int), ('inversion', int)]
+		return np.array([analyze_label(label) for label in labels], dtype=dt)
 
-		test_data['key'] = test_data_label_key
-		test_data['degree1'] = test_data_label_degree1
-		test_data['degree2'] = test_data_label_degree2
-		test_data['quality'] = test_data_label_quality
-		test_data['inversion'] = test_data_label_inversion
-		test_data['roman'] = test_data_label_roman
+def split_dataset(input_features, input_TC, input_labels, input_cc_labels, input_lengths, sequence_info):
+		print('Running Message: split dataset into training, validation and testing sets ...')
 
-		print('keys in train/test_data =', train_data.keys())
-		return train_data, test_data
+		## tChord_data_mirex_Mm_new_new
+		s1 = [0, 4, 8, 12, 16, 20, 24, 28]
+		s2 = [1, 5, 9, 13, 17, 21, 25, 29]
+		s3 = [2, 6, 10, 14, 18, 22, 26, 30]
+		s4 = [3, 7, 11, 15, 19, 23, 27, 31]
+		train_indices = s1 + s2
+		valid_indices = s3
+		test_indices = s4
 
-def compute_pre_PRF(predicted, actual):
-		predicted = tf.cast(predicted, tf.float32)
-		actual = tf.cast(actual, tf.float32)
-		TP = tf.count_nonzero(predicted * actual, dtype=tf.float32)
-		# TN = tf.count_nonzero((predicted - 1) * (actual - 1), dtype=tf.float32)
-		FP = tf.count_nonzero(predicted * (actual - 1), dtype=tf.float32)
-		FN = tf.count_nonzero((predicted - 1) * actual, dtype=tf.float32)
-		return TP, FP, FN
+		feature_train = np.concatenate([input_features[m][p] for m in range(12) for p in train_indices], axis=0)
+		feature_valid = np.concatenate([input_features[m][p] for m in range(12) for p in valid_indices], axis=0)
+		feature_test = np.concatenate([input_features[0][p][::2] for p in test_indices], axis=0)
 
-def comput_PRF_with_pre(TP, FP, FN):
-		precision = TP / (TP + FP)
-		recall = TP / (TP + FN)
-		F1 = 2 * precision * recall / (precision + recall)
-		precision = tf.cond(tf.is_nan(precision), lambda: tf.constant(0.0), lambda: precision)
-		recall = tf.cond(tf.is_nan(recall), lambda: tf.constant(0.0), lambda: recall)
-		F1 = tf.cond(tf.is_nan(F1), lambda: tf.constant(0.0), lambda: F1)
-		return precision, recall, F1
+		TC_train = np.concatenate([input_TC[m][p] for m in range(12) for p in train_indices], axis=0)
+		TC_valid = np.concatenate([input_TC[m][p] for m in range(12) for p in valid_indices], axis=0)
+		TC_test = np.concatenate([input_TC[0][p][::2] for p in test_indices], axis=0)
 
-def save_data(save_dir, data, pred_cc_values, pred_k_values, pred_r_values, eval_mask_values):
-		os.makedirs(save_dir, exist_ok=True)
+		labels_train = np.concatenate([input_labels[m][p] for m in range(12) for p in train_indices], axis=0)
+		labels_valid = np.concatenate([input_labels[m][p] for m in range(12) for p in valid_indices], axis=0)
+		labels_test = np.concatenate([input_labels[0][p][::2] for p in test_indices], axis=0)
 
-		data_file = os.path.join(save_dir, 'data.pickle')
-		with open(data_file, 'wb') as f:
-				pickle.dump(data, f)
-				print("Saved", data_file)
-		
-		pred_cc_file = os.path.join(save_dir, 'pred_cc_values.pickle')
-		with open(pred_cc_file, 'wb') as f:
-				pickle.dump(pred_cc_values, f)
-				print("Saved", pred_cc_file)
-		
-		pred_k_file = os.path.join(save_dir, 'pred_k_values.pickle')
-		with open(pred_k_file, 'wb') as f:
-				pickle.dump(pred_k_values, f)
-				print("Saved", pred_k_file)
-				
-		pred_r_file = os.path.join(save_dir, 'pred_r_values.pickle')
-		with open(pred_r_file, 'wb') as f:
-				pickle.dump(pred_r_values, f)
-				print("Saved", pred_r_file)
-				
-		eval_mask_file = os.path.join(save_dir, 'eval_mask_values.pickle')
-		with open(eval_mask_file, 'wb') as f:
-				pickle.dump(eval_mask_values, f)
-				print("Saved", eval_mask_file)
+		cc_labels_train = np.concatenate([input_cc_labels[p] for m in range(12) for p in train_indices], axis=0)
+		cc_labels_valid = np.concatenate([input_cc_labels[p] for m in range(12) for p in valid_indices], axis=0)
+		cc_labels_test = np.concatenate([input_cc_labels[p][::2] for p in test_indices], axis=0)
 
-def train_HT():
-		print('Run HT functional harmony recognition on %s-%d...' % (hp.dataset, hp.test_set_id))
+		lens_train = list(itertools.chain.from_iterable([input_lengths[p] for m in range(12) for p in train_indices]))
+		lens_valid = list(itertools.chain.from_iterable([input_lengths[p] for m in range(12) for p in valid_indices]))
+		lens_test = list(itertools.chain.from_iterable([input_lengths[p][::2] for p in test_indices]))
 
-		# Load training and testing data
-		train_data, test_data = load_data_functional(dir=hp.dataset + '_preprocessed_data_MIREX_Mm.pickle', test_set_id=hp.test_set_id, sequence_with_overlap=hp.train_sequence_with_overlap)
-		n_train_sequences = train_data['pianoroll'].shape[0]
-		n_test_sequences = test_data['pianoroll'].shape[0]
-		n_iterations_per_epoch = int(math.ceil(n_train_sequences/hp.n_batches))
-		print('n_train_sequences =', n_train_sequences)
-		print('n_test_sequences =', n_test_sequences)
-		print('n_iterations_per_epoch =', n_iterations_per_epoch)
-		print(hp)
+		split_sets = {}
+		split_sets['train'] = [sequence_info[p] for p in train_indices]
+		split_sets['valid'] = [sequence_info[p] for p in valid_indices]
+		split_sets['test'] = [(sequence_info[p][0], sequence_info[p][1]//2+1)  for p in test_indices]
+		return feature_train, feature_valid, feature_test, \
+					 TC_train, TC_valid, TC_test, \
+					 labels_train, labels_valid, labels_test, \
+					 cc_labels_train, cc_labels_valid, cc_labels_test, \
+					 lens_train, lens_valid, lens_test, \
+					 split_sets
 
-		with tf.name_scope('placeholder'):
-				x_p = tf.placeholder(tf.int32, [None, hp.n_steps, 88], name="pianoroll")
-				x_len = tf.placeholder(tf.int32, [None], name="seq_lens")
-				y_k = tf.placeholder(tf.int32, [None, hp.n_steps], name="key") # 7 degrees * 3 accidentals * 2 modes = 42
-				y_r = tf.placeholder(tf.int32, [None, hp.n_steps], name="roman_numeral")
-				y_cc = tf.placeholder(tf.int32, [None, hp.n_steps], name="chord_change")
-				dropout = tf.placeholder(dtype=tf.float32, name="dropout_rate")
-				is_training = tf.placeholder(dtype=tf.bool, name="is_training")
-				global_step = tf.placeholder(dtype=tf.int32, name='global_step')
-				slope = tf.placeholder(dtype=tf.float32, name='annealing_slope')
+def derive_chordSymbol_from_romanNumeral(labels, vocabulary):
+		# Create scales of all keys
+		temp = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+		keys = {}
+		for i in range(11):
+				majtonic = temp[(i * 4) % 7] + int(i / 7) * '+' + int(i % 7 > 5) * '+'
+				mintonic = temp[(i * 4 - 2) % 7].lower() + int(i / 7) * '+' + int(i % 7 > 2) * '+'
 
-		with tf.name_scope('model'):
-				x_in = tf.cast(x_p, tf.float32)
-				source_mask = tf.sequence_mask(lengths=x_len, maxlen=hp.n_steps, dtype=tf.float32) # [n_batches, n_steps]
-				target_mask = source_mask
-				# chord_change_logits, dec_input_embed, enc_weights, dec_weights = crm.HT(x_in, source_mask, target_mask, slope, dropout, is_training, hp)
-				chord_change_logits, dec_input_embed, enc_weights, dec_weights, _, _ = crm.HTv2(x_in, source_mask, target_mask, slope, dropout, is_training, hp)
+				scale = list(temp)
+				for j in range(i):
+						scale[(j + 1) * 4 % 7 - 1] += '+'
+				majscale = scale[(i * 4) % 7:] + scale[:(i * 4) % 7]
+				minscale = scale[(i * 4 + 5) % 7:] + scale[:(i * 4 + 5) % 7]
+				minscale[6] += '+'
+				keys[majtonic] = majscale
+				keys[mintonic] = minscale
 
-		with tf.variable_scope("output_projection"):
-				n_key_classes = 42 + 1
-				n_roman_classes = 9 * 14 * 10 * 4 + 1
-				dec_input_embed = tf.layers.dropout(dec_input_embed, rate=dropout, training=is_training)
-				key_logits = tf.layers.dense(dec_input_embed, n_key_classes)
-				roman_logits = tf.layers.dense(dec_input_embed, n_roman_classes)
+		for i in range(1, 9):
+				majtonic = temp[(i * 3) % 7] + int(i / 7) * '-' + int(i % 7 > 1) * '-'
+				mintonic = temp[(i * 3 - 2) % 7].lower() + int(i / 7) * '-' + int(i % 7 > 4) * '-'
+				scale = list(temp)
+				for j in range(i):
+						scale[(j + 2) * 3 % 7] += '-'
+				majscale = scale[(i * 3) % 7:] + scale[:(i * 3) % 7]
+				minscale = scale[(i * 3 + 5) % 7:] + scale[:(i * 3 + 5) % 7]
+				if len(minscale[6]) == 1:
+						minscale[6] += '+'
+				else:
+						minscale[6] = minscale[6][:-1]
+				keys[majtonic] = majscale
+				keys[mintonic] = minscale
 
-		with tf.name_scope('loss'):
-				# Chord change
-				loss_cc = 4 * tf.losses.sigmoid_cross_entropy(multi_class_labels=tf.cast(y_cc, tf.float32), logits=slope*chord_change_logits, weights=source_mask)
-				# Key
-				loss_k = tf.losses.softmax_cross_entropy(onehot_labels=tf.one_hot(y_k, n_key_classes), logits=key_logits, weights=target_mask, label_smoothing=0.01)
-				# Roman numeral
-				loss_r = 0.5 * tf.losses.softmax_cross_entropy(onehot_labels=tf.one_hot(y_r, n_roman_classes), logits=roman_logits, weights=target_mask, label_smoothing=0.0)
-				# Total loss
-				loss = loss_cc + loss_k + loss_r
-		valid = tf.reduce_sum(target_mask)
-		summary_loss = tf.Variable([0.0 for _ in range(4)], trainable=False, dtype=tf.float32)
-		summary_valid = tf.Variable(0.0, trainable=False, dtype=tf.float32)
-		update_loss = tf.assign(summary_loss, summary_loss + valid * [loss, loss_cc, loss_k, loss_r])
-		update_valid = tf.assign(summary_valid, summary_valid + valid)
-		mean_loss = tf.assign(summary_loss, summary_loss / summary_valid)
-		clr_summary_loss = summary_loss.initializer
-		clr_summary_valid = summary_valid.initializer
-		tf.summary.scalar('Loss_total', summary_loss[0])
-		tf.summary.scalar('Loss_chord_change', summary_loss[1])
-		tf.summary.scalar('Loss_key', summary_loss[2])
-		tf.summary.scalar('Loss_roman', summary_loss[3])
+		# Translate chords
+		tchords = []
+		for rchord in labels:
+				# print(str(rchord['key'])+': '+str(rchord['degree'])+', '+str(rchord['quality']))
+				key = str(rchord['key'])
+				degree1 = rchord['degree1']
+				degree2 = rchord['degree2']
 
-		with tf.name_scope('evaluation'):
-				eval_mask = tf.cast(target_mask, tf.bool)
-				# Chord change
-				pred_cc = tf.cast(tf.round(tf.sigmoid(slope*chord_change_logits)), tf.int32)
-				pred_cc_mask = tf.boolean_mask(pred_cc, tf.cast(source_mask, tf.bool))
-				y_cc_mask = tf.boolean_mask(y_cc, tf.cast(source_mask, tf.bool))
-				TP_cc, FP_cc, FN_cc = compute_pre_PRF(pred_cc_mask, y_cc_mask)
-				# Key
-				pred_k = tf.argmax(key_logits, axis=2, output_type=tf.int32)
-				pred_k_correct = tf.equal(pred_k, y_k)
-				pred_k_correct_mask = tf.boolean_mask(tensor=pred_k_correct, mask=eval_mask)
-				n_correct_k = tf.reduce_sum(tf.cast(pred_k_correct_mask, tf.float32))
-				# Roman numeral
-				pred_r = tf.argmax(roman_logits, axis=2, output_type=tf.int32)
-				pred_r_correct = tf.equal(pred_r, y_r)
-				pred_r_correct_mask = tf.boolean_mask(tensor=pred_r_correct, mask=eval_mask)
-				n_correct_r = tf.reduce_sum(tf.cast(pred_r_correct_mask, tf.float32))
-				n_total = tf.cast(tf.size(pred_r_correct_mask), tf.float32)
-		summary_count = tf.Variable([0.0 for _ in range(6)], trainable=False, dtype=tf.float32)
-		summary_score = tf.Variable([0.0 for _ in range(5)], trainable=False, dtype=tf.float32)
-		update_count = tf.assign(summary_count, summary_count + [n_correct_k, n_correct_r, n_total, TP_cc, FP_cc, FN_cc])
-		acc_k = summary_count[0] / summary_count[2]
-		acc_r = summary_count[1] / summary_count[2]
-		P_cc, R_cc, F1_cc = comput_PRF_with_pre(summary_count[3], summary_count[4], summary_count[5])
-		update_score = tf.assign(summary_score, summary_score + [acc_k, acc_r, P_cc, R_cc, F1_cc])
-		clr_summary_count = summary_count.initializer
-		clr_summary_score = summary_score.initializer
-		tf.summary.scalar('Accuracy_key', summary_score[0])
-		tf.summary.scalar('Accuracy_roman', summary_score[1])
-		tf.summary.scalar('Precision_cc', summary_score[2])
-		tf.summary.scalar('Recall_cc', summary_score[3])
-		tf.summary.scalar('F1_cc', summary_score[4])
+				if degree1 == '1':  # case: not secondary chord
+						if len(degree2) == 1: # case: degree = x
+								degree = int(degree2)
+								root = keys[key][degree-1]
+						else: # case: degree = -x or +x
+								if str(rchord['quality']) != 'a6': # case: chromatic chord, -x
+										degree = int(degree2[1])
+										root = keys[key][degree-1]
+										if '+' not in root:
+												root += degree2[0]
+										else:
+												root = root[:-1]
+								else:  # case: augmented 6th
+										degree = 6
+										root = keys[key][degree - 1]
+										if str(rchord['key'])[0].isupper():  # case: major key
+												if '+' not in root:
+														root += '-'
+												else:
+														root = root[:-1]
 
-		with tf.name_scope('optimization'):
-				# Apply warn-up learning rate
-				warm_up_steps = tf.constant(4000, dtype=tf.float32)
-				gstep = tf.cast(global_step, dtype=tf.float32)
-				learning_rate = pow(hp.input_embed_size, -0.5) * tf.minimum(tf.pow(gstep, -0.5), gstep * tf.pow(warm_up_steps, -1.5))
-				optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate,
-																					 beta1=0.9,
-																					 beta2=0.98,
-																					 epsilon=1e-9)
-				train_op = optimizer.minimize(loss)
-		# Graph location and summary writers
-		# print('Saving graph to: %s' % hp.graph_location)
-		# merged = tf.summary.merge_all()
-		# train_writer = tf.summary.FileWriter(hp.graph_location + '/train')
-		# test_writer = tf.summary.FileWriter(hp.graph_location + '/test')
-		# train_writer.add_graph(tf.get_default_graph())
-		# test_writer.add_graph(tf.get_default_graph())
-		saver = tf.train.Saver(max_to_keep=1)
-
-		def predict():
-			with tf.Session() as sess:
-				saver.restore(sess, 'model_results/HT_functional_harmony_recognition_' + hp.dataset + '_' + str(hp.test_set_id) + '.ckpt')
-				print("Model restored.")
-
-				process_list = ['v']#[x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 
-				for c in process_list:
-					filepath = f"/home/ubuntu/project/Harmony-Transformer-v2/preprocessed/datasets_{c}_MIREX_Mm/corpus_reshape.pickle"
-					print(f"PROCESSING: {filepath}")
-
-					data = load_data_unlabeled(filepath)
-					print("Data loaded from", filepath)
-
-					# for chunk_idx, data in enumerate(data_chunks):
-					feed_dict = {
-							x_p: data['pianoroll'],
-							x_len: data['len'],
-							dropout: 0.0,
-							is_training: False,
-							slope: 1.771561000000001 # best annealing slope from the saved train run
-					}
-
-					# Define the operations to run (predictions)
-					predictions = [pred_cc, pred_k, pred_r, eval_mask]
-
-					# Run the session to get predictions
-					pred_cc_values, pred_k_values, pred_r_values, eval_mask_values = sess.run(predictions, feed_dict=feed_dict)
-
-					print('Chord Change Predictions:', pred_cc_values)
-					print('Key Predictions:', pred_k_values)
-					print('Roman Numeral Predictions:', pred_r_values)
-					print('Evaluation Mask:', eval_mask_values)
-
-					parent_dir = os.path.dirname(filepath)
-					save_data(parent_dir, data, pred_cc_values, pred_k_values, pred_r_values, eval_mask_values)
-					print(f"FINISHED PROCESSING: {filepath}")
-			return 
-
-		predict()
-		sys.exit(0)
-		# ------------------------------ STOP HERE FOR UNLABELED DATA PREDICTION --------------------------------
-		
-		# Training
-		print('Train the model...')
-		with tf.Session() as sess:
-				sess.run(tf.global_variables_initializer())
-				startTime = time.time() # start time of training
-				best_score = [0.0 for _ in range(6)]
-				in_succession = 0
-				best_epoch = 0
-				annealing_slope = 1.0
-				best_slope = 0.0
-				for step in range(hp.n_training_steps):
-						# Training
-						if step == 0:
-								indices = range(n_train_sequences)
-								batch_indices = [indices[x:x + hp.n_batches] for x in range(0, len(indices), hp.n_batches)]
-
-						if step > 0 and step % n_iterations_per_epoch == 0:
-								annealing_slope *= hp.annealing_rate
-
-						if step >= 2*n_iterations_per_epoch and step % n_iterations_per_epoch == 0:
-								# Shuffle training data
-								indices = random.sample(range(n_train_sequences), n_train_sequences)
-								batch_indices = [indices[x:x + hp.n_batches] for x in range(0, len(indices), hp.n_batches)]
-
-						batch = (train_data['pianoroll'][batch_indices[step % len(batch_indices)]],
-										 train_data['len'][batch_indices[step % len(batch_indices)]],
-										 train_data['label']['chord_change'][batch_indices[step % len(batch_indices)]],
-										 train_data['key'][batch_indices[step % len(batch_indices)]],
-										 train_data['roman'][batch_indices[step % len(batch_indices)]],
-										 train_data['degree1'][batch_indices[step % len(batch_indices)]],
-										 train_data['degree2'][batch_indices[step % len(batch_indices)]],
-										 train_data['quality'][batch_indices[step % len(batch_indices)]],
-										 train_data['inversion'][batch_indices[step % len(batch_indices)]],
-										 train_data['label']['key'][batch_indices[step % len(batch_indices)]])
-
-						train_run_list = [train_op, update_valid, update_loss, update_count, loss, loss_cc, loss_k, loss_r, pred_cc, pred_k, pred_r, eval_mask, enc_weights, dec_weights]
-						train_feed_fict = {x_p: batch[0],
-															 x_len: batch[1],
-															 y_cc: batch[2],
-															 y_k: batch[3],
-															 y_r: batch[4],
-															 dropout: hp.drop,
-															 is_training: True,
-															 global_step: step + 1,
-															 slope: annealing_slope}
-						_, _, _, _, train_loss, train_loss_cc, train_loss_k, train_loss_r, \
-						train_pred_cc, train_pred_k, train_pred_r, train_eval_mask, enc_w, dec_w = sess.run(train_run_list, feed_dict=train_feed_fict)
-						if step == 0:
-								print('*~ loss_cc %.4f, loss_k %.4f, loss_r %.4f ~*' % (train_loss_cc, train_loss_k, train_loss_r))
-
-						# Display training log & Testing
-						if step > 0 and step % n_iterations_per_epoch == 0:
-								sess.run([mean_loss, update_score])
-								train_summary, train_loss, train_score = sess.run([merged, summary_loss, summary_score])
-								sess.run([clr_summary_valid, clr_summary_loss, clr_summary_count, clr_summary_score])
-								train_writer.add_summary(train_summary, step)
-								print("---- step %d, epoch %d: train_loss: total %.4f (cc %.4f, k %.4f, r %.4f), evaluation: k %.4f, r %.4f, cc (P %.4f, R %.4f, F1 %.4f) ----"
-										% (step, step // n_iterations_per_epoch, train_loss[0], train_loss[1], train_loss[2], train_loss[3],
-											 train_score[0], train_score[1], train_score[2], train_score[3], train_score[4]))
-								print('enc_w =', enc_w, 'dec_w =', dec_w)
-								display_len = 32
-								n_just = 5
-								print('len =', batch[1][0])
-								print('y_k'.ljust(7, ' '), ''.join([b.rjust(n_just, ' ') for b in batch[9][0, :display_len]]))
-								print('y_d1'.ljust(7, ' '), ''.join([[k for k, v in degree1_dict.items() if v == b][0].rjust(n_just, ' ') for b in batch[5][0, :display_len]]))
-								print('y_d2'.ljust(7, ' '), ''.join([[k for k, v in degree2_dict.items() if v == b][0].rjust(n_just, ' ') for b in batch[6][0, :display_len]]))
-								print('y_q'.ljust(7, ' '), ''.join([[k for k, v in quality_dict.items() if v == b][0].rjust(n_just, ' ') for b in batch[7][0, :display_len]]))
-								print('y_inv'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in batch[8][0, :display_len]]))
-								print('valid'.ljust(7, ' '), ''.join(['y'.rjust(n_just, ' ') if b else 'n'.rjust(n_just, ' ') for b in train_eval_mask[0, :display_len]]))
-								print('y_cc'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in batch[2][0, :display_len]]))
-								print('pred_cc'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in train_pred_cc[0, :display_len]]))
-								print('y_k'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in batch[3][0, :display_len]]))
-								print('pred_k'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in train_pred_k[0, :display_len]]))
-								print('y_r'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in batch[4][0, :display_len]]))
-								print('pred_r'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in train_pred_r[0, :display_len]]))
-
-								# Testing
-								test_run_list = [update_valid, update_loss, update_count, pred_cc, pred_k, pred_r, eval_mask]
-								test_feed_fict = {x_p: test_data['pianoroll'],
-																	x_len: test_data['len'],
-																	y_cc: test_data['label']['chord_change'],
-																	y_k: test_data['key'],
-																	y_r: test_data['roman'],
-																	dropout: 0.0,
-																	is_training: False,
-																	slope: annealing_slope}
-								_, _, _, test_pred_cc, test_pred_k, test_pred_r, test_eval_mask = sess.run(test_run_list, feed_dict=test_feed_fict)
-								sess.run([mean_loss, update_score])
-								test_summary, test_loss, test_score = sess.run([merged, summary_loss, summary_score])
-								sess.run([clr_summary_valid, clr_summary_loss, clr_summary_count, clr_summary_score])
-								test_writer.add_summary(test_summary, step)
-
-								sq = crm.segmentation_quality(test_data['roman'], test_pred_r, test_data['len'])
-								print("==== step %d, epoch %d: test_loss: total %.4f (cc %.4f, k %.4f, r %.4f), evaluation: k %.4f, r %.4f, cc (P %.4f, R %.4f, F1 %.4f), sq %.4f ===="
-											% (step, step // n_iterations_per_epoch, test_loss[0], test_loss[1], test_loss[2], test_loss[3],
-												 test_score[0], test_score[1], test_score[2], test_score[3], test_score[4], sq))
-								sample_id = random.randint(0, n_test_sequences - 1)
-								print('len =', test_data['len'][sample_id])
-								print('y_k'.ljust(7, ' '), ''.join([b.rjust(n_just, ' ') for b in test_data['label']['key'][sample_id, :display_len]]))
-								print('y_d1'.ljust(7, ' '), ''.join([[k for k, v in degree1_dict.items() if v == b][0].rjust(n_just, ' ') for b in test_data['degree1'][sample_id, :display_len]]))
-								print('y_d2'.ljust(7, ' '), ''.join([[k for k, v in degree2_dict.items() if v == b][0].rjust(n_just, ' ') for b in test_data['degree2'][sample_id, :display_len]]))
-								print('y_q'.ljust(7, ' '), ''.join([[k for k, v in quality_dict.items() if v == b][0].rjust(n_just, ' ') for b in test_data['quality'][sample_id, :display_len]]))
-								print('y_inv'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_data['inversion'][sample_id, :display_len]]))
-								print('valid'.ljust(7, ' '), ''.join(['y'.rjust(n_just, ' ') if b else 'n'.rjust(n_just, ' ') for b in test_eval_mask[sample_id, :display_len]]))
-								print('y_cc'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_data['label']['chord_change'][sample_id, :display_len]]))
-								print('pred_cc'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_pred_cc[sample_id, :display_len]]))
-								print('y_k'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_data['key'][sample_id, :display_len]]))
-								print('pred_k'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_pred_k[sample_id, :display_len]]))
-								print('y_r'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_data['roman'][sample_id, :display_len]]))
-								print('pred_r'.ljust(7, ' '), ''.join([str(b).rjust(n_just, ' ') for b in test_pred_r[sample_id, :display_len]]))
-
-								if step > 0 and sum(test_score[:2]) > sum(best_score[:2]):
-										best_score = np.concatenate([test_score, [sq]], axis=0)
-										best_epoch = step // n_iterations_per_epoch
-										best_slope = annealing_slope
-										in_succession = 0
-										# Save variables of the model
-										print('*saving variables...\n')
-										saver.save(sess, hp.graph_location + '/HT_functional_harmony_recognition_' + hp.dataset + '_' + str(hp.test_set_id) + '.ckpt')
+				elif degree1 != '1': # case: secondary chord
+						d2 = int(degree2) if degree2 != '+4' else 6
+						d1 = int(degree1)
+						if d1 > 0:
+								key2 = keys[key][d1 - 1] # secondary key
+						else:
+								key2 = keys[key][abs(d1) - 1]  # secondary key
+								if '+' not in key2:
+										key2 += '-'
 								else:
-										in_succession += 1
-										if in_succession > hp.n_in_succession:
-												print('Early stopping.')
-												break
+										key2 = key2[:-1]
 
-				elapsed_time = time.time() - startTime
-				print('\nHT functional harmony recognition on %s-%d:' % (hp.dataset, hp.test_set_id))
-				print('training time = %.2f hr' % (elapsed_time / 3600))
-				print('best epoch = ', best_epoch)
-				print('best score =', np.round(best_score, 4))
-				print('best slope =', best_slope)
+						root = keys[key2][d2 - 1]
+						if degree2 == '+4' :
+								if key2.isupper(): # case: major key
+										if '+' not in root:
+												root += '-'
+										else:
+												root = root[:-1]
+
+				# Re-translate root for enharmonic equivalence
+				if '++' in root:  # if root = x++
+						root = temp[(temp.index(root[0]) + 1) % 7]
+				elif '--' in root:  # if root = x--
+						root = temp[(temp.index(root[0]) - 1) % 7]
+
+				if '-' in root:  # case: root = x-
+						if ('F' not in root) and ('C' not in root):  # case: root = x-, and x != F and C
+								root = temp[((temp.index(root[0])) - 1) % 7] + '+'
+						else:
+								root = temp[((temp.index(root[0])) - 1) % 7]  # case: root = x-, and x == F or C
+				elif ('+' in root) and ('E' in root or 'B' in root):  # case: root = x+, and x == E or B
+						root = temp[((temp.index(root[0])) + 1) % 7]
+
+				tquality = rchord['quality'] if rchord['quality'] != 'a6' else 'D7' # outputQ[rchord['quality']]
+
+				# tquality mapping
+				if vocabulary == 'MIREX_Mm':
+						tquality_map_dict = {'M': 'M', 'm': 'm', 'a': 'O', 'd': 'O', 'M7': 'M', 'D7': 'M', 'm7': 'm', 'h7': 'O', 'd7': 'O'} # 'O' stands for 'others'
+				elif vocabulary == 'MIREX_7th':
+						tquality_map_dict = {'M': 'M', 'm': 'm', 'a': 'O', 'd': 'O', 'M7': 'M7', 'D7': 'D7', 'm7': 'm7', 'h7': 'O', 'd7': 'O'}
+				elif vocabulary == 'triad':
+						tquality_map_dict = {'M': 'M', 'm': 'm', 'a': 'a', 'd': 'd', 'M7': 'M', 'D7': 'M', 'm7': 'm', 'h7': 'd', 'd7': 'd'}
+				elif vocabulary == 'seventh':
+						tquality_map_dict = {'M': 'M', 'm': 'm', 'a': 'a', 'd': 'd', 'M7': 'M7', 'D7': 'D7', 'm7': 'm7', 'h7': 'h7', 'd7': 'd7'}
+				tquality = tquality_map_dict[tquality]
+
+				tchord = (root, tquality)
+				tchords.append(tchord)
+
+		tchords = np.array(tchords, dtype=[('root', '<U10'), ('tquality', '<U10')])
+		rtchords = rfn.merge_arrays((labels, tchords), flatten=True, usemask=False) # merge rchords and tchords into one structured array
+		return rtchords
+
+def translate_degree(degree_str):
+		if ('+' not in degree_str and '-' not in degree_str) or ('+' in degree_str and degree_str[1] == '+'):
+				degree_hot = int(degree_str[0])
+		elif degree_str[0] == '-':
+				degree_hot = int(degree_str[1]) + 14
+		elif degree_str[0] == '+':
+				degree_hot = int(degree_str[1]) + 7
+		return degree_hot
+
+def save_preprocessed_data(data, save_dir):
+		with open(save_dir, 'wb') as save_file:
+				pickle.dump(data, save_file, protocol=pickle.HIGHEST_PROTOCOL)
+		print('Preprocessed data saved.')
+
+# def main():
+#     vocabulary = 'MIREX_Mm'
+#     corpus = load_dataset(resolution=4, vocabulary=vocabulary) # {'no': {'pianoroll': 2d array, 'chromagram': 2d array, 'start_time': float, 'label': array},  ...}
+#     corpus_aug = augment_data(corpus) # {'shift_id': {'no': {'pianoroll': 2d array, 'chromagram': 2d array, tonal_centroid': 2d array, 'start_time': float, 'label': 1d array}, ...},  ...}
+#     corpus_aug_reshape = reshape_data(corpus_aug, n_steps=128, hop_size=16) # {'shift_id': {'no': {'pianoroll': 3d array, 'chromagram': 3d array, 'tonal_centroid': 3d array, 'start_time': float, 'label': 2d array, 'len': 2d array}, ...},  ...}
+
+#     # Save processed data
+#     dir = 'BPS_FH_preprocessed_data_' + vocabulary + '.pickle'
+#     save_preprocessed_data(corpus_aug_reshape, save_dir=dir)
 
 def main():
-		# train_HT()
-		# sys.exit(0)
-		dir_path = '/home/ubuntu/project/Harmony-Transformer-v2/preprocessed/datasets_v_MIREX_Mm'
+	vocabulary = 'MIREX_Mm'
+	process_list = [x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 
+	
+	for c in process_list:
+		print(f"PROCESSING {c}")
+		save_dir = f'preprocessed_data/datasets_{c}_' + vocabulary
+		os.makedirs(save_dir, exist_ok=True)
 
-		with open(os.path.join(dir_path, "pred_cc_values.pickle"), 'rb') as file:
-			pred_cc_values = pickle.load(file)
-		
-		with open(os.path.join(dir_path, "pred_k_values.pickle"), 'rb') as file:
-			pred_k_values = pickle.load(file)
+		corpus_file = os.path.join(save_dir, 'corpus.pickle')
+		corpus_reshape_file = os.path.join(save_dir, 'corpus_reshape.pickle')
 
-		with open(os.path.join(dir_path, "pred_r_values.pickle"), 'rb') as file:
-			pred_r_values = pickle.load(file)
+		if os.path.exists(corpus_file):
+			print(f"Loading corpus from {corpus_file}...")
+			corpus = load_data(corpus_file)
+		else:
+			print("Computing corpus...")
+			corpus = load_dataset_unlabeled(c, resolution=4, vocabulary=vocabulary)
+			save_data(corpus, corpus_file)
 
-		with open(os.path.join(dir_path, "eval_mask_values.pickle"), 'rb') as file:
-			eval_mask_values = pickle.load(file)
-
-		with open(os.path.join(dir_path, "data.pickle"), 'rb') as file:
-			data = pickle.load(file)
-		
-		predictions = translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, eval_mask_values)
-
-		# Print the translated predictions
-		for prediction in predictions:
-				print(prediction)
+		if os.path.exists(corpus_reshape_file):
+			print("DONE")
+		else:
+			print("Computing corpus_reshape...")
+			corpus_reshape = reshape_data_unlabeled(corpus, n_steps=128, hop_size=16)
+			save_data(corpus_reshape, corpus_reshape_file)
+		print(f"DONE PROCESSING {c}")
 
 if __name__ == '__main__':
-		# Hyperparameters
-		hyperparameters = namedtuple('hyperparameters',
-																 ['dataset',
-																	'test_set_id',
-																	'graph_location',
-																	'n_steps',
-																	'input_embed_size',
-																	'n_layers',
-																	'n_heads',
-																	'train_sequence_with_overlap',
-																	'initial_learning_rate',
-																	'drop',
-																	'n_batches',
-																	'n_training_steps',
-																	'n_in_succession',
-																	'annealing_rate'])
-
-		hp = hyperparameters(dataset='BPS_FH', # {'BPS_FH', 'Preludes'}
-												 test_set_id=1,
-												 graph_location='model',
-												 n_steps=128,
-												 input_embed_size=128,
-												 n_layers=2,
-												 n_heads=4,
-												 train_sequence_with_overlap=True,
-												 initial_learning_rate=1e-4,
-												 drop=0.1,
-												 n_batches=40,
-												 n_training_steps=100000,
-												 n_in_succession=10,
-												 annealing_rate=1.1)
-
 		main()
-

@@ -86,7 +86,6 @@ def load_pieces(c, resolution=4):
 						notes = np.genfromtxt(fileDir, delimiter=',', dtype=dt, skip_header=1) # read notes from .csv file ilana
 						start_time = min(notes['onset'])
 						total_length = math.ceil((max(notes['onset'] + notes['duration']) - start_time) * resolution) # length of pianoroll
-						print("T", len(notes))
 						pianoroll = np.zeros(shape=[88, total_length], dtype=np.int32) # piano range: 21-108 (A0 to C8)
 						for note in notes:
 								if note['duration'] == 0: # "Ornament"
@@ -107,7 +106,7 @@ def load_pieces(c, resolution=4):
 										highest_pitch = pitch
 								if pitch < lowest_pitch:
 										lowest_pitch = pitch
-						print(time)
+
 						pieces[piece_name] = {
 							'pianoroll': pianoroll, # [88, time]
 							'chromagram': pianoroll2chromagram(pianoroll), # [12, time]
@@ -115,7 +114,6 @@ def load_pieces(c, resolution=4):
 						}
 						
 						# print('lowest pitch =', lowest_pitch, 'highest pitch = ', highest_pitch)
-		print(pieces['vierne_sinfonia_2_4_(c)borsari']['pianoroll'].shape[1])
 		return pieces
 
 def load_chord_labels(vocabulary='MIREX_Mm'):
@@ -636,32 +634,32 @@ def save_preprocessed_data(data, save_dir):
 #     save_preprocessed_data(corpus_aug_reshape, save_dir=dir)
 
 def main():
-		vocabulary = 'MIREX_Mm'
-		process_list = ['v']#[x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 
-		
-		for c in process_list:
-			print(f"PROCESSING {c}")
-			save_dir = f'preprocessed/datasets_{c}_' + vocabulary
-			os.makedirs(save_dir, exist_ok=True)
+	vocabulary = 'MIREX_Mm'
+	process_list = [x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 
+	
+	for c in process_list:
+		print(f"PROCESSING {c}")
+		save_dir = f'preprocessed_data/datasets_{c}_' + vocabulary
+		os.makedirs(save_dir, exist_ok=True)
 
-			corpus_file = os.path.join(save_dir, 'corpus.pickle')
-			corpus_reshape_file = os.path.join(save_dir, 'corpus_reshape.pickle')
+		corpus_file = os.path.join(save_dir, 'corpus.pickle')
+		corpus_reshape_file = os.path.join(save_dir, 'corpus_reshape.pickle')
 
-			if os.path.exists(corpus_file):
-					print(f"Loading corpus from {corpus_file}...")
-					corpus = load_data(corpus_file)
-			else:
-					print("Computing corpus...")
-					corpus = load_dataset_unlabeled(c, resolution=4, vocabulary=vocabulary)
-					save_data(corpus, corpus_file)
+		if os.path.exists(corpus_file):
+			print(f"Loading corpus from {corpus_file}...")
+			corpus = load_data(corpus_file)
+		else:
+			print("Computing corpus...")
+			corpus = load_dataset_unlabeled(c, resolution=4, vocabulary=vocabulary)
+			save_data(corpus, corpus_file)
 
-			if os.path.exists(corpus_reshape_file):
-				print("DONE")
-			else:
-					print("Computing corpus_reshape...")
-					corpus_reshape = reshape_data_unlabeled(corpus, n_steps=128, hop_size=16)
-					save_data(corpus_reshape, corpus_reshape_file)
-			print(f"DONE PROCESSING {c}")
+		if os.path.exists(corpus_reshape_file):
+			print("DONE")
+		else:
+			print("Computing corpus_reshape...")
+			corpus_reshape = reshape_data_unlabeled(corpus, n_steps=128, hop_size=16)
+			save_data(corpus_reshape, corpus_reshape_file)
+		print(f"DONE PROCESSING {c}")
 
 if __name__ == '__main__':
 		main()
