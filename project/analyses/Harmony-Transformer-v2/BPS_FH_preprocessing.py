@@ -9,7 +9,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.spatial.distance import euclidean
 import pickle
 from collections import Counter, OrderedDict
-import os, glob, bz2, sys
+import os, glob, sys
 from joblib import dump, load
 import string
 
@@ -254,7 +254,7 @@ def load_dataset_unlabeled(c, resolution, vocabulary):
 	pianoroll_lens = [x['pianoroll'].shape[1] for x in list(corpus.values())]
 	print('max_length =', max(pianoroll_lens))
 	print('min_length =', min(pianoroll_lens))
-	print('keys in corpus[\'op\'] =', list(corpus.values())[0].keys())
+	print('keys in corpus[\'piece_id\'] =', list(corpus.values())[0].keys())
 	return corpus
 
 def augment_data(corpus):
@@ -363,47 +363,30 @@ def reshape_data(corpus_aug, n_steps=128, hop_size=16):
 		print('sequence_len_overlaped =', sorted(set([l for shift_dict in corpus_aug_reshape.values() for op_dict in shift_dict.values() for l in op_dict['len'][1]])))
 		return corpus_aug_reshape
 
-def reshape_data_unlabeled(corpus_aug_reshape, n_steps=128, hop_size=16):
+def reshape_data_unlabeled(corpus_reshape, n_steps=128, hop_size=16):
 		'''n_steps: default = 128 frames (equals to 32 quater notes)
 				 hop_size: default = 16 frames (equals to 4 quater notes)'''
 		print('Running Message: reshape data...')
-		# corpus_aug_reshape = copy.deepcopy(corpus_aug)
 		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10'), ('chord_change', 'int')]  # label datatype
+		# print("CORPUS RESHAPE", corpus_reshape)
+		for piece_name, piece in corpus_reshape.items():
+			label_padding = np.array([(piece_name, -1, 'pad', 'pad', 'pad', 'pad', -1, 'pad', 'pad', 'pad', 0)], dtype=dt)
+			length = piece['pianoroll'].shape[1]
+			n_pad = n_steps - (length % n_steps) if length % n_steps != 0 else 0
+			n_sequences = (length + n_pad)//n_steps
+			n_overlapped_sequences = (n_sequences - 1) * (n_steps//hop_size) + 1
 
-		items = corpus_aug_reshape.items()
-		for shift_id, piece_dict in items:
-				for piece_name,  piece in piece_dict.items():
-						label_padding = np.array([(piece_name, -1, 'pad', 'pad', 'pad', 'pad', -1, 'pad', 'pad', 'pad', 0)], dtype=dt)
-						length = piece['pianoroll'].shape[1]
-						print("PIANOROLL", piece['pianoroll'].shape)
-						print("LENGTH", length)
-						sys.exit(0)
-						n_pad = n_steps - (length % n_steps) if length % n_steps != 0 else 0
-						n_sequences = (length + n_pad)//n_steps
-						n_overlapped_sequences = (n_sequences - 1) * (n_steps//hop_size) + 1
+			# padding
+			pianoroll_pad = np.pad(piece['pianoroll'], [(0, 0), (0, n_pad)], 'constant').T # [time, 88]
 
-						# padding
-						pianoroll_pad = np.pad(piece['pianoroll'], [(0, 0), (0, n_pad)], 'constant').T # [time, 88]
-						tonal_centroid_pad = np.pad(piece['tonal_centroid'], [(0, 0), (0, n_pad)], 'constant').T # [time, 6]
+			# segment into sequences without overlap
+			corpus_reshape[piece_name]['pianoroll'] = np.reshape(pianoroll_pad, newshape=[-1, n_steps, 88])
+			seq_lens = [n_steps for _ in range(n_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_sequences)]
+			corpus_reshape[piece_name]['len'] = np.array(seq_lens, dtype=np.int32)
 
-						# segment into sequences without overlap
-						corpus_aug_reshape[shift_id][piece_name]['pianoroll'] = [np.reshape(pianoroll_pad, newshape=[-1, n_steps, 88])]
-						corpus_aug_reshape[shift_id][piece_name]['tonal_centroid'] = [np.reshape(tonal_centroid_pad, newshape=[-1, n_steps, 6])]
-						seq_lens = [n_steps for _ in range(n_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_sequences)]
-						corpus_aug_reshape[shift_id][piece_name]['len'] = [np.array(seq_lens, dtype=np.int32)]
-
-						# segment into sequences with overlap
-						corpus_aug_reshape[shift_id][piece_name]['pianoroll'].append(np.stack([pianoroll_pad[i:i+n_steps] for i in range(0,length+n_pad-n_steps+1, hop_size)], axis=0))
-						corpus_aug_reshape[shift_id][piece_name]['tonal_centroid'].append(np.stack([tonal_centroid_pad[i:i+n_steps] for i in range(0,length+n_pad-n_steps+1, hop_size)], axis=0))
-						overlapped_seq_lens = [n_steps for _ in range(n_overlapped_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_overlapped_sequences)]
-						corpus_aug_reshape[shift_id][piece_name]['len'].append(np.array(overlapped_seq_lens, dtype=np.int32))
-
-		'''corpus_aug_reshape[shift_id][piece_name]['key'][0]: non-overlaped sequences
-								corpus_aug_reshape[shift_id][piece_name]['key'][1]: overlapped sequences'''
-		print('keys in corpus_aug_reshape[\'shift_id\'][\'piece_name\'] =', list(corpus_aug_reshape['shift_0'].values())[0].keys())
-		print('sequence_len_non_overlaped =', sorted(set([l for shift_dict in corpus_aug_reshape.values() for piece_dict in shift_dict.values() for l in piece_dict['len'][0]])))
-		print('sequence_len_overlaped =', sorted(set([l for shift_dict in corpus_aug_reshape.values() for piece_dict in shift_dict.values() for l in piece_dict['len'][1]])))
-		return corpus_aug_reshape
+		print('keys in corpus_reshape[\'piece_name\'] =', list(corpus_reshape.values())[0].keys())
+		print('sequence_len_non_overlaped =', sorted(set([l for piece in corpus_reshape.values() for l in piece['len']])))
+		return corpus_reshape
 
 def compute_Tonal_centroids(chromagram, filtering=True, sigma=8):
 		# define transformation matrix - phi
@@ -652,33 +635,6 @@ def save_preprocessed_data(data, save_dir):
 #     dir = 'BPS_FH_preprocessed_data_' + vocabulary + '.pickle'
 #     save_preprocessed_data(corpus_aug_reshape, save_dir=dir)
 
-def save_large_object_chunks(obj, filename_prefix, chunk_size=10):
-		items = list(obj.items())
-		num_chunks = len(items) // chunk_size + (1 if len(items) % chunk_size > 0 else 0)
-		
-		# Create a directory to save chunks if it doesn't exist
-		if not os.path.exists(filename_prefix):
-				os.makedirs(filename_prefix)
-
-		for i in range(num_chunks):
-				chunk = dict(items[i * chunk_size:(i + 1) * chunk_size])
-				chunk_filename = os.path.join(filename_prefix, f"part_{i + 1}.joblib")
-				print("SAVING", chunk_filename)
-				dump(chunk, chunk_filename, compress=('bz2', 3))
-				print("SAVED", chunk_filename)
-
-def load_large_object_chunks(filename_prefix):
-		# List all chunk files in the directory
-		chunk_files = [os.path.join(filename_prefix, name) for name in os.listdir(filename_prefix) if name.endswith('.pickle')]
-		chunk_files.sort()  # Ensure chunks are loaded in the correct order
-		loaded_obj = {}
-		for chunk_filename in chunk_files:
-				print("LOADING", chunk_filename)
-				chunk = load(chunk_filename)
-				loaded_obj.update(chunk)
-				print("LOADED", chunk_filename)
-		return loaded_obj
-
 def main():
 		vocabulary = 'MIREX_Mm'
 		process_list = ['v']#[x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 
@@ -689,11 +645,8 @@ def main():
 			os.makedirs(save_dir, exist_ok=True)
 
 			corpus_file = os.path.join(save_dir, 'corpus.pickle')
-			corpus_aug_file = os.path.join(save_dir, 'corpus_aug.pickle')
-			corpus_aug_reshape_file = os.path.join(save_dir, 'corpus_aug_reshape.pickle')
+			corpus_reshape_file = os.path.join(save_dir, 'corpus_reshape.pickle')
 
-			load_dataset_unlabeled(c, resolution=4, vocabulary=vocabulary)
-			sys.exit(0)
 			if os.path.exists(corpus_file):
 					print(f"Loading corpus from {corpus_file}...")
 					corpus = load_data(corpus_file)
@@ -702,24 +655,12 @@ def main():
 					corpus = load_dataset_unlabeled(c, resolution=4, vocabulary=vocabulary)
 					save_data(corpus, corpus_file)
 
-			# if os.path.exists(corpus_aug_file):
-			# 		print(f"Loading corpus_aug from {corpus_aug_file}...")
-			# 		corpus_aug = load_data(corpus_aug_file)
-			# else:
-			# 		print("Computing corpus_aug...")
-			# 		corpus_aug = augment_data_unlabeled(c, corpus)
-			# 		save_data(corpus_aug, corpus_aug_file)
-
-			reshape_data_unlabeled(corpus_aug, n_steps=128, hop_size=16)
-			sys.exit(0)
-			if os.path.exists(corpus_aug_reshape_file):
+			if os.path.exists(corpus_reshape_file):
 				print("DONE")
-					# print(f"Loading corpus_aug_reshape from {corpus_aug_reshape_file}...")
-					# corpus_aug_reshape = load_data(corpus_aug_reshape_file)
 			else:
-					print("Computing corpus_aug_reshape...")
-					corpus_aug_reshape = reshape_data_unlabeled(corpus_aug, n_steps=128, hop_size=16)
-					save_data(corpus_aug_reshape, corpus_aug_reshape_file)
+					print("Computing corpus_reshape...")
+					corpus_reshape = reshape_data_unlabeled(corpus, n_steps=128, hop_size=16)
+					save_data(corpus_reshape, corpus_reshape_file)
 			print(f"DONE PROCESSING {c}")
 
 if __name__ == '__main__':

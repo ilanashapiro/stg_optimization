@@ -7,6 +7,7 @@ import pickle
 from collections import Counter, namedtuple
 import chord_recognition_models as crm
 import string 
+import sys
 
 # Disables AVX/FMA
 import os, sys
@@ -92,6 +93,7 @@ def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, ev
 
 	pianoroll = data['pianoroll'] # shape: (n_sequences, n_timesteps_per_padded_seq, n_pitches)
 	piece_ids = data['piece_id']
+	start_times = data['start_time']
 
 	# The len array tells you the length of each UNPADDED sequence in the pianoroll array.
 	# e.g. the first value in len corresponds to the length of the first sequence in pianoroll.
@@ -121,6 +123,7 @@ def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, ev
 
 		piece_id = piece_ids[seq_idx]
 		original_timesteps = all_original_timesteps[seq_idx]
+		start_time = start_times[seq_idx]
 
 		for t_idx, t in enumerate(original_timesteps):
 			# val_cc = valid_pred_cc[t_idx] # this is the chord change value predicted by the neural net. however, it may not be totally accurate, i.e. align with pred_k and pred_r changing
@@ -144,14 +147,13 @@ def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, ev
 				def are_chords_equal(chord1_dict, chord2_dict):
 					# List of keys to compare, excluding 'timestep'
 					keys_to_compare = ['piece_id', 'key', 'degree1', 'degree2', 'quality', 'inversion']
-					
 					for key in keys_to_compare:
 						if chord1_dict.get(key) != chord2_dict.get(key):
 							return False
 					return True
 
 				curr_chord = {
-					'timestep': t,
+					'timestep': t + start_time,
 					'piece_id': piece_id,
 					# 'chord_change': val_cc,
 					'key': val_k,
@@ -162,7 +164,6 @@ def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, ev
 				}
 
 				if not are_chords_equal(curr_chord, prev_chord): 
-					# print("CURR CHORD", curr_chord)
 					results.append(curr_chord)
 
 				prev_chord = curr_chord
@@ -172,56 +173,37 @@ def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, ev
 def load_data_unlabeled(filepath, chunk_size=20):
 		print(f"Loading data in {filepath}...")
 		with open(filepath, 'rb') as file:
-				corpus_aug_reshape = pickle.load(file)
+				corpus_reshape = pickle.load(file)
 		
-		number_of_pieces = len(corpus_aug_reshape['shift_0'].keys())
+		number_of_pieces = len(corpus_reshape.keys())
 		print("Number of pieces", number_of_pieces)
-
-		print("START TIME", corpus_aug_reshape['shift_0']['vierne_sinfonia_2_4_(c)borsari']['start_time'])
-		sys.exit(0)
 
 		pianorolls = []
 		tonal_centroids = []
 		lens = []
 		piece_ids = []
+		start_times = []
 
-		for piece_id in corpus_aug_reshape['shift_0'].keys():
-			'''corpus_aug_reshape[shift_id][op]['key'][0]: non-overlaped sequences
-												corpus_aug_reshape[shift_id][op]['key'][1]: overlapped sequences'''
-			# After reshaping, the pianoroll in corpus_aug_reshape will have the shape [num_sequences, n_steps, 88]
+		for piece_id in corpus_reshape.keys():
+			# After reshaping, the pianoroll in corpus_reshape will have the shape [num_sequences, n_steps, 88]
 			# Here, num_sequences is the total number of sequences after padding and reshaping.
 			# n_steps is the fixed number of time steps per sequence (128 in your case).
 			# 88 corresponds to the MIDI pitch range (if MIDI note values range from 0 to 87).
-			pianorolls.append(corpus_aug_reshape['shift_0'][piece_id]['pianoroll'][0])
-			tonal_centroids.append(corpus_aug_reshape['shift_0'][piece_id]['tonal_centroid'][0])
-			sequence_lens = corpus_aug_reshape['shift_0'][piece_id]['len'][0]
+			pianorolls.append(corpus_reshape[piece_id]['pianoroll'])
+			sequence_lens = corpus_reshape[piece_id]['len']
+			num_sequences = len(sequence_lens)
 			lens.append(sequence_lens)
-			piece_ids.append([piece_id] * len(sequence_lens))
-			
-
-		# total_pieces = len(pianorolls)
-		# chunked_data = []
-
-		# for i in range(0, total_pieces, chunk_size):
-		#   chunk = {
-		#       'pianoroll': np.concatenate(pianorolls[i:i + chunk_size], axis=0),
-		#       'tonal_centroid': np.concatenate(tonal_centroids[i:i + chunk_size], axis=0),
-		#       'len': np.concatenate(lens[i:i + chunk_size], axis=0)
-		#   }
-		#   chunked_data.append(chunk)
-
-		# print('Keys in corpus_aug_reshape[\'shift_0\'][\'piece_id\'] =', list(corpus_aug_reshape['shift_0'].values())[0].keys())
-		# print('Keys in data =', chunked_data[0].keys())
-		# return chunked_data
+			piece_ids.append([piece_id] * num_sequences)
+			start_times.append([corpus_reshape[piece_id]['start_time']] * num_sequences)
 
 		data = {
 				'pianoroll': np.concatenate(pianorolls, axis=0),
-				'tonal_centroid': np.concatenate(tonal_centroids, axis=0),
 				'len': np.concatenate(lens, axis=0),
-				'piece_id': np.concatenate(piece_ids, axis=0)
+				'piece_id': np.concatenate(piece_ids, axis=0),
+				'start_time': np.concatenate(start_times, axis=0)
 		}
 
-		print('Keys in corpus_aug_reshape[\'shift_id\'][\'piece_id\'] =', list(corpus_aug_reshape['shift_0'].values())[0].keys())
+		print('Keys in corpus_reshape[\'piece_id\'] =', list(corpus_reshape.values())[0].keys())
 		print('Keys in data =', data.keys())
 		return data
 
@@ -490,7 +472,7 @@ def train_HT():
 
 				process_list = ['v']#[x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 
 				for c in process_list:
-					filepath = f"/home/ubuntu/project/Harmony-Transformer-v2/preprocessed/datasets_{c}_MIREX_Mm/corpus_aug_reshape.pickle"
+					filepath = f"/home/ubuntu/project/Harmony-Transformer-v2/preprocessed/datasets_{c}_MIREX_Mm/corpus_reshape.pickle"
 					print(f"PROCESSING: {filepath}")
 
 					data = load_data_unlabeled(filepath)
@@ -517,7 +499,6 @@ def train_HT():
 					print('Evaluation Mask:', eval_mask_values)
 
 					parent_dir = os.path.dirname(filepath)
-					# chunk_dir = os.path.join(parent_dir, f"chunk_{chunk_idx}")
 					save_data(parent_dir, data, pred_cc_values, pred_k_values, pred_r_values, eval_mask_values)
 					print(f"FINISHED PROCESSING: {filepath}")
 			return 
@@ -659,7 +640,8 @@ def train_HT():
 				print('best slope =', best_slope)
 
 def main():
-		train_HT()
+		# train_HT()
+		# sys.exit(0)
 		dir_path = '/home/ubuntu/project/Harmony-Transformer-v2/preprocessed/datasets_v_MIREX_Mm'
 
 		with open(os.path.join(dir_path, "pred_cc_values.pickle"), 'rb') as file:
