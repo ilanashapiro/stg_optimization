@@ -1,7 +1,6 @@
 import mido
 import pandas as pd
 from midi2audio import FluidSynth
-from concurrent.futures import ThreadPoolExecutor
 import os
 from pydub import AudioSegment
 import multiprocessing
@@ -24,20 +23,7 @@ def ticks_to_secs_with_tempo_changes(tick, tempo_changes, ticks_per_beat):
 		seconds += mido.tick2second(tick - last_tick, ticks_per_beat, tempo)
 	return seconds
 
-# CSV format from https://github.com/Wiilly07/Beethoven_motif 
-def midi_to_csv(filename):
-	output_filename = filename[:-4] + ".csv"
-	
-	if os.path.exists(output_filename):
-		print(f"CSV file already exists for {filename}, skipping conversion.")
-		return
-
-	print("Converting " + filename + " to " + output_filename)
-
-	mid = mido.MidiFile(filename)
-	df = pd.DataFrame(columns=["onset", "onset_seconds", "pitch", "duration", "staff"])
-
-	ticks_per_beat = mid.ticks_per_beat
+def preprocess_tempo_changes(mid):
 	microseconds_per_beat = 500000  # Default MIDI tempo is 500,000 microseconds per beat.
 
 	# Process tempo changes first to simplify onset time calculation.
@@ -49,6 +35,22 @@ def midi_to_csv(filename):
 			if msg.type == 'set_tempo':
 				tempo_changes.append((current_tick, msg.tempo))
 	tempo_changes.sort(key=lambda x: x[0])
+	return tempo_changes
+	
+# CSV format from https://github.com/Wiilly07/Beethoven_motif 
+def midi_to_csv(filename):
+	output_filename = filename[:-4] + ".csv"
+	
+	if os.path.exists(output_filename):
+		print(f"CSV file already exists for {filename}, skipping conversion.")
+		return
+
+	print("Converting " + filename + " to " + output_filename)
+
+	mid = mido.MidiFile(filename)
+	ticks_per_beat = mid.ticks_per_beat
+	df = pd.DataFrame(columns=["onset", "onset_seconds", "pitch", "duration", "staff"])
+	tempo_changes = preprocess_tempo_changes(mid)
 	
 	def ticks_to_crochets(ticks, ticks_per_beat):
 		return ticks / ticks_per_beat
