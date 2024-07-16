@@ -107,7 +107,7 @@ def load_pieces(c, resolution=4):
 								if pitch < lowest_pitch:
 										lowest_pitch = pitch
 
-						pieces[piece_name] = {
+						pieces[piece_folder_path] = {
 							'pianoroll': pianoroll, # [88, time]
 							'chromagram': pianoroll2chromagram(pianoroll), # [12, time]
 							'start_time': start_time
@@ -167,20 +167,20 @@ def get_framewise_labels_unlabeled(c, pieces, resolution=4):
 					piece_folder_path = os.path.join(subfolder_path, piece_name)
 					if os.path.isdir(piece_folder_path) and not any(s == piece_name for s in ['estimations', 'read']) and glob.glob(os.path.join(piece_folder_path, '*_motives3.txt')):
 						# Split Piano Roll into frames of the same size (88, wsize)
-						pianoroll = pieces[piece_name]['pianoroll'] # [88, time]
+						pianoroll = pieces[piece_folder_path]['pianoroll'] # [88, time]
 						n_frames = pianoroll.shape[1]
-						start_time = pieces[piece_name]['start_time']
+						start_time = pieces[piece_folder_path]['start_time']
 						
 						frame_labels = []
 						for n in range(n_frames):
 								frame_time = n * (1 / resolution) + start_time
-								frame_label = tuple([piece_name, frame_time] + list(empty_label)[2:])
+								frame_label = tuple([piece_folder_path, frame_time] + list(empty_label)[2:])
 								frame_labels.append(frame_label)
 						
 						frame_labels = np.array(frame_labels, dtype=dt)
 						chord_change = [1] + [0 for _ in range(1, n_frames)]  # No chord change
 						chord_change = np.array([(cc) for cc in chord_change], dtype=[('chord_change', 'int')])
-						pieces[piece_name]['label'] = rfn.merge_arrays([frame_labels, chord_change], flatten=True, usemask=False)
+						pieces[piece_folder_path]['label'] = rfn.merge_arrays([frame_labels, chord_change], flatten=True, usemask=False)
 		return pieces
 
 def get_framewise_labels(pieces, chord_labels, resolution=4):
@@ -367,8 +367,7 @@ def reshape_data_unlabeled(corpus_reshape, n_steps=128, hop_size=16):
 		print('Running Message: reshape data...')
 		dt = [('op', '<U10'), ('onset', 'float'), ('key', '<U10'), ('degree1', '<U10'), ('degree2', '<U10'), ('quality', '<U10'), ('inversion', 'int'), ('rchord', '<U10'), ('root', '<U10'), ('tquality', '<U10'), ('chord_change', 'int')]  # label datatype
 		# print("CORPUS RESHAPE", corpus_reshape)
-		for piece_name, piece in corpus_reshape.items():
-			label_padding = np.array([(piece_name, -1, 'pad', 'pad', 'pad', 'pad', -1, 'pad', 'pad', 'pad', 0)], dtype=dt)
+		for piece_id, piece in corpus_reshape.items():
 			length = piece['pianoroll'].shape[1]
 			n_pad = n_steps - (length % n_steps) if length % n_steps != 0 else 0
 			n_sequences = (length + n_pad)//n_steps
@@ -378,11 +377,11 @@ def reshape_data_unlabeled(corpus_reshape, n_steps=128, hop_size=16):
 			pianoroll_pad = np.pad(piece['pianoroll'], [(0, 0), (0, n_pad)], 'constant').T # [time, 88]
 
 			# segment into sequences without overlap
-			corpus_reshape[piece_name]['pianoroll'] = np.reshape(pianoroll_pad, newshape=[-1, n_steps, 88])
+			corpus_reshape[piece_id]['pianoroll'] = np.reshape(pianoroll_pad, newshape=[-1, n_steps, 88])
 			seq_lens = [n_steps for _ in range(n_sequences - 1)] + [(length % n_steps)] if n_pad != 0 else [n_steps for _ in range(n_sequences)]
-			corpus_reshape[piece_name]['len'] = np.array(seq_lens, dtype=np.int32)
+			corpus_reshape[piece_id]['len'] = np.array(seq_lens, dtype=np.int32)
 
-		print('keys in corpus_reshape[\'piece_name\'] =', list(corpus_reshape.values())[0].keys())
+		print('keys in corpus_reshape[\'piece_id\'] =', list(corpus_reshape.values())[0].keys())
 		print('sequence_len_non_overlaped =', sorted(set([l for piece in corpus_reshape.values() for l in piece['len']])))
 		return corpus_reshape
 
