@@ -669,21 +669,6 @@ def train_HT():
 				print('best score =', np.round(best_score, 4))
 				print('best slope =', best_slope)
 
-def delete_files(base_dir):
-    # Traverse the directory tree
-    for root, dirs, files in os.walk(base_dir):
-        for file in files:
-            # Check if the file ends with "_functional_harmony.txt"
-            if file.endswith("_functional_harmony.txt"):
-                # Construct the full file path
-                file_path = os.path.join(root, file)
-                try:
-                    # Delete the file
-                    os.remove(file_path)
-                    print(f"Deleted {file_path}")
-                except Exception as e:
-                    print(f"Failed to delete {file_path}. Reason: {e}")
-
 def main():
 	# train_HT()
 	process_list = [x for x in list(string.ascii_lowercase) if x not in ['e', 'i', 'k', 'n', 'q', 'u', 'x', 'y', 'z']] 

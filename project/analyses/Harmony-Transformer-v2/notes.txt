@@ -1,0 +1,3 @@
+https://github.com/Tsung-Ping/Harmony-Transformer-v2
+https://github.com/Tsung-Ping/Harmony-Transformer
+https://github.com/Tsung-Ping/functional-harmony (includes BPS_FH_Dataset)

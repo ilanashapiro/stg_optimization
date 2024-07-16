@@ -1,0 +1,2 @@
+model_checkpoint_path: "HT_functional_harmony_recognition_BPS_FH_1.ckpt"
+all_model_checkpoint_paths: "HT_functional_harmony_recognition_BPS_FH_1.ckpt"
