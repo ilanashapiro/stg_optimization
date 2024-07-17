@@ -5,82 +5,7 @@ import re
 import os
 import glob
 import json 
-
-def parse_form_file(file_path):
-	with open(file_path, 'r') as file:
-		data = file.read().strip().split('\n\n')  # Split into chunks by blank line
-
-	layers = []
-	for layer_idx, chunk in enumerate(data):
-		lines = chunk.split('\n')
-		layer = []
-		for idx, line in enumerate(lines):
-			start, end, id = line.split('\t')
-			node_label = f"S{id}L{layer_idx + 1}"
-			node_id = f"{node_label}N{idx}"
-			layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_id})
-		layers.append(layer)
-	
-	# fix section labels so each new label encountered is increasing from the previous
-	for idx, layer in enumerate(layers):
-		s_num_mapping = {}
-		new_s_num_counter = 0
-		for node in layer:
-			s_num = node['id'].split('L')[0][1:]  # This splits the id at 'L', takes the 'S{n1}' part, and then removes 'S' to get 'n1'
-			if s_num not in s_num_mapping:
-				s_num_mapping[s_num] = new_s_num_counter
-				new_s_num_counter += 1
-
-		updated_nodes = []
-		for node in layer:
-			old_s_num = node['id'].split('L')[0][1:]
-			new_s_num = s_num_mapping[old_s_num]
-			parts = node['id'].split('L')
-			new_id = f'S{new_s_num}L{parts[1]}'
-			new_label = new_id # update labels too, not just node id's
-			updated_nodes.append({'start': node['start'], 'end': node['end'], 'id': new_id, 'label': new_label})
-		layers[idx] = updated_nodes
-
-	return layers
-
-def parse_motives_file(file_path):
-	with open(file_path, 'r') as file:
-		data = file.read().strip().split('\n\n')  # Split into chunks by blank line
-
-	motif_layer = []
-	pattern_num = 0
-
-	for chunk in data:
-		if chunk.startswith("pattern"):
-			pattern_num += 1
-			lines = chunk.split('\n')[1:]  # Skip the pattern line itself
-			occurrence_num = 0
-			start, end = None, None
-			for line in lines:
-				if line.startswith("occurrence"):
-					if start is not None and end is not None:
-						# Save the previous occurrence before starting a new one
-						node_label = f"P{pattern_num}O{occurrence_num}"
-						motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
-					occurrence_num += 1
-					start, end = None, None # Reset start and end for the new occurrence
-				else:
-					time, _ = line.split(',', 1)
-					if start is None:
-						start = time  # First line of occurrence sets the start time
-					end = time
-			# Add the last occurrence in the chunk
-			if start is not None and end is not None:
-				node_label = f"P{pattern_num}O{occurrence_num}"
-				motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
-
-	# Sort by start time and add index based on the sort
-	motif_layer = sorted(motif_layer, key=lambda x: x['start'])
-	for idx, item in enumerate(motif_layer):
-		item['id'] += f"N{idx}"
-		item['label'] += f"N{idx}"
-
-	return motif_layer
+import parse_analyses
 
 def create_graph(layers):
 	G = nx.DiGraph()
@@ -393,8 +318,8 @@ def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.t
 					motives_file = next(glob.iglob(f2_path + f'/*{motif_identifier}.txt'), None)
 
 					if segments_file and motives_file:
-						layers = parse_form_file(segments_file)
-						layers.append(parse_motives_file(motives_file))
+						layers = parse_analyses.parse_form_file(segments_file)
+						layers.append(parse_analyses.parse_motives_file(motives_file))
 
 						G = create_graph(layers)
 						augment_graph(G)
@@ -412,16 +337,17 @@ def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.t
 	return augmented_graphs
 
 def generate_graph(structure_filepath, motives_filepath):
-	layers = parse_form_file(structure_filepath)
-	motive_layer = parse_motives_file(motives_filepath)
+	layers = parse_analyses.parse_form_file(structure_filepath)
+	motive_layer = parse_analyses.parse_motives_file(motives_filepath)
 	layers.append(motive_layer)
 	G = create_graph(layers)
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
-	# G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-	G, layers = generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_scluster_scluster_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/chopin/chpn-p7/chpn-p7_motives1.txt')
+	form_file = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7_scluster_scluster_segments.txt'
+	motives_file = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7_motives3.txt'
+	G, layers = generate_graph(form_file, motives_file)
 	# visualize([G], [layers])
 	augment_graph(G)
 	visualize_p([G], [layers])
