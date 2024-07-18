@@ -1,3 +1,7 @@
+import json
+
+from networkx import degree
+
 def parse_form_file(file_path):
 	with open(file_path, 'r') as file:
 		data = file.read().strip().split('\n\n')  # Split into chunks by blank line
@@ -77,8 +81,8 @@ def parse_motives_file(file_path):
 def parse_melody_file(file_path):
 	with open(file_path, 'r') as file:
 		data = file.read().strip().split('\n') 
-	
 	melody_layer = []
+
 	for idx, line in enumerate(data):
 		line = line.strip()
 		parts = line.split(')",')
@@ -90,5 +94,39 @@ def parse_melody_file(file_path):
 
 	return melody_layer
 
-def parse_harmony_file():
-	return
+def parse_harmony_file(file_path):
+	key_layer = []
+	fh_layer = []
+	
+	with open(file_path, 'r') as file:
+		current_key = None
+		key_start_time = None
+		prev_line_start_time = None
+		key_idx = 0
+		line_idx = 0
+
+		for line in file:
+			harmony_dict = json.loads(line.strip())
+			key = harmony_dict['key']
+			onset_seconds = harmony_dict['onset_seconds']
+			degree1 = harmony_dict['degree1']
+			degree2 = harmony_dict['degree2']
+			quality = harmony_dict['quality']
+			# inversion = harmony_dict['inversion'] # for now, let's leave this out of the graph, since it doesn't indicate significant harmonic change
+			
+			if key_start_time and key != current_key:
+				if not current_key:
+					raise Exception("Current key is None in", file_path)
+				node_label = f"K{key}N{key_idx}"
+				key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
+				current_key = key
+				key_start_time = onset_seconds
+				key_idx += 1
+			
+			node_label = f"FH{degree1},{degree2}Q{quality}N{line_idx}"
+			if prev_line_start_time:
+				fh_layer.append({'start': float(prev_line_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
+			prev_line_start_time = onset_seconds
+			line_idx += 1
+
+		return [key_layer, fh_layer]
