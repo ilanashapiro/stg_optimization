@@ -12,7 +12,6 @@ def create_graph(layers):
 
 	for layer in layers:
 		for node in layer:
-			print(node)
 			G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'])
 
 	for i in range(len(layers) - 1):
@@ -46,14 +45,13 @@ def get_unsorted_layers_from_graph_by_index(G):
 	segments_pattern = re.compile(r"^S(\d+)L(\d+)N(\d+)$")
 	motives_pattern = re.compile(r"^P(\d+)O(\d+)N(\d+)$")
 	fh_keys_pattern = re.compile(r"^FHK(([A-G]|[a-g][+-]?)+)N(\d+)$")
-	fh_chords_pattern = re.compile(r"^FHC([1-7\+\-/]+),([1-7\+\-/]+)N(\d+)$")
+	fh_chords_pattern = re.compile(r"^FHC([1-7\+\-/]+),([1-7\+\-/]+)Q(M|m|d|M7|m7|D7|d7|a|a6|h7)N(\d+)$")
 	melody_pattern = re.compile(r"^M(-?\d+)N(\d+)$")
 
-	# Step 1: Partition the nodes based on their ID/label format
 	partition_segments = []
 	partition_motives = []
-	partition_key = []
-	partition_fh = []
+	partition_fh_keys = []
+	partition_fh_chords = []
 	partition_melody = []
 	
 	for node, data in G.nodes(data=True):
@@ -70,20 +68,22 @@ def get_unsorted_layers_from_graph_by_index(G):
 		elif fh_keys_pattern.match(node):
 			result = fh_keys_pattern.search(node)
 			if result:
-				n = result.group(2)
-				partition_key.append({'id': node, 'label': data['label'], 'index': int(n)})
+				n = result.group(3)
+				partition_fh_keys.append({'id': node, 'label': data['label'], 'index': int(n)})
 		elif fh_chords_pattern.match(node):
 			result = fh_chords_pattern.search(node)
 			if result:
-				n = result.group(3)
-				partition_fh.append({'id': node, 'label': data['label'], 'index': int(n)})
+				n = result.group(4)
+				partition_fh_chords.append({'id': node, 'label': data['label'], 'index': int(n)})
 		elif melody_pattern.match(node):
 			result = fh_chords_pattern.search(node)
 			if result:
 				n = result.group(2)
 				partition_melody.append({'id': node, 'label': data['label'], 'index': int(n)})
+		else:
+			raise Exception("Node cannot be classified", node)
 
-	# Step 2: For the partition_segments list, further partition by the L{n2} substring
+	# For the partition_segments list, further partition by the L{n2} substring
 	partition_segments_grouped = {}
 
 	for item in partition_segments:
@@ -95,9 +95,11 @@ def get_unsorted_layers_from_graph_by_index(G):
 				partition_segments_grouped[l_value] = []
 			partition_segments_grouped[l_value].append(item)
 
-	# Convert the grouped dictionary into a list of nested lists
-	layers = list(partition_segments_grouped.values())
+	layers = list(partition_segments_grouped.values()) # Convert the grouped dictionary into a list of nested lists
 	layers.append(partition_motives)
+	layers.append(partition_fh_keys)
+	layers.append(partition_fh_chords)
+	layers.append(partition_melody)
 	layers = [lst for lst in layers if lst]
 
 	return sorted(layers, key=vertical_sort_key)
@@ -220,7 +222,7 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 			color = colors[level[0] % len(colors)]
 			nx.draw_networkx_nodes(
 					G, pos,
-					nodelist=layer,
+					nodelist=[node['id'] for node in layer],
 					node_color=color,
 					node_size=1000,
 					ax=ax,
@@ -381,8 +383,8 @@ def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.t
 def generate_graph(segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
 	layers = parse_analyses.parse_form_file(segments_filepath)
 	layers.append(parse_analyses.parse_motives_file(motives_filepath))
-	layers.append(parse_analyses.parse_harmony_file(harmony_filepath))
-	layers.append(parse_analyses.parse_melody_file(melody_filepath))
+	layers.extend(parse_analyses.parse_harmony_file(harmony_filepath))
+	# layers.append(parse_analyses.parse_melody_file(melody_filepath))
 	G = create_graph(layers)
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
@@ -390,7 +392,7 @@ def generate_graph(segments_filepath, motives_filepath, harmony_filepath, melody
 if __name__ == "__main__":
 	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7'
 	segments_file = base_path + '_scluster_scluster_segments.txt'
-	motives_file = base_path + '_motives3.txt'
+	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
 	G, layers = generate_graph(segments_file, motives_file, harmony_file, melody_file)

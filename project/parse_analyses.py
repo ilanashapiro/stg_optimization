@@ -104,8 +104,10 @@ def parse_harmony_file(file_path):
 		prev_line_start_time = None
 		key_idx = 0
 		line_idx = 0
+		lines = file.readlines()
+		piece_start_time = json.loads(lines[0].strip())['onset_seconds']
 
-		for line in file:
+		for line in lines:
 			harmony_dict = json.loads(line.strip())
 			key = harmony_dict['key']
 			onset_seconds = harmony_dict['onset_seconds']
@@ -114,19 +116,21 @@ def parse_harmony_file(file_path):
 			quality = harmony_dict['quality']
 			# inversion = harmony_dict['inversion'] # for now, let's leave this out of the graph, since it doesn't indicate significant harmonic change
 			
-			if key_start_time and key != current_key:
-				if not current_key:
-					raise Exception("Current key is None in", file_path)
-				node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
-				key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
+			if current_key and key_start_time:
+				if key != current_key or (key_start_time == piece_start_time and line_idx == len(lines) - 1): # i.e. there was no key change in the piece, single key throughout piece
+					node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
+					key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
+					current_key = key
+					key_start_time = onset_seconds
+					key_idx += 1
+			else:
 				current_key = key
 				key_start_time = onset_seconds
-				key_idx += 1
-			
+
 			node_label = f"FHC{degree1},{degree2}Q{quality}N{line_idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
 			if prev_line_start_time:
 				fh_layer.append({'start': float(prev_line_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
 			prev_line_start_time = onset_seconds
 			line_idx += 1
 
-		return [key_layer, fh_layer]
+	return [key_layer, fh_layer]
