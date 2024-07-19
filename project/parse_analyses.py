@@ -117,13 +117,13 @@ def parse_harmony_file(file_path):
 			if key_start_time and key != current_key:
 				if not current_key:
 					raise Exception("Current key is None in", file_path)
-				node_label = f"K{key}N{key_idx}"
+				node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
 				key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
 				current_key = key
 				key_start_time = onset_seconds
 				key_idx += 1
 			
-			node_label = f"FH{degree1},{degree2}Q{quality}N{line_idx}"
+			node_label = f"FHC{degree1},{degree2}Q{quality}N{line_idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
 			if prev_line_start_time:
 				fh_layer.append({'start': float(prev_line_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
 			prev_line_start_time = onset_seconds

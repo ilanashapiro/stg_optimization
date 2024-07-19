@@ -12,6 +12,7 @@ def create_graph(layers):
 
 	for layer in layers:
 		for node in layer:
+			print(node)
 			G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'])
 
 	for i in range(len(layers) - 1):
@@ -25,54 +26,81 @@ def create_graph(layers):
 
 	return G
 
+def vertical_sort_key(layer):
+		id = layer[0]['id'] # get the id of the first node in the layer
+		if id.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
+			level = int(id.split('L')[1].split('N')[0])
+			return (0, level)
+		elif id.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
+			return (1, 0)
+		elif id.startswith('FHK'): # Next prioritize functional harmony keys
+			return (2, 0)
+		elif id.startswith('FHC'): # Next prioritize functional harmony chords
+			return (2, 1)
+		elif id.startswith('M'): # Finally prioritize melody
+			return (3, 0)
+		raise Exception("Invalid node encountered in sort", id)
+
 def get_unsorted_layers_from_graph_by_index(G):
 	# Regular expressions to match the ID/label formats
-	structure_pattern = re.compile(r"^S(\d+)L(\d+)N(\d+)$")
-	motive_pattern = re.compile(r"^P(\d+)O(\d+)N(\d+)$")
+	segments_pattern = re.compile(r"^S(\d+)L(\d+)N(\d+)$")
+	motives_pattern = re.compile(r"^P(\d+)O(\d+)N(\d+)$")
+	fh_keys_pattern = re.compile(r"^FHK(([A-G]|[a-g][+-]?)+)N(\d+)$")
+	fh_chords_pattern = re.compile(r"^FHC([1-7\+\-/]+),([1-7\+\-/]+)N(\d+)$")
+	melody_pattern = re.compile(r"^M(-?\d+)N(\d+)$")
 
 	# Step 1: Partition the nodes based on their ID/label format
-	partition_structure = []
+	partition_segments = []
 	partition_motives = []
+	partition_key = []
+	partition_fh = []
+	partition_melody = []
+	
 	for node, data in G.nodes(data=True):
-		if structure_pattern.match(node):
-			result = structure_pattern.search(node)
+		if segments_pattern.match(node):
+			result = segments_pattern.search(node)
 			if result:
-				n3 = result.group(3)
-				partition_structure.append({'id': node, 'label': data['label'], 'index': int(n3)})
-		elif motive_pattern.match(node):
-			result = motive_pattern.search(node)
+				n = result.group(3)
+				partition_segments.append({'id': node, 'label': data['label'], 'index': int(n)})
+		elif motives_pattern.match(node):
+			result = motives_pattern.search(node)
 			if result:
-				n3 = result.group(3)
-				partition_motives.append({'id': node, 'label': data['label'], 'index': int(n3)})
+				n = result.group(3)
+				partition_motives.append({'id': node, 'label': data['label'], 'index': int(n)})
+		elif fh_keys_pattern.match(node):
+			result = fh_keys_pattern.search(node)
+			if result:
+				n = result.group(2)
+				partition_key.append({'id': node, 'label': data['label'], 'index': int(n)})
+		elif fh_chords_pattern.match(node):
+			result = fh_chords_pattern.search(node)
+			if result:
+				n = result.group(3)
+				partition_fh.append({'id': node, 'label': data['label'], 'index': int(n)})
+		elif melody_pattern.match(node):
+			result = fh_chords_pattern.search(node)
+			if result:
+				n = result.group(2)
+				partition_melody.append({'id': node, 'label': data['label'], 'index': int(n)})
 
-	# Step 2: For the partition_structure list, further partition by the L{n2} substring
-	partition_structure_grouped = {}
+	# Step 2: For the partition_segments list, further partition by the L{n2} substring
+	partition_segments_grouped = {}
 
-	for item in partition_structure:
+	for item in partition_segments:
 		# Extract the L{n2} part using regular expression
 		match = re.search(r'L(\d+)', item['label'])
 		if match:
 			l_value = match.group(1)
-			if l_value not in partition_structure_grouped:
-				partition_structure_grouped[l_value] = []
-			partition_structure_grouped[l_value].append(item)
+			if l_value not in partition_segments_grouped:
+				partition_segments_grouped[l_value] = []
+			partition_segments_grouped[l_value].append(item)
 
 	# Convert the grouped dictionary into a list of nested lists
-	layers = list(partition_structure_grouped.values())
+	layers = list(partition_segments_grouped.values())
 	layers.append(partition_motives)
 	layers = [lst for lst in layers if lst]
 
-	def vertical_sort_key(layer):
-		id = layer[0]['id'] 
-		parts = id.split('N')
-		if id.startswith('S'):
-			level = int(parts[0].split('L')[1])
-			return (0, level)  # 0 as the first element to prioritize 'S' prefixed ids
-		else: 
-			return (1, 0)  # 1 to deprioritize 'P' prefixed ids, 0 as a placeholder for level since it's irrelevant for motif
-
-	layers = sorted(layers, key=vertical_sort_key)
-	return layers
+	return sorted(layers, key=vertical_sort_key)
 
 # this doesn't work properly need to debug
 def compress_graph(G):
@@ -186,13 +214,27 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]
-		# Draw all nodes except the last layer with the default color
-		non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
-		nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+		colors = ["#98FDFF", "#FFB4E4", "#FFDDC1", "#C6E2FF", "#D3FFCE"]
+		for layer in layers:
+			level = vertical_sort_key(layer)
+			color = colors[level[0] % len(colors)]
+			nx.draw_networkx_nodes(
+					G, pos,
+					nodelist=layer,
+					node_color=color,
+					node_size=1000,
+					ax=ax,
+					edgecolors='black',
+					linewidths=0.5
+			)
+
+		# # Draw all nodes except the last layer with the default color
+		# non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
+		# nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 		
-		# Draw the last layer nodes with yellow color
-		last_layer_nodes = [node['id'] for node in layers[-1]]
-		nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+		# # Draw the last layer nodes with yellow color
+		# last_layer_nodes = [node['id'] for node in layers[-1]]
+		# nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 		
 		# Draw edges and labels for all nodes
 		nx.draw_networkx_edges(G, pos, edge_color="black", arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
@@ -336,18 +378,22 @@ def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.t
 
 	return augmented_graphs
 
-def generate_graph(structure_filepath, motives_filepath):
-	layers = parse_analyses.parse_form_file(structure_filepath)
-	motive_layer = parse_analyses.parse_motives_file(motives_filepath)
-	layers.append(motive_layer)
+def generate_graph(segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
+	layers = parse_analyses.parse_form_file(segments_filepath)
+	layers.append(parse_analyses.parse_motives_file(motives_filepath))
+	layers.append(parse_analyses.parse_harmony_file(harmony_filepath))
+	layers.append(parse_analyses.parse_melody_file(melody_filepath))
 	G = create_graph(layers)
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
-	form_file = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7_scluster_scluster_segments.txt'
-	motives_file = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7_motives3.txt'
-	G, layers = generate_graph(form_file, motives_file)
-	# visualize([G], [layers])
-	augment_graph(G)
-	visualize_p([G], [layers])
+	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7'
+	segments_file = base_path + '_scluster_scluster_segments.txt'
+	motives_file = base_path + '_motives3.txt'
+	harmony_file = base_path + '_functional_harmony.txt'
+	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
+	G, layers = generate_graph(segments_file, motives_file, harmony_file, melody_file)
+	visualize([G], [layers])
+	# augment_graph(G)
+	# visualize_p([G], [layers])
