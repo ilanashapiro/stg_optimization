@@ -1,3 +1,4 @@
+from tracemalloc import start
 import networkx as nx
 import matplotlib.pyplot as plt
 import math 
@@ -76,7 +77,7 @@ def get_unsorted_layers_from_graph_by_index(G):
 				n = result.group(4)
 				partition_fh_chords.append({'id': node, 'label': data['label'], 'index': int(n)})
 		elif melody_pattern.match(node):
-			result = fh_chords_pattern.search(node)
+			result = melody_pattern.search(node)
 			if result:
 				n = result.group(2)
 				partition_melody.append({'id': node, 'label': data['label'], 'index': int(n)})
@@ -230,14 +231,6 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 					linewidths=0.5
 			)
 
-		# # Draw all nodes except the last layer with the default color
-		# non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
-		# nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
-		
-		# # Draw the last layer nodes with yellow color
-		# last_layer_nodes = [node['id'] for node in layers[-1]]
-		# nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
-		
 		# Draw edges and labels for all nodes
 		nx.draw_networkx_edges(G, pos, edge_color="black", arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
@@ -384,7 +377,7 @@ def generate_graph(segments_filepath, motives_filepath, harmony_filepath, melody
 	layers = parse_analyses.parse_form_file(segments_filepath)
 	layers.append(parse_analyses.parse_motives_file(motives_filepath))
 	layers.extend(parse_analyses.parse_harmony_file(harmony_filepath))
-	# layers.append(parse_analyses.parse_melody_file(melody_filepath))
+	layers.append(parse_analyses.parse_melody_file(melody_filepath))
 	G = create_graph(layers)
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
