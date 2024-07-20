@@ -14,7 +14,7 @@ def parse_form_file(file_path):
 			start, end, id = line.split('\t')
 			node_label = f"S{id}L{layer_idx + 1}"
 			node_id = f"{node_label}N{idx}"
-			layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_id})
+			layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'index': idx, 'label': node_id})
 		segment_layers.append(layer)
 	
 	# fix section labels so each new label encountered is increasing from the previous
@@ -31,12 +31,12 @@ def parse_form_file(file_path):
 		for node in layer:
 			old_s_num = node['id'].split('L')[0][1:]
 			new_s_num = s_num_mapping[old_s_num]
-			parts = node['id'].split('L')
+			parts = node['id'].split('L') # this is e.g. "10N9"
 			new_id = f'S{new_s_num}L{parts[1]}'
 			new_label = new_id # update labels too, not just node id's
-			updated_nodes.append({'start': node['start'], 'end': node['end'], 'id': new_id, 'label': new_label})
+			updated_nodes.append({'start': node['start'], 'end': node['end'], 'index': node['index'], 'id': new_id, 'label': new_label})
 		segment_layers[idx] = updated_nodes
-
+	
 	return segment_layers
 
 def parse_motives_file(file_path):
@@ -75,6 +75,7 @@ def parse_motives_file(file_path):
 	for idx, item in enumerate(motif_layer):
 		item['id'] += f"N{idx}"
 		item['label'] += f"N{idx}"
+		item['index'] = idx
 
 	return motif_layer
 
@@ -90,7 +91,7 @@ def parse_melody_file(file_path):
 		start, end = map(float, time_tuple_str.split(','))
 		label = int(float(parts[1].strip()))
 		node_label = f"M{label}N{idx}"
-		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
+		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label, 'index': idx})
 
 	return melody_layer
 
@@ -119,7 +120,7 @@ def parse_harmony_file(file_path):
 			if current_key and key_start_time:
 				if key != current_key or (key_start_time == piece_start_time and line_idx == len(lines) - 1): # i.e. there was no key change in the piece, single key throughout piece
 					node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
-					key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
+					key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label, 'index': key_idx})
 					current_key = key
 					key_start_time = onset_seconds
 					key_idx += 1
@@ -129,7 +130,7 @@ def parse_harmony_file(file_path):
 
 			node_label = f"FHC{degree1},{degree2}Q{quality}N{line_idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
 			if prev_line_start_time:
-				fh_layer.append({'start': float(prev_line_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label})
+				fh_layer.append({'start': float(prev_line_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label, 'index': line_idx})
 			prev_line_start_time = onset_seconds
 			line_idx += 1
 

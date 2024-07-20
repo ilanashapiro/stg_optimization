@@ -13,7 +13,7 @@ def create_graph(layers):
 
 	for layer in layers:
 		for node in layer:
-			G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'])
+			G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'])
 
 	for i in range(len(layers) - 1):
 		for node_a in layers[i]:
@@ -27,28 +27,21 @@ def create_graph(layers):
 	return G
 
 def vertical_sort_key(layer):
-		id = layer[0]['id'] # get the id of the first node in the layer
-		if id.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
-			level = int(id.split('L')[1].split('N')[0])
-			return (0, level)
-		elif id.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
-			return (1, 0)
-		elif id.startswith('FHK'): # Next prioritize functional harmony keys
-			return (2, 0)
-		elif id.startswith('FHC'): # Next prioritize functional harmony chords
-			return (2, 1)
-		elif id.startswith('M'): # Finally prioritize melody
-			return (3, 0)
-		raise Exception("Invalid node encountered in sort", id)
+	id = layer[0]['id'] # get the id of the first node in the layer
+	if id.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
+		level = int(id.split('L')[1].split('N')[0])
+		return (0, level)
+	elif id.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
+		return (1, 0)
+	elif id.startswith('FHK'): # Next prioritize functional harmony keys
+		return (2, 0)
+	elif id.startswith('FHC'): # Next prioritize functional harmony chords
+		return (2, 1)
+	elif id.startswith('M'): # Finally prioritize melody
+		return (3, 0)
+	raise Exception("Invalid node encountered in sort", id)
 
 def get_unsorted_layers_from_graph_by_index(G):
-	# Regular expressions to match the ID/label formats
-	segments_pattern = re.compile(r"^S(\d+)L(\d+)N(\d+)$")
-	motives_pattern = re.compile(r"^P(\d+)O(\d+)N(\d+)$")
-	fh_keys_pattern = re.compile(r"^FHK(([A-G]|[a-g][+-]?)+)N(\d+)$")
-	fh_chords_pattern = re.compile(r"^FHC([1-7\+\-/]+),([1-7\+\-/]+)Q(M|m|d|M7|m7|D7|d7|a|a6|h7)N(\d+)$")
-	melody_pattern = re.compile(r"^M(-?\d+)N(\d+)$")
-
 	partition_segments = []
 	partition_motives = []
 	partition_fh_keys = []
@@ -56,33 +49,18 @@ def get_unsorted_layers_from_graph_by_index(G):
 	partition_melody = []
 	
 	for node, data in G.nodes(data=True):
-		if segments_pattern.match(node):
-			result = segments_pattern.search(node)
-			if result:
-				n = result.group(3)
-				partition_segments.append({'id': node, 'label': data['label'], 'index': int(n)})
-		elif motives_pattern.match(node):
-			result = motives_pattern.search(node)
-			if result:
-				n = result.group(3)
-				partition_motives.append({'id': node, 'label': data['label'], 'index': int(n)})
-		elif fh_keys_pattern.match(node):
-			result = fh_keys_pattern.search(node)
-			if result:
-				n = result.group(3)
-				partition_fh_keys.append({'id': node, 'label': data['label'], 'index': int(n)})
-		elif fh_chords_pattern.match(node):
-			result = fh_chords_pattern.search(node)
-			if result:
-				n = result.group(4)
-				partition_fh_chords.append({'id': node, 'label': data['label'], 'index': int(n)})
-		elif melody_pattern.match(node):
-			result = melody_pattern.search(node)
-			if result:
-				n = result.group(2)
-				partition_melody.append({'id': node, 'label': data['label'], 'index': int(n)})
-		else:
-			raise Exception("Node cannot be classified", node)
+		index = data['index']
+		if node.startswith('S'):
+			partition_segments.append({'id': node, 'label': data['label'], 'index': int(index)})
+		elif node.startswith('P'):
+			partition_motives.append({'id': node, 'label': data['label'], 'index': int(index)})
+		elif node.startswith('FHK'):
+			partition_fh_keys.append({'id': node, 'label': data['label'], 'index': int(index)})
+		elif node.startswith('FHC'):
+			partition_fh_chords.append({'id': node, 'label': data['label'], 'index': int(index)})
+		elif node.startswith('M'):
+			partition_melody.append({'id': node, 'label': data['label'], 'index': int(index)})
+		G.nodes[node]['index'] = index
 
 	# For the partition_segments list, further partition by the L{n2} substring
 	partition_segments_grouped = {}
