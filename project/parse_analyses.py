@@ -133,6 +133,22 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 	key_layer = []
 	fh_layer = []
 	
+	major_keys = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+	minor_keys = [key.lower() for key in major_keys]
+	key_names_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+
+	def get_relative_key_symbol(current_key, new_key):
+		if current_key.isupper(): 
+			key_list = major_keys
+		else: 
+			key_list = minor_keys
+		
+		current_index = key_names_list.index(current_key.upper())
+		new_index = key_names_list.index(new_key.upper())
+		
+		relative_index = (new_index - current_index) % len(key_list)
+		return key_list[relative_index]
+
 	with open(file_path, 'r') as file:
 		current_key = None
 		key_start_time = None
@@ -156,7 +172,8 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 			
 			if current_key and key_start_time:		
 				if key != current_key: 
-					node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
+					relative_key_symbol = get_relative_key_symbol(current_key, key)
+					node_label = f"FHK{relative_key_symbol}N{key_idx}" # functional harmony key {key} number {number}
 					key_start_time = float(key_start_time)
 					
 					if key_start_time < piece_start_time and onset_seconds < piece_start_time or key_start_time > piece_end_time and onset_seconds > piece_end_time:
@@ -198,7 +215,8 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 		if key_start_time <= piece_start_time:
 			if key_start_time < piece_start_time:
 				key_start_time = piece_start_time
-			node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
+			relative_key_symbol = get_relative_key_symbol(key, key)
+			node_label = f"FHK{relative_key_symbol}N{key_idx}" # functional harmony key {key} number {number}
 			key_layer.append({'start': float(key_start_time), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': key_idx})
 
 	return [key_layer, fh_layer]

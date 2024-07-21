@@ -11,15 +11,15 @@ import pandas as pd
 from analyses import format_conversions as fc
 import mido
 
-def create_graph(piece_start_time, piece_end_time, layers):
-	def get_layer_id(node):
-		for layer_id in ['S', 'P', 'FHK', 'FHC', 'M']:
-			if node.startswith(layer_id):
-				return layer_id
-		raise Exception("Invalid node", node)
+def get_layer_id(node):
+	for layer_id in ['S', 'P', 'FHK', 'FHC', 'M']:
+		if node.startswith(layer_id):
+			return layer_id
+	raise Exception("Invalid node", node)
 
+def create_graph(piece_start_time, piece_end_time, layers):
 	G = nx.DiGraph()
-	print("LAYERS", layers)
+	
 	for layer in layers:
 		# Sort nodes in the current layer by their start time
 		sorted_nodes = sorted(layer, key=lambda x: x['start'])
@@ -141,16 +141,25 @@ def augment_graph(G):
 	# Add prototype nodes and edges to instances
 	for layer in layers:
 		for node_info in layer:
-			if 'L' in node_info['id']:
-				proto_node_id = 'PrS' + node_info['id'].split('S')[1].split('L')[0]
+			instance_node_id = node_info['id']
+			if instance_node_id.startswith('S'):
+				proto_node_id = 'PrS' + instance_node_id.split('S')[1].split('L')[0]
+			elif instance_node_id.startswith('P'):
+				proto_node_id = 'PrP' + instance_node_id.split('P')[1].split('O')[0]
+			elif instance_node_id.startswith('FHK'):
+				proto_node_id = 'PrFHK' + instance_node_id.split('FHK')[1].split('N')[0]
+			elif instance_node_id.startswith('FHC'):
+				proto_node_id = 'PrFHC' + instance_node_id.split('FHC')[1].split('N')[0]
+			elif instance_node_id.startswith('M'):
+				proto_node_id = 'PrM' + instance_node_id.split('M')[1].split('N')[0]
 			else:
-				proto_node_id = 'PrP' + node_info['id'].split('P')[1].split('O')[0]
+				raise Exception("Invalid instance node id", instance_node_id)
 
 			if proto_node_id not in G:
 				G.add_node(proto_node_id, label=proto_node_id)
 
-			if not G.has_edge(proto_node_id, node_info['id']):
-				G.add_edge(proto_node_id, node_info['id'])
+			if not G.has_edge(proto_node_id, instance_node_id):
+				G.add_edge(proto_node_id, instance_node_id)
 
 	# Add intra-level edges based on index
 	for layer in layers:
@@ -193,18 +202,21 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 		
 		ax = axes_flat[idx]
 		colors = ["#98FDFF", "#FFB4E4", "#FFDDC1", "#C6E2FF", "#D3FFCE"]
+		filler_color = '#FF0000'
 		for layer in layers:
 			level = vertical_sort_key(layer)
 			color = colors[level[0] % len(colors)]
-			nx.draw_networkx_nodes(
-					G, pos,
-					nodelist=[node['id'] for node in layer],
-					node_color=color,
-					node_size=1000,
-					ax=ax,
-					edgecolors='black',
-					linewidths=0.5
-			)
+			for node in layer:
+				node_color = filler_color if "filler" in node['id'] else color
+				nx.draw_networkx_nodes(
+						G, pos,
+						nodelist=[node['id']],
+						node_color=node_color,
+						node_size=1000,
+						ax=ax,
+						edgecolors='black',
+						linewidths=0.5
+				)
 
 		# Draw edges and labels for all nodes
 		nx.draw_networkx_edges(G, pos, edge_color="black", arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
@@ -280,14 +292,14 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		inter_level_edges = []
 		proto_edges = []
 
-		def extract_level(node_id):
+		def extract_segment_level(node_id):
 			match = re.search(r'S\d+L(\d+)N\d+', node_id)
 			return match.group(1) if match else None
 
 		for u, v in all_edges:
 			if u in prototype_nodes or v in prototype_nodes:
 				proto_edges.append((u, v))
-			elif extract_level(u) == extract_level(v):
+			elif extract_segment_level(u) == extract_segment_level(v):
 				intra_level_edges.append((u, v))
 			else:
 				inter_level_edges.append((u, v))
