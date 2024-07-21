@@ -1,18 +1,32 @@
 import json
+from venv import create
 
-def parse_form_file(file_path):
+def parse_form_file(file_path, piece_start_time, piece_end_time):
 	with open(file_path, 'r') as file:
 		data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
+	def below_start_bound(time):
+		return float(time) < float(piece_start_time) 
+	def above_end_bound(time):
+		return float(time) > float(piece_end_time)
+	def create_label(start, end, idx):
+		node_label = f"S{id}L{layer_idx + 1}"
+		node_id = f"{node_label}N{idx}"
+		return {'start': float(start), 'end': float(end), 'id': node_id, 'index': idx, 'label': node_id}
+		
 	segment_layers = []
 	for layer_idx, chunk in enumerate(data):
 		lines = chunk.split('\n')
 		layer = []
-		for idx, line in enumerate(lines):
+		idx = 0
+		for line in lines:
 			start, end, id = line.split('\t')
-			node_label = f"S{id}L{layer_idx + 1}"
-			node_id = f"{node_label}N{idx}"
-			layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'index': idx, 'label': node_id})
+			if below_start_bound(start) and above_end_bound(end):
+				layer.append(create_label(piece_start_time, piece_end_time, idx))
+				idx += 1
+			elif not below_start_bound(start) and not above_end_bound(end):
+				layer.append(create_label(start, end, idx))
+				idx += 1
 		segment_layers.append(layer)
 	
 	# fix section labels so each new label encountered is increasing from the previous
@@ -100,7 +114,6 @@ def parse_harmony_file(file_path):
 	with open(file_path, 'r') as file:
 		current_key = None
 		key_start_time = None
-		prev_line_start_time = None
 		key_idx = 0
 		lines = file.readlines()
 		piece_end_time = json.loads(lines[0].strip())['end_time']

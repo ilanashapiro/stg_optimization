@@ -30,7 +30,6 @@ def convert_timesteps_to_seconds(piece_dir):
 
 	mid = mido.MidiFile(midi_file)
 	tempo_changes = fc.preprocess_tempo_changes(mid)
-	ticks_per_beat = mid.ticks_per_beat
 
 	mid_df = None
 	if os.path.exists(midi_csv_file):
@@ -43,7 +42,7 @@ def convert_timesteps_to_seconds(piece_dir):
 	# Convert durations to seconds and calculate end times
 	mid_df['duration_seconds'] = mid_df['duration'].apply(
 			lambda duration: fc.ticks_to_secs_with_tempo_changes(
-					timestep_to_ticks(duration * 4, ticks_per_beat), tempo_changes, ticks_per_beat)
+					timestep_to_ticks(duration * 4, mid.ticks_per_beat), tempo_changes, mid.ticks_per_beat)
 	)
 	mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
 	max_end_time = mid_df['end_time'].max()
@@ -56,8 +55,8 @@ def convert_timesteps_to_seconds(piece_dir):
 		data = json.loads(line.strip())
 		timestep = data["timestep"]
 		
-		ticks = timestep_to_ticks(timestep, ticks_per_beat)
-		seconds = fc.ticks_to_secs_with_tempo_changes(ticks, tempo_changes, ticks_per_beat)
+		ticks = timestep_to_ticks(timestep, mid.ticks_per_beat)
+		seconds = fc.ticks_to_secs_with_tempo_changes(ticks, tempo_changes, mid.ticks_per_beat)
 		
 		# NOTE: this ONLY seems to be happening at the very end of midi files where there is silence
 		# the silence doesn't get translated to the audio. remove these chord predictions because the 

@@ -7,14 +7,43 @@ import os
 import glob
 import json 
 import parse_analyses
+import pandas as pd
+from analyses import format_conversions as fc
+import mido
 
-def create_graph(layers):
+def create_graph(piece_start_time, piece_end_time, layers):
 	G = nx.DiGraph()
 
 	for layer in layers:
-		for node in layer:
-			G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'])
+		# Sort nodes in the current layer by their start time
+		sorted_nodes = sorted(layer, key=lambda x: x['start'])
 
+		# Add nodes to the graph
+		for node in sorted_nodes:
+			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
+				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'])
+		
+		# Identify and add filler nodes
+		for i in range(len(sorted_nodes) - 1):
+			node1 = sorted_nodes[i]
+			node2 = sorted_nodes[i + 1]
+			
+			if node1['end'] < node2['start'] and node2['start'] <= piece_end_time and node1['end'] >= piece_start_time: # There's a gap between node1 and node2
+				filler_node_index = node1['index'] + 0.5
+				filler_node_id = f"PdummyN{filler_node_index}" # Hardcoding P for now since motif/pattern layer is the only one that requires fillers
+				filler_node_label = filler_node_id
+				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index)
+		
+		if sorted_nodes[0]['start'] > piece_start_time and sorted_nodes[0]['start'] <= piece_end_time:
+			filler_node_id = f"PdummyN{0.5}"
+			filler_node_label = filler_node_id
+			G.add_node(filler_node_id, start=piece_start_time, end=sorted_nodes[0]['start'], label=filler_node_label, index=0.5)
+		if sorted_nodes[0]['end'] < piece_end_time and sorted_nodes[0]['start'] >= piece_start_time:
+			filler_node_index = sorted_nodes[-1]['index'] + 0.5
+			filler_node_id = f"PdummyN{filler_node_index}"
+			filler_node_label = filler_node_id
+			G.add_node(filler_node_id, start=sorted_nodes[0]['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index)
+								
 	for i in range(len(layers) - 1):
 		for node_a in layers[i]:
 			for node_b in layers[i + 1]:
@@ -82,60 +111,6 @@ def get_unsorted_layers_from_graph_by_index(G):
 	layers = [lst for lst in layers if lst]
 
 	return sorted(layers, key=vertical_sort_key)
-
-# this doesn't work properly need to debug
-def compress_graph(G):
-	instance_labels = {}
-	motif_occurrence_counts = {}
-
-	def find_top_level_instance_nodes(G):
-		potential_top_levels = set()
-		for from_node, to_node in G.edges():
-			if 'Pr' in from_node:
-				potential_top_levels.add(to_node)
-		return potential_top_levels
-	
-	def get_proto_parents(node_id):
-		return [from_node for from_node, _ in G.in_edges(node_id) if 'Pr' in from_node]
-
-	# Recursively assign new labels and find levels
-	def assign_labels_and_levels(node, level, index, parent_proto):
-		if 'PrS' in parent_proto:
-			n = parent_proto.split('PrS')[1]
-			new_label = f'S{n}L{level}N{index}'
-		elif 'PrP' in parent_proto:
-			p_n = parent_proto.split('PrP')[1]
-			if p_n not in motif_occurrence_counts:
-				motif_occurrence_counts[p_n] = 1
-			else:
-				motif_occurrence_counts[p_n] += 1
-			o_n = motif_occurrence_counts[p_n]
-			new_label = f'P{p_n}O{o_n}N{index}'
-		else:
-			raise ValueError("Unknown prototype parent type")
-
-		instance_labels[node] = new_label
-		children = [to_node for _, to_node in G.edges(node)]
-		children = sorted(children, key=lambda x: int(x.split('N')[-1]))  # Sort by N value
-
-		# Recursive call for each child
-		for i, child in enumerate(children):
-			proto_parents = get_proto_parents(child)
-			if not proto_parents:
-				raise ValueError("No prototype parent found for child")
-			assign_labels_and_levels(child, level+1, i, proto_parents[0])
-
-	top_level_instance_nodes = find_top_level_instance_nodes(G)
-
-	# For each root node, determine its level (0) and assign labels
-	for index, root_node in enumerate(sorted(top_level_instance_nodes, key=lambda node_label: int(node_label.split('N')[-1]))):
-		proto_parents = get_proto_parents(root_node)
-		if proto_parents:
-			assign_labels_and_levels(root_node, 0, index, proto_parents[0])
-		else:
-			raise ValueError("Root node without a prototype parent found")
-
-	return instance_labels
 
 # augment with prototype nodes and intra-level layers
 def augment_graph(G):
@@ -351,22 +326,36 @@ def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.t
 
 	return augmented_graphs
 
-def generate_graph(segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
-	layers = parse_analyses.parse_form_file(segments_filepath)
+def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
+	layers = parse_analyses.parse_form_file(segments_filepath, piece_start_time, piece_end_time)
 	layers.append(parse_analyses.parse_motives_file(motives_filepath))
 	layers.extend(parse_analyses.parse_harmony_file(harmony_filepath))
 	layers.append(parse_analyses.parse_melody_file(melody_filepath))
-	G = create_graph(layers)
+	G = create_graph(piece_start_time, piece_end_time, layers)
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
 	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7'
+
+	mid = mido.MidiFile(base_path + ".mid")
+	tempo_changes = fc.preprocess_tempo_changes(mid)
+	mid_df = pd.read_csv(base_path + ".csv")
+
+	# Convert durations to seconds and calculate end times
+	mid_df['duration_seconds'] = mid_df['duration'].apply(
+			lambda duration: fc.ticks_to_secs_with_tempo_changes(
+					duration * mid.ticks_per_beat, tempo_changes, mid.ticks_per_beat)
+	)
+	mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
+	piece_end_time = mid_df['end_time'].max()
+	piece_start_time = mid_df['onset_seconds'].min()
+
 	segments_file = base_path + '_scluster_scluster_segments.txt'
 	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
-	G, layers = generate_graph(segments_file, motives_file, harmony_file, melody_file)
+	G, layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	visualize([G], [layers])
 	# augment_graph(G)
 	# visualize_p([G], [layers])
