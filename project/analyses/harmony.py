@@ -5,7 +5,7 @@ import format_conversions as fc
 # NOTE: all generation of functional harmony labels is done inside Harmony-Transformer-v2
 # This file is purely for post-processing of the computed timesteps (i.e. 1/16 notes) -> seconds
 
-DIRECTORY = "/home/ilshapiro/project/datasets"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
 
 def convert_timesteps_to_seconds(piece_dir):
 	def timestep_to_ticks(timestep, ticks_per_beat):
@@ -51,7 +51,7 @@ def convert_timesteps_to_seconds(piece_dir):
 	with open(fh_file, 'r') as f:
 		lines = f.readlines()
 
-	converted_data = []
+	converted_data = [{'end_time': max_end_time}]
 	for line in lines:
 		data = json.loads(line.strip())
 		timestep = data["timestep"]

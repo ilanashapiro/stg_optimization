@@ -1,7 +1,5 @@
 import json
 
-from networkx import degree
-
 def parse_form_file(file_path):
 	with open(file_path, 'r') as file:
 		data = file.read().strip().split('\n\n')  # Split into chunks by blank line
@@ -104,21 +102,25 @@ def parse_harmony_file(file_path):
 		key_start_time = None
 		prev_line_start_time = None
 		key_idx = 0
-		line_idx = 0
 		lines = file.readlines()
-		piece_start_time = json.loads(lines[0].strip())['onset_seconds']
+		piece_end_time = json.loads(lines[0].strip())['end_time']
+		piece_start_time = json.loads(lines[1].strip())['onset_seconds']
 
-		for line in lines:
-			harmony_dict = json.loads(line.strip())
-			key = harmony_dict['key']
-			onset_seconds = harmony_dict['onset_seconds']
-			degree1 = harmony_dict['degree1']
-			degree2 = harmony_dict['degree2']
-			quality = harmony_dict['quality']
+		# first line is the piece end time, only go up to the last line since we process in pairs
+		for idx, line in enumerate(lines[1:-1], start=1):
+			curr_harmony_dict = json.loads(line.strip())
+			key = curr_harmony_dict['key']
+			onset_seconds = curr_harmony_dict['onset_seconds']
+			degree1 = curr_harmony_dict['degree1']
+			degree2 = curr_harmony_dict['degree2']
+			quality = curr_harmony_dict['quality']
 			# inversion = harmony_dict['inversion'] # for now, let's leave this out of the graph, since it doesn't indicate significant harmonic change
+
+			next_harmony_dict = json.loads(lines[idx+1].strip())
+			next_onset_seconds = next_harmony_dict['onset_seconds']
 			
-			if current_key and key_start_time:
-				if key != current_key or (key_start_time == piece_start_time and line_idx == len(lines) - 1): # i.e. there was no key change in the piece, single key throughout piece
+			if current_key and key_start_time:										
+				if key != current_key: 
 					node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
 					key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label, 'index': key_idx})
 					current_key = key
@@ -128,10 +130,25 @@ def parse_harmony_file(file_path):
 				current_key = key
 				key_start_time = onset_seconds
 
-			node_label = f"FHC{degree1},{degree2}Q{quality}N{line_idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
-			if prev_line_start_time:
-				fh_layer.append({'start': float(prev_line_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label, 'index': line_idx})
-			prev_line_start_time = onset_seconds
-			line_idx += 1
+			node_label = f"FHC{degree1},{degree2}Q{quality}N{idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
+			if onset_seconds != next_onset_seconds:
+				fh_layer.append({'start': float(onset_seconds), 'end': float(next_onset_seconds), 'id': node_label, 'label': node_label, 'index': idx})
+		
+		# process the last harmony dict
+		last_harmony_dict = json.loads(lines[-1].strip())
+		key = last_harmony_dict['key']
+		onset_seconds = last_harmony_dict['onset_seconds']
+		degree1 = last_harmony_dict['degree1']
+		degree2 = last_harmony_dict['degree2']
+		quality = last_harmony_dict['quality']
+		
+		if onset_seconds != piece_end_time:
+			node_label = f"FHC{degree1},{degree2}Q{quality}N{len(lines) - 1}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
+			fh_layer.append({'start': float(onset_seconds), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': idx})
+		
+		# i.e. there was no key change in the piece, a single key throughout piece
+		if key_start_time == piece_start_time:
+			node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
+			key_layer.append({'start': float(key_start_time), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': key_idx})
 
 	return [key_layer, fh_layer]
