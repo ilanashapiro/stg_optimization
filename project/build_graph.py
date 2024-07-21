@@ -12,38 +12,57 @@ from analyses import format_conversions as fc
 import mido
 
 def create_graph(piece_start_time, piece_end_time, layers):
-	G = nx.DiGraph()
+	def get_layer_id(node):
+		for layer_id in ['S', 'P', 'FHK', 'FHC', 'M']:
+			if node.startswith(layer_id):
+				return layer_id
+		raise Exception("Invalid node", node)
 
+	G = nx.DiGraph()
+	print("LAYERS", layers)
 	for layer in layers:
 		# Sort nodes in the current layer by their start time
 		sorted_nodes = sorted(layer, key=lambda x: x['start'])
 
-		# Add nodes to the graph
+		# Add all real nodes to the graph
 		for node in sorted_nodes:
 			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
 				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'])
 		
-		# Identify and add filler nodes
+		# Add all filler nodes
 		for i in range(len(sorted_nodes) - 1):
 			node1 = sorted_nodes[i]
 			node2 = sorted_nodes[i + 1]
 			
-			if node1['end'] < node2['start'] and node2['start'] <= piece_end_time and node1['end'] >= piece_start_time: # There's a gap between node1 and node2
+			# There's a gap between node1 and node2
+			if node1['end'] < node2['start'] and node2['start'] <= piece_end_time and node1['end'] >= piece_start_time: 
 				filler_node_index = node1['index'] + 0.5
-				filler_node_id = f"PdummyN{filler_node_index}" # Hardcoding P for now since motif/pattern layer is the only one that requires fillers
+				filler_node_id = f"{get_layer_id(node1['id'])}fillerN{filler_node_index}" # Hardcoding P for now since motif/pattern layer is the only one that requires fillers
 				filler_node_label = filler_node_id
 				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index)
-		
-		if sorted_nodes[0]['start'] > piece_start_time and sorted_nodes[0]['start'] <= piece_end_time:
-			filler_node_id = f"PdummyN{0.5}"
+				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index}
+				layer.append(filler_node)
+				
+		# if the first node in the layer starts after the piece start time, we have a gap at the beginning
+		first_node = sorted_nodes[0]
+		if first_node['start'] > piece_start_time:
+			filler_node_id = f"{get_layer_id(first_node['id'])}fillerN{0.5}"
 			filler_node_label = filler_node_id
-			G.add_node(filler_node_id, start=piece_start_time, end=sorted_nodes[0]['start'], label=filler_node_label, index=0.5)
-		if sorted_nodes[0]['end'] < piece_end_time and sorted_nodes[0]['start'] >= piece_start_time:
-			filler_node_index = sorted_nodes[-1]['index'] + 0.5
-			filler_node_id = f"PdummyN{filler_node_index}"
+			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5)
+			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5}
+			layer.append(filler_node)
+
+		# if the layer node in the layer starts after the piece end time, we have a gap at the end
+		last_node = sorted_nodes[-1]
+		if last_node['end'] < piece_end_time:
+			filler_node_index = last_node['index'] + 0.5
+			filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
 			filler_node_label = filler_node_id
-			G.add_node(filler_node_id, start=sorted_nodes[0]['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index)
-								
+			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index)
+			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index}
+			layer.append(filler_node)
+		layer.sort(key=lambda x: x['start'])
+			
 	for i in range(len(layers) - 1):
 		for node_a in layers[i]:
 			for node_b in layers[i + 1]:
@@ -53,6 +72,9 @@ def create_graph(piece_start_time, piece_end_time, layers):
 				if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
 					G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
 
+	# Remove unused filler nodes
+	unused_filler_nodes = [node for node in G.nodes() if "filler" in node and G.out_degree(node) == 0]
+	G.remove_nodes_from(unused_filler_nodes)
 	return G
 
 def vertical_sort_key(layer):
@@ -328,10 +350,11 @@ def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.t
 
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
 	layers = parse_analyses.parse_form_file(segments_filepath, piece_start_time, piece_end_time)
-	layers.append(parse_analyses.parse_motives_file(motives_filepath))
-	layers.extend(parse_analyses.parse_harmony_file(harmony_filepath))
-	layers.append(parse_analyses.parse_melody_file(melody_filepath))
+	layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
+	layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
+	layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
 	G = create_graph(piece_start_time, piece_end_time, layers)
+	
 	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 	return (G, layers_with_index)
 
@@ -351,7 +374,8 @@ if __name__ == "__main__":
 	piece_end_time = mid_df['end_time'].max()
 	piece_start_time = mid_df['onset_seconds'].min()
 
-	segments_file = base_path + '_scluster_scluster_segments.txt'
+	# segments_file = base_path + '_scluster_scluster_segments.txt'
+	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'

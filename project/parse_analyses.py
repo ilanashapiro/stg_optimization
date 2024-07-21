@@ -1,5 +1,4 @@
 import json
-from venv import create
 
 def parse_form_file(file_path, piece_start_time, piece_end_time):
 	with open(file_path, 'r') as file:
@@ -18,15 +17,19 @@ def parse_form_file(file_path, piece_start_time, piece_end_time):
 	for layer_idx, chunk in enumerate(data):
 		lines = chunk.split('\n')
 		layer = []
-		idx = 0
+		idx = 1
 		for line in lines:
 			start, end, id = line.split('\t')
-			if below_start_bound(start) and above_end_bound(end):
-				layer.append(create_label(piece_start_time, piece_end_time, idx))
-				idx += 1
-			elif not below_start_bound(start) and not above_end_bound(end):
-				layer.append(create_label(start, end, idx))
-				idx += 1
+
+			if below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end):
+				continue
+			if below_start_bound(start):
+				start = piece_start_time
+			if above_end_bound(end):
+				end = piece_end_time
+
+			layer.append(create_label(start, end, idx))
+			idx += 1
 		segment_layers.append(layer)
 	
 	# fix section labels so each new label encountered is increasing from the previous
@@ -51,13 +54,18 @@ def parse_form_file(file_path, piece_start_time, piece_end_time):
 	
 	return segment_layers
 
-def parse_motives_file(file_path):
+def parse_motives_file(piece_start_time, piece_end_time, file_path):
 	with open(file_path, 'r') as file:
 		data = file.read().strip().split('\n\n')  # Split into chunks by blank line
 
 	motif_layer = []
 	pattern_num = 0
 
+	def below_start_bound(time):
+		return float(time) < float(piece_start_time) 
+	def above_end_bound(time):
+		return float(time) > float(piece_end_time)
+	
 	for chunk in data:
 		if chunk.startswith("pattern"):
 			pattern_num += 1
@@ -67,6 +75,12 @@ def parse_motives_file(file_path):
 			for line in lines:
 				if line.startswith("occurrence"):
 					if start is not None and end is not None:
+						if below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end):
+							continue
+						if below_start_bound(start):
+							start = piece_start_time
+						if above_end_bound(end):
+							end = piece_end_time
 						# Save the previous occurrence before starting a new one
 						node_label = f"P{pattern_num}O{occurrence_num}"
 						motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
@@ -78,20 +92,20 @@ def parse_motives_file(file_path):
 						start = time  # First line of occurrence sets the start time
 					end = time
 			# Add the last occurrence in the chunk
-			if start is not None and end is not None:
+			if start is not None and end is not None and not(below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end)):
 				node_label = f"P{pattern_num}O{occurrence_num}"
 				motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label})
 
 	# Sort by start time and add index based on the sort
 	motif_layer = sorted(motif_layer, key=lambda x: x['start'])
-	for idx, item in enumerate(motif_layer):
+	for idx, item in enumerate(motif_layer, start=1):
 		item['id'] += f"N{idx}"
 		item['label'] += f"N{idx}"
 		item['index'] = idx
 
 	return motif_layer
 
-def parse_melody_file(file_path):
+def parse_melody_file(piece_start_time, piece_end_time, file_path):
 	with open(file_path, 'r') as file:
 		data = file.read().strip().split('\n') 
 	melody_layer = []
@@ -101,23 +115,31 @@ def parse_melody_file(file_path):
 		parts = line.split(')",')
 		time_tuple_str = parts[0].strip('"()')
 		start, end = map(float, time_tuple_str.split(','))
+
+		if start < piece_start_time and end < piece_start_time or start > piece_end_time and end > piece_end_time:
+			continue 
+		if start < piece_start_time:
+			start = piece_start_time
+		if end > piece_end_time:
+			end = piece_end_time
+
 		label = int(float(parts[1].strip()))
 		node_label = f"M{label}N{idx}"
 		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label, 'index': idx})
 
 	return melody_layer
 
-def parse_harmony_file(file_path):
+def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 	key_layer = []
 	fh_layer = []
 	
 	with open(file_path, 'r') as file:
 		current_key = None
 		key_start_time = None
-		key_idx = 0
+		key_idx = 1
 		lines = file.readlines()
-		piece_end_time = json.loads(lines[0].strip())['end_time']
-		piece_start_time = json.loads(lines[1].strip())['onset_seconds']
+		# piece_end_time = json.loads(lines[0].strip())['end_time']
+		# piece_start_time = json.loads(lines[1].strip())['onset_seconds']
 
 		# first line is the piece end time, only go up to the last line since we process in pairs
 		for idx, line in enumerate(lines[1:-1], start=1):
@@ -132,10 +154,19 @@ def parse_harmony_file(file_path):
 			next_harmony_dict = json.loads(lines[idx+1].strip())
 			next_onset_seconds = next_harmony_dict['onset_seconds']
 			
-			if current_key and key_start_time:										
+			if current_key and key_start_time:		
 				if key != current_key: 
 					node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
-					key_layer.append({'start': float(key_start_time), 'end': float(onset_seconds), 'id': node_label, 'label': node_label, 'index': key_idx})
+					key_start_time = float(key_start_time)
+					
+					if key_start_time < piece_start_time and onset_seconds < piece_start_time or key_start_time > piece_end_time and onset_seconds > piece_end_time:
+						continue
+					if key_start_time < piece_start_time:
+						key_start_time = piece_start_time
+					if onset_seconds > piece_end_time:
+						onset_seconds = piece_end_time
+
+					key_layer.append({'start': key_start_time, 'end': onset_seconds, 'id': node_label, 'label': node_label, 'index': key_idx})
 					current_key = key
 					key_start_time = onset_seconds
 					key_idx += 1
@@ -144,7 +175,11 @@ def parse_harmony_file(file_path):
 				key_start_time = onset_seconds
 
 			node_label = f"FHC{degree1},{degree2}Q{quality}N{idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
-			if onset_seconds != next_onset_seconds:
+			if onset_seconds != next_onset_seconds and not(onset_seconds < piece_start_time and next_onset_seconds < piece_start_time or onset_seconds > piece_end_time and next_onset_seconds > piece_end_time):
+				if onset_seconds < piece_start_time:
+					onset_seconds = piece_start_time
+				if next_onset_seconds > piece_end_time:
+					next_onset_seconds = piece_end_time
 				fh_layer.append({'start': float(onset_seconds), 'end': float(next_onset_seconds), 'id': node_label, 'label': node_label, 'index': idx})
 		
 		# process the last harmony dict
@@ -155,12 +190,14 @@ def parse_harmony_file(file_path):
 		degree2 = last_harmony_dict['degree2']
 		quality = last_harmony_dict['quality']
 		
-		if onset_seconds != piece_end_time:
+		if onset_seconds != piece_end_time and not(onset_seconds < piece_start_time and next_onset_seconds < piece_start_time or onset_seconds > piece_end_time and next_onset_seconds > piece_end_time):
 			node_label = f"FHC{degree1},{degree2}Q{quality}N{len(lines) - 1}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
 			fh_layer.append({'start': float(onset_seconds), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': idx})
 		
 		# i.e. there was no key change in the piece, a single key throughout piece
-		if key_start_time == piece_start_time:
+		if key_start_time <= piece_start_time:
+			if key_start_time < piece_start_time:
+				key_start_time = piece_start_time
 			node_label = f"FHK{key}N{key_idx}" # functional harmony key {key} number {number}
 			key_layer.append({'start': float(key_start_time), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': key_idx})
 
