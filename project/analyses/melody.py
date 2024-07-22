@@ -10,6 +10,10 @@ from multiprocessing import Pool
 # sys.path.append('/Users/ilanashapiro/Documents/midi_melody_extraction') # https://github.com/bytedance/midi_melody_extraction
 
 # sys.path.append('/Users/ilanashapiro/Documents/audio_to_midi_melodia') # https://github.com/justinsalamon/audio_to_midi_melodia
+# FOR MELODIA VERY IMPORTANT, EACH TERMINAL SESSION NEED TO RUN:
+# export VAMP_PATH=$VAMP_PATH:/home/ilshapiro/project/MELODIA
+# export PATH=$PATH:~/project/analyses
+# confirm with: sonic-annotator -l
 
 DIRECTORY = "/home/ilshapiro/project/datasets"
 
@@ -46,7 +50,7 @@ def extract_melody():
 					continue
 
 				mp3_file_exists = [f for f in os.listdir(piece_path) if f.endswith('.mp3')]
-				motives_file_exists = [f for f in os.listdir(piece_path) if f.endswith('motives3.txt')]
+				motives_file_exists = [f for f in os.listdir(piece_path) if f.endswith('motives3.txt') or f.endswith('motives1.txt')]
 				melody_file_exists = [f for f in os.listdir(piece_path) if f.endswith('melody.csv')]
 
 				# If there's no mp3 or no motives file in this dir, or if the melody file already exists
@@ -170,7 +174,7 @@ def process_file(filepath):
 			collapse_midi_intervals(filepath)
 
 if __name__ == "__main__":
-	# commands = extract_melody()
+	commands = extract_melody()
 	# with Pool() as pool:
 	# 	pool.map(execute_command, commands)
 

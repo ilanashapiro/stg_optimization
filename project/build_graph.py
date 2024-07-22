@@ -144,40 +144,40 @@ def get_unsorted_layers_from_graph_by_index(G):
 # augment with prototype nodes and intra-level layers
 def augment_graph(G):
 	layers = get_unsorted_layers_from_graph_by_index(G)
+
+	prefix_to_layer_rank = {
+			'S': 1,
+			'P': 2,
+			'FHK': 3,
+			'FHC': 4,
+			'M': 5
+	}
+
+	def get_layer_rank(instance_node_id):
+		for prefix, layer_rank in prefix_to_layer_rank.items():
+			if instance_node_id.startswith(prefix):
+				return layer_rank
+		raise Exception("Invalid instance node id", instance_node_id)
 	
 	# Add prototype nodes and edges to instances
 	for layer in layers:
 		for node in layer:
 			instance_node_id = node['id']
 			features_dict = node['features_dict']
+			proto_nodes = []
+
 			for feature_name, value in features_dict.items():
 				proto_node_id = f"Pr{feature_name.capitalize()}:{value}"
+				proto_nodes.append(proto_node_id)
+			
 			if not bool(features_dict):
-				proto_node_id = f"PrFiller"
-
-			if instance_node_id.startswith('S'):
-				layer_rank = 1
-				# proto_node_id = 'PrS' + instance_node_id.split('S')[1].split('L')[0]
-			elif instance_node_id.startswith('P'):
-				layer_rank = 2
-				# proto_node_id = 'PrP' + instance_node_id.split('P')[1].split('O')[0]
-			elif instance_node_id.startswith('FHK'):
-				layer_rank = 3
-				# proto_node_id = 'PrFHK' + instance_node_id.split('FHK')[1].split('N')[0]
-			elif instance_node_id.startswith('FHC'):
-				layer_rank = 4
-				# proto_node_id = 'PrFHC' + instance_node_id.split('FHC')[1].split('N')[0]
-			elif instance_node_id.startswith('M'):
-				layer_rank = 5
-				# proto_node_id = 'PrM' + instance_node_id.split('M')[1].split('N')[0]
-			else:
-				raise Exception("Invalid instance node id", instance_node_id)
-
-			if proto_node_id not in G:
-				G.add_node(proto_node_id, label=proto_node_id, layer_rank=layer_rank)
-
-			if not G.has_edge(proto_node_id, instance_node_id):
-				G.add_edge(proto_node_id, instance_node_id)
+				proto_nodes.append("PrFiller")
+			
+			for proto_node_id in proto_nodes:
+				if proto_node_id not in G:
+					G.add_node(proto_node_id, label=proto_node_id, layer_rank=get_layer_rank(instance_node_id))
+				if not G.has_edge(proto_node_id, instance_node_id):
+					G.add_edge(proto_node_id, instance_node_id)
 
 	# Add intra-level edges based on index
 	for layer in layers:
@@ -346,40 +346,39 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
-	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7'
-	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths/mozart-l_menuet_6_(nc)werths'
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
+	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# for dirpath, dirnames, filenames in os.walk(directory):
-	# 	motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives3.txt')) if os.path.getsize(file) > 0]
-	# 	if motives_files:
-	# 		motives_file = motives_files[0] 
-	# 		midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
-	# 		if midi_filepaths:
-	mid = mido.MidiFile(base_path + ".mid")#midi_filepaths[0])
-	tempo_changes = fc.preprocess_tempo_changes(mid)
+	for dirpath, dirnames, filenames in os.walk(directory):
+		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
+		if motives_files:
+			motives_file = motives_files[0] 
+			midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
+			if midi_filepaths:
+				mid = mido.MidiFile(midi_filepaths[0])
+				tempo_changes = fc.preprocess_tempo_changes(mid)
 
-	# base_path = midi_filepaths[0][:-4]
-	# print("PROCESSING", base_path)
-	mid_df = pd.read_csv(base_path + ".csv")
+				base_path = midi_filepaths[0][:-4]
+				mid_df = pd.read_csv(base_path + ".csv")
 
-	# Convert durations to seconds and calculate end times
-	mid_df['duration_seconds'] = mid_df['duration'].apply(
-			lambda duration: fc.ticks_to_secs_with_tempo_changes(
-					duration * mid.ticks_per_beat, tempo_changes, mid.ticks_per_beat)
-	)
-	mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
-	piece_end_time = mid_df['end_time'].max()
-	piece_start_time = mid_df['onset_seconds'].min()
+				# Convert durations to seconds and calculate end times
+				mid_df['duration_seconds'] = mid_df['duration'].apply(
+						lambda duration: fc.ticks_to_secs_with_tempo_changes(
+								duration * mid.ticks_per_beat, tempo_changes, mid.ticks_per_beat)
+				)
+				mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
+				piece_end_time = mid_df['end_time'].max()
+				piece_start_time = mid_df['onset_seconds'].min()
 
-	# segments_file = base_path + '_scluster_scluster_segments.txt'
-	segments_file = base_path + '_sf_fmc2d_segments.txt'
-	motives_file = base_path + '_motives1.txt'
-	harmony_file = base_path + '_functional_harmony.txt'
-	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
-	G, layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
-	# visualize([G], [layers])
-	augment_graph(G)
-			# 	print("AUGMENTED", dirpath)
-	visualize_p([G], [layers])
+				# segments_file = base_path + '_scluster_scluster_segments.txt'
+				segments_file = base_path + '_sf_fmc2d_segments.txt'
+				motives_file = base_path + '_motives1.txt'
+				harmony_file = base_path + '_functional_harmony.txt'
+				melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
+				G, layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
+				# visualize([G], [layers])
+				# augment_graph(G)
+				print("AUGMENTED", dirpath)
+				visualize_p([G], [layers])
 			# else:
 			# 	raise Exception("No midi file but motives", dirpath)

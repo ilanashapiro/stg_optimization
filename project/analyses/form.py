@@ -3,7 +3,7 @@ import pandas as pd
 
 # sys.path.append('/home/jonsuss/Ilana_Shapiro/msaf_new')
 # sys.path.append('/home/ubuntu/msaf_new')
-sys.path.append('/Users/ilanashapiro/Documents/msaf_new') # https://github.com/urinieto/msaf/tree/main
+sys.path.append('/home/ilshapiro/msaf_new') # https://github.com/urinieto/msaf/tree/main
 # sys.path.append('/Users/ilanashapiro/Library/musicaiz-0.1.2') # https://github.com/carlosholivan/musicaiz
 
 import msaf
@@ -26,21 +26,27 @@ def segment_audio_MSAF_test():
 
 def process_file(file_path):
 	try:
-		print("PROCESSING", file_path)
+		# print("PROCESSING", file_path)
 		# hierarchical: scluster, olda (boundaries only, use with fmc2d), vmo
 		# sf (flat, boundaries only) has best performance
-		boundaries_algorithm, labels_algorithm = "scluster", "scluster"
-		boundaries, labels = msaf.process(file_path, boundaries_id=boundaries_algorithm, labels_id=labels_algorithm, hier=True)
+		boundaries_algorithm, labels_algorithm, hierarchical = "scluster", "scluster", True
 		out_file = file_path[:-4] + f"_{boundaries_algorithm}_{labels_algorithm}_segments.txt"
-		
+		if os.path.exists(out_file):
+			return
+		elif not (os.path.exists(file_path[:-4] + "_motives3.txt") or os.path.exists(file_path[:-4] + "_motives1.txt")):
+			return
 		print('Saving output to %s' % out_file)
-		msaf.io.write_mirex_hierarchical(boundaries, labels, out_file)
+		boundaries, labels = msaf.process(file_path, boundaries_id=boundaries_algorithm, labels_id=labels_algorithm, hier=hierarchical)
+		if hierarchical:
+			msaf.io.write_mirex_hierarchical(boundaries, labels, out_file)
+		else:
+			msaf.io.write_mirex(boundaries, labels, out_file)
 	except Exception as e:
 		print(f"Error processing {file_path}: {e}")
 
 
 def segment_audio():
-	directory = "/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/bach"
+	directory = "/home/ilshapiro/project/datasets"
 	# directory = '/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db'
 	# directory = "/home/ubuntu/project/classical_piano_midi_db/bach"
 

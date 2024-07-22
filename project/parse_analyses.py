@@ -133,7 +133,6 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 	key_layer = []
 	fh_layer = []
 	
-	key_nums = range(1,13)
 	key_indices_assignments = {
 		'C': 1, 'B+': 1,
 		'C+': 2, 'D-': 2,
@@ -153,7 +152,7 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 		current_index = key_indices_assignments[current_key.upper()]
 		new_index = key_indices_assignments[new_key.upper()]
 		
-		relative_index = (new_index - current_index) % 12
+		relative_index = (new_index - current_index) % 12 + 1
 		return relative_index
 	
 	with open(file_path, 'r') as file:
@@ -217,14 +216,5 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 			quality = "M" if key.isupper() else "m"
 			key_node_label = f"FHK{relative_key_num}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
 			key_layer.append({'start': key_start_time, 'end': piece_end_time, 'id': key_node_label, 'label': key_node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': quality}})
-
-		# i.e. there was no key change in the piece, a single key throughout piece
-		# print("HERE", key_start_time, piece_start_time, key_layer)
-		# if not prev_key:
-		# 	if key_start_time < piece_start_time:
-		# 		key_start_time = piece_start_time
-		# 	quality = "M" if key.isupper() else "m"
-		# 	node_label = f"FHK{1}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
-		# 	key_layer.append({'start': float(key_start_time), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': key_idx, 'features_dict': {'relative_key_num': 1, 'quality': quality}})
 
 	return [key_layer, fh_layer]
