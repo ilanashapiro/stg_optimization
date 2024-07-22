@@ -10,6 +10,7 @@ import parse_analyses
 import pandas as pd
 from analyses import format_conversions as fc
 import mido
+import sys 
 
 def get_layer_id(node):
 	for layer_id in ['S', 'P', 'FHK', 'FHC', 'M']:
@@ -27,8 +28,8 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		# Add all real nodes to the graph
 		for node in sorted_nodes:
 			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
-				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'])
-		
+				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'], features_dict=node['features_dict'])
+
 		# Add all filler nodes
 		for i in range(len(sorted_nodes) - 1):
 			node1 = sorted_nodes[i]
@@ -39,8 +40,8 @@ def create_graph(piece_start_time, piece_end_time, layers):
 				filler_node_index = node1['index'] + 0.5
 				filler_node_id = f"{get_layer_id(node1['id'])}fillerN{filler_node_index}" # Hardcoding P for now since motif/pattern layer is the only one that requires fillers
 				filler_node_label = filler_node_id
-				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index)
-				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index}
+				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index, features_dict={})
+				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 				layer.append(filler_node)
 				
 		# if the first node in the layer starts after the piece start time, we have a gap at the beginning
@@ -48,8 +49,8 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		if first_node['start'] > piece_start_time:
 			filler_node_id = f"{get_layer_id(first_node['id'])}fillerN{0.5}"
 			filler_node_label = filler_node_id
-			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5)
-			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5}
+			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5, features_dict={})
+			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5, 'features_dict': {}}
 			layer.append(filler_node)
 
 		# if the layer node in the layer starts after the piece end time, we have a gap at the end
@@ -58,8 +59,8 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			filler_node_index = last_node['index'] + 0.5
 			filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
 			filler_node_label = filler_node_id
-			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index)
-			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index}
+			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index, features_dict={})
+			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 			layer.append(filler_node)
 		layer.sort(key=lambda x: x['start'])
 			
@@ -78,19 +79,22 @@ def create_graph(piece_start_time, piece_end_time, layers):
 	return G
 
 def vertical_sort_key(layer):
-	id = layer[0]['id'] # get the id of the first node in the layer
-	if id.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
-		level = int(id.split('L')[1].split('N')[0])
+	node_id = layer[0]['id'] # get the id of the first node in the layer
+	return get_sort_key_for_node(node_id)
+
+def get_sort_key_for_node(node):
+	if node.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
+		level = int(node.split('L')[1].split('N')[0])
 		return (0, level)
-	elif id.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
+	elif node.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
 		return (1, 0)
-	elif id.startswith('FHK'): # Next prioritize functional harmony keys
+	elif node.startswith('FHK'): # Next prioritize functional harmony keys
 		return (2, 0)
-	elif id.startswith('FHC'): # Next prioritize functional harmony chords
+	elif node.startswith('FHC'): # Next prioritize functional harmony chords
 		return (2, 1)
-	elif id.startswith('M'): # Finally prioritize melody
+	elif node.startswith('M'): # Finally prioritize melody
 		return (3, 0)
-	raise Exception("Invalid node encountered in sort", id)
+	raise Exception("Invalid node encountered in sort", node)
 
 def get_unsorted_layers_from_graph_by_index(G):
 	partition_segments = []
@@ -98,20 +102,24 @@ def get_unsorted_layers_from_graph_by_index(G):
 	partition_fh_keys = []
 	partition_fh_chords = []
 	partition_melody = []
+
+	partition_map = {
+		'S': partition_segments,
+		'P': partition_motives,
+		'FHK': partition_fh_keys,
+		'FHC': partition_fh_chords,
+		'M': partition_melody,
+	}
 	
 	for node, data in G.nodes(data=True):
-		index = data['index']
-		if node.startswith('S'):
-			partition_segments.append({'id': node, 'label': data['label'], 'index': int(index)})
-		elif node.startswith('P'):
-			partition_motives.append({'id': node, 'label': data['label'], 'index': int(index)})
-		elif node.startswith('FHK'):
-			partition_fh_keys.append({'id': node, 'label': data['label'], 'index': int(index)})
-		elif node.startswith('FHC'):
-			partition_fh_chords.append({'id': node, 'label': data['label'], 'index': int(index)})
-		elif node.startswith('M'):
-			partition_melody.append({'id': node, 'label': data['label'], 'index': int(index)})
-		G.nodes[node]['index'] = index
+		index = int(data['index'])
+		label = data['label']
+		features_dict = data['features_dict']
+		
+		for prefix, partition in partition_map.items():
+			if node.startswith(prefix):
+				partition.append({'id': node, 'label': label, 'features_dict': features_dict, 'index': index})
+				break
 
 	# For the partition_segments list, further partition by the L{n2} substring
 	partition_segments_grouped = {}
@@ -140,23 +148,34 @@ def augment_graph(G):
 	
 	# Add prototype nodes and edges to instances
 	for layer in layers:
-		for node_info in layer:
-			instance_node_id = node_info['id']
+		for node in layer:
+			instance_node_id = node['id']
+			features_dict = node['features_dict']
+			for feature_name, value in features_dict.items():
+				proto_node_id = f"Pr{feature_name.capitalize()}:{value}"
+			if not bool(features_dict):
+				proto_node_id = f"PrFiller"
+
 			if instance_node_id.startswith('S'):
-				proto_node_id = 'PrS' + instance_node_id.split('S')[1].split('L')[0]
+				layer_rank = 1
+				# proto_node_id = 'PrS' + instance_node_id.split('S')[1].split('L')[0]
 			elif instance_node_id.startswith('P'):
-				proto_node_id = 'PrP' + instance_node_id.split('P')[1].split('O')[0]
+				layer_rank = 2
+				# proto_node_id = 'PrP' + instance_node_id.split('P')[1].split('O')[0]
 			elif instance_node_id.startswith('FHK'):
-				proto_node_id = 'PrFHK' + instance_node_id.split('FHK')[1].split('N')[0]
+				layer_rank = 3
+				# proto_node_id = 'PrFHK' + instance_node_id.split('FHK')[1].split('N')[0]
 			elif instance_node_id.startswith('FHC'):
-				proto_node_id = 'PrFHC' + instance_node_id.split('FHC')[1].split('N')[0]
+				layer_rank = 4
+				# proto_node_id = 'PrFHC' + instance_node_id.split('FHC')[1].split('N')[0]
 			elif instance_node_id.startswith('M'):
-				proto_node_id = 'PrM' + instance_node_id.split('M')[1].split('N')[0]
+				layer_rank = 5
+				# proto_node_id = 'PrM' + instance_node_id.split('M')[1].split('N')[0]
 			else:
 				raise Exception("Invalid instance node id", instance_node_id)
 
 			if proto_node_id not in G:
-				G.add_node(proto_node_id, label=proto_node_id)
+				G.add_node(proto_node_id, label=proto_node_id, layer_rank=layer_rank)
 
 			if not G.has_edge(proto_node_id, instance_node_id):
 				G.add_edge(proto_node_id, instance_node_id)
@@ -250,20 +269,16 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		prototype_nodes = []
 		
 		# Prototype node positioning
-		prototype_list = [node for node in G.nodes() if not bool(re.search(r'N\d+$', node))]
-		
-		# Custom order: "S" prototypes first, then "P", both sorted numerically within their groups
-		def proto_sort(proto):
-			order = {'PrS': 0, 'PrP': 1}  # Define custom order for the first characters
-			return (order[proto[:3]], int(proto[3:]))  # Sort by custom order and then numerically
-		prototype_list_sorted = sorted(prototype_list, key=proto_sort)
-		
+		prototype_list = [{'id': node, 'layer_rank': data['layer_rank']} for node, data in G.nodes(data=True) if node.startswith("Pr")]
+		def proto_sort(proto_node):
+			print(proto_node)
+			return (proto_node['layer_rank'], proto_node['id']) # primary and secondary sort
+		prototype_list_sorted = [d['id'] for d in sorted(prototype_list, key=proto_sort)]
+
 		# Spacing out prototype nodes vertically
 		proto_y_step = 1.0 / (len(prototype_list_sorted) + 1)
 		for index, prototype in enumerate(prototype_list_sorted):
 			y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
-			if y == 0.5:
-				y = y + 0.05
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
 
@@ -278,13 +293,23 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		
 		ax = axes_flat[idx]
 		
-		# segmentation nodes one color
-		non_last_layer_nodes = [node for layer in layers[:-1] for node in layer]
-		nx.draw_networkx_nodes(G, pos, nodelist=[node['id'] for node in non_last_layer_nodes], node_color="#98FDFF", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+		colors = ["#98FDFF", "#FFB4E4", "#FFDDC1", "#C6E2FF", "#D3FFCE"]
+		filler_color = '#FF0000'
+		for layer in layers:
+			level = vertical_sort_key(layer)
+			color = colors[level[0] % len(colors)]
+			for node in layer:
+				node_color = filler_color if "filler" in node['id'] else color
+				nx.draw_networkx_nodes(
+						G, pos,
+						nodelist=[node['id']],
+						node_color=node_color,
+						node_size=1000,
+						ax=ax,
+						edgecolors='black',
+						linewidths=0.5
+				)		
 		
-		# motif nodes new color
-		last_layer_nodes = [node['id'] for node in layers[-1]]
-		nx.draw_networkx_nodes(G, pos, nodelist=last_layer_nodes, node_color="#FFB4E4", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 
 		all_edges = set(G.edges())
@@ -292,14 +317,10 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		inter_level_edges = []
 		proto_edges = []
 
-		def extract_segment_level(node_id):
-			match = re.search(r'S\d+L(\d+)N\d+', node_id)
-			return match.group(1) if match else None
-
 		for u, v in all_edges:
 			if u in prototype_nodes or v in prototype_nodes:
 				proto_edges.append((u, v))
-			elif extract_segment_level(u) == extract_segment_level(v):
+			elif get_sort_key_for_node(u) == get_sort_key_for_node(v):
 				intra_level_edges.append((u, v))
 			else:
 				inter_level_edges.append((u, v))
@@ -315,50 +336,6 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 	
 	plt.tight_layout()
 	plt.show()
-
-# segment_identifier should be _{boundary algorithm name}_{labeling algorithm name}_segments.txt
-def generate_augmented_graphs_from_dir(dirname, segment_identifier = "segments.txt", motif_identifier = "motives.txt"):
-	augmented_graphs = [] 
-	for f1 in os.listdir(dirname):
-		f1_path = os.path.join(dirname, f1)
-		if os.path.isdir(f1_path):
-			for f2 in os.listdir(f1_path):
-				f2_path = os.path.join(f1_path, f2)
-				if os.path.isdir(f2_path):
-					graph_filename = os.path.join(f2_path, "augmented_graph.edgelist")
-					layers_filename = os.path.join(f2_path, "layers_with_index.json")
-
-					# Load existing graph and layers if they exist
-					if os.path.exists(graph_filename) and os.path.exists(layers_filename):
-						G = nx.read_edgelist(graph_filename)
-						with open(layers_filename, 'r') as file:
-							layers_with_index = json.load(file)
-						augmented_graphs.append((G, layers_with_index))
-						print(f"Loaded graph and layers from {f2_path}")
-						continue
-
-					# Else, proceed to parse and generate graph
-					segments_file = next(glob.iglob(f2_path + f'/*{segment_identifier}.txt'), None)
-					motives_file = next(glob.iglob(f2_path + f'/*{motif_identifier}.txt'), None)
-
-					if segments_file and motives_file:
-						layers = parse_analyses.parse_form_file(segments_file)
-						layers.append(parse_analyses.parse_motives_file(motives_file))
-
-						G = create_graph(layers)
-						augment_graph(G)
-
-						layers_with_index = get_unsorted_layers_from_graph_by_index(G)
-						augmented_graphs.append((G, layers_with_index))
-
-						nx.write_edgelist(G, graph_filename)
-						with open(layers_filename, 'w') as file:
-							json.dump(layers_with_index, file)
-						print(f"Graph and layers saved in {f2_path}")
-					else:
-						print(f"{f2_path} does not have complete analysis files")
-
-	return augmented_graphs
 
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
 	layers = parse_analyses.parse_form_file(segments_filepath, piece_start_time, piece_end_time)
@@ -386,12 +363,12 @@ if __name__ == "__main__":
 	piece_end_time = mid_df['end_time'].max()
 	piece_start_time = mid_df['onset_seconds'].min()
 
-	# segments_file = base_path + '_scluster_scluster_segments.txt'
-	segments_file = base_path + '_sf_fmc2d_segments.txt'
+	segments_file = base_path + '_scluster_scluster_segments.txt'
+	# segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
 	G, layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
-	visualize([G], [layers])
-	# augment_graph(G)
-	# visualize_p([G], [layers])
+	# visualize([G], [layers])
+	augment_graph(G)
+	visualize_p([G], [layers])
