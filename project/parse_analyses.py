@@ -133,21 +133,34 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 	key_layer = []
 	fh_layer = []
 	
-	key_nums = range(1, 8)
-	key_names_list = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+	key_nums = range(1,13)
+	key_indices_assignments = {
+		'C': 1, 'B+': 1,
+		'C+': 2, 'D-': 2,
+		'D': 3,
+		'D+': 4, 'E-': 4,
+		'E': 5, 'F-': 5,
+		'E+': 6, 'F': 6,
+		'F+': 7, 'G-': 7,
+		'G': 8,
+		'G+': 9, 'A-': 9,
+		'A': 10,
+		'A+': 11, 'B-': 11,
+		'B': 12
+	}
 
 	def get_relative_key_num(current_key, new_key):
-		current_index = key_names_list.index(current_key.upper())
-		new_index = key_names_list.index(new_key.upper())
+		current_index = key_indices_assignments[current_key.upper()]
+		new_index = key_indices_assignments[new_key.upper()]
 		
-		relative_index = (new_index - current_index) % len(key_nums)
-		return key_nums[relative_index]
-
+		relative_index = (new_index - current_index) % 12
+		return relative_index
+	
 	with open(file_path, 'r') as file:
-		current_key = None
-		key_start_time = None
+		prev_key = None
 		key_idx = 1
 		lines = file.readlines()
+		key_start_time = json.loads(lines[1].strip())['onset_seconds']
 		# piece_end_time = json.loads(lines[0].strip())['end_time']
 		# piece_start_time = json.loads(lines[1].strip())['onset_seconds']
 
@@ -155,63 +168,63 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 		for idx, line in enumerate(lines[1:-1], start=1):
 			curr_harmony_dict = json.loads(line.strip())
 			key = curr_harmony_dict['key']
-			onset_seconds = curr_harmony_dict['onset_seconds']
+			onset_seconds = float(curr_harmony_dict['onset_seconds'])
 			degree1 = curr_harmony_dict['degree1']
 			degree2 = curr_harmony_dict['degree2']
 			quality = curr_harmony_dict['quality']
 			# inversion = harmony_dict['inversion'] # for now, let's leave this out of the graph, since it doesn't indicate significant harmonic change
 
 			next_harmony_dict = json.loads(lines[idx+1].strip())
-			next_onset_seconds = next_harmony_dict['onset_seconds']
-			
-			if current_key and key_start_time:		
-				if key != current_key: 
-					relative_key_num = get_relative_key_num(current_key, key)
-					quality = "M" if current_key.isupper() else "m"
-					node_label = f"FHK{relative_key_num}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
-					key_start_time = float(key_start_time)
-					
-					if key_start_time < piece_start_time and onset_seconds < piece_start_time or key_start_time > piece_end_time and onset_seconds > piece_end_time:
-						continue
-					if key_start_time < piece_start_time:
-						key_start_time = piece_start_time
-					if onset_seconds > piece_end_time:
-						onset_seconds = piece_end_time
+			next_onset_seconds = float(next_harmony_dict['onset_seconds'])
+			next_key = next_harmony_dict['key']
 
-					key_layer.append({'start': key_start_time, 'end': onset_seconds, 'id': node_label, 'label': node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': quality}})
-					current_key = key
-					key_start_time = onset_seconds
-					key_idx += 1
-			else:
-				current_key = key
-				key_start_time = onset_seconds
-
-			node_label = f"FHC{degree1},{degree2}Q{quality}N{idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
 			if onset_seconds != next_onset_seconds and not(onset_seconds < piece_start_time and next_onset_seconds < piece_start_time or onset_seconds > piece_end_time and next_onset_seconds > piece_end_time):
 				if onset_seconds < piece_start_time:
 					onset_seconds = piece_start_time
 				if next_onset_seconds > piece_end_time:
 					next_onset_seconds = piece_end_time
-				fh_layer.append({'start': float(onset_seconds), 'end': float(next_onset_seconds), 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
+				
+				node_label = f"FHC{degree1},{degree2}Q{quality}N{idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
+				fh_layer.append({'start': onset_seconds, 'end': next_onset_seconds, 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
+
+				if key != next_key and next_onset_seconds > piece_start_time: # we have encountered a new key
+					if key_start_time < piece_start_time:
+						key_start_time = piece_start_time
+					relative_key_num = 1 if not prev_key else get_relative_key_num(prev_key, key) # first key is set to 1 for standardization
+					quality = "M" if key.isupper() else "m"
+					node_label = f"FHK{relative_key_num}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
+					key_layer.append({'start': key_start_time, 'end': next_onset_seconds, 'id': node_label, 'label': node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': quality}})
+					key_idx += 1
+					prev_key = key
+					key_start_time = next_onset_seconds
 		
 		# process the last harmony dict
 		last_harmony_dict = json.loads(lines[-1].strip())
-		key = last_harmony_dict['key']
-		onset_seconds = last_harmony_dict['onset_seconds']
+		last_key = last_harmony_dict['key']
+		last_onset_seconds = float(last_harmony_dict['onset_seconds'])
 		degree1 = last_harmony_dict['degree1']
 		degree2 = last_harmony_dict['degree2']
 		quality = last_harmony_dict['quality']
 		
-		if onset_seconds != piece_end_time and not(onset_seconds < piece_start_time and next_onset_seconds < piece_start_time or onset_seconds > piece_end_time and next_onset_seconds > piece_end_time):
+		if last_onset_seconds < piece_end_time:
 			node_label = f"FHC{degree1},{degree2}Q{quality}N{len(lines) - 1}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
-			fh_layer.append({'start': float(onset_seconds), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
+			fh_layer.append({'start': last_onset_seconds, 'end': piece_end_time, 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
 		
-		# i.e. there was no key change in the piece, a single key throughout piece
-		if key_start_time <= piece_start_time:
+		if key_start_time < piece_end_time:
 			if key_start_time < piece_start_time:
 				key_start_time = piece_start_time
+			relative_key_num = 1 if not prev_key else get_relative_key_num(prev_key, last_key) # first key is set to 1 for standardization
 			quality = "M" if key.isupper() else "m"
-			node_label = f"FHK{1}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
-			key_layer.append({'start': float(key_start_time), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': key_idx, 'features_dict': {'relative_key_num': 1, 'quality': quality}})
+			key_node_label = f"FHK{relative_key_num}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
+			key_layer.append({'start': key_start_time, 'end': piece_end_time, 'id': key_node_label, 'label': key_node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': quality}})
+
+		# i.e. there was no key change in the piece, a single key throughout piece
+		# print("HERE", key_start_time, piece_start_time, key_layer)
+		# if not prev_key:
+		# 	if key_start_time < piece_start_time:
+		# 		key_start_time = piece_start_time
+		# 	quality = "M" if key.isupper() else "m"
+		# 	node_label = f"FHK{1}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
+		# 	key_layer.append({'start': float(key_start_time), 'end': float(piece_end_time), 'id': node_label, 'label': node_label, 'index': key_idx, 'features_dict': {'relative_key_num': 1, 'quality': quality}})
 
 	return [key_layer, fh_layer]

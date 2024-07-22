@@ -24,7 +24,6 @@ def create_graph(piece_start_time, piece_end_time, layers):
 	for layer in layers:
 		# Sort nodes in the current layer by their start time
 		sorted_nodes = sorted(layer, key=lambda x: x['start'])
-
 		# Add all real nodes to the graph
 		for node in sorted_nodes:
 			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
@@ -271,7 +270,6 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		# Prototype node positioning
 		prototype_list = [{'id': node, 'layer_rank': data['layer_rank']} for node, data in G.nodes(data=True) if node.startswith("Pr")]
 		def proto_sort(proto_node):
-			print(proto_node)
 			return (proto_node['layer_rank'], proto_node['id']) # primary and secondary sort
 		prototype_list_sorted = [d['id'] for d in sorted(prototype_list, key=proto_sort)]
 
@@ -349,9 +347,19 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 
 if __name__ == "__main__":
 	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7/chpn-p7'
-
-	mid = mido.MidiFile(base_path + ".mid")
+	base_path = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths/mozart-l_menuet_6_(nc)werths'
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	# for dirpath, dirnames, filenames in os.walk(directory):
+	# 	motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives3.txt')) if os.path.getsize(file) > 0]
+	# 	if motives_files:
+	# 		motives_file = motives_files[0] 
+	# 		midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
+	# 		if midi_filepaths:
+	mid = mido.MidiFile(base_path + ".mid")#midi_filepaths[0])
 	tempo_changes = fc.preprocess_tempo_changes(mid)
+
+	# base_path = midi_filepaths[0][:-4]
+	# print("PROCESSING", base_path)
 	mid_df = pd.read_csv(base_path + ".csv")
 
 	# Convert durations to seconds and calculate end times
@@ -363,12 +371,15 @@ if __name__ == "__main__":
 	piece_end_time = mid_df['end_time'].max()
 	piece_start_time = mid_df['onset_seconds'].min()
 
-	segments_file = base_path + '_scluster_scluster_segments.txt'
-	# segments_file = base_path + '_sf_fmc2d_segments.txt'
+	# segments_file = base_path + '_scluster_scluster_segments.txt'
+	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
 	G, layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	# visualize([G], [layers])
 	augment_graph(G)
+			# 	print("AUGMENTED", dirpath)
 	visualize_p([G], [layers])
+			# else:
+			# 	raise Exception("No midi file but motives", dirpath)
