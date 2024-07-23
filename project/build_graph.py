@@ -10,7 +10,8 @@ import parse_analyses
 import pandas as pd
 from analyses import format_conversions as fc
 import mido
-import sys 
+import sys, pickle
+from multiprocessing import Pool
 
 def get_layer_id(node):
 	for layer_id in ['S', 'P', 'K', 'C', 'M']:
@@ -22,18 +23,27 @@ def create_graph(piece_start_time, piece_end_time, layers):
 	G = nx.DiGraph()
 	
 	for layer in layers:
-		# Sort nodes in the current layer by their start time
-		sorted_nodes = sorted(layer, key=lambda x: x['start'])
-		# Add all real nodes to the graph
-		for node in sorted_nodes:
+		sorted_nodes = sorted(layer, key=lambda x: x['start']) # Sort nodes in the current layer by their start time
+		
+		for idx, node in enumerate(sorted_nodes):
+			# account for rounding errors
 			tolerance = 0.001
 			if abs(node['start'] - piece_start_time) <= tolerance:
 				node['start'] = piece_start_time
 			if abs(node['end'] - piece_end_time) <= tolerance:
 					node['end'] = piece_end_time
+			
+			# account for audio/symbolic sync issues for segmentation timestamps
+			if get_layer_id(node['id']) == 'S':
+				if idx == 0 and node['start'] > piece_start_time:
+					node['start'] = piece_start_time
+				elif idx == len(sorted_nodes) - 1 and node['end'] < piece_end_time:
+					node['end'] = piece_end_time
+			
+			# Add all real nodes to the graph
 			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
 				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'], features_dict=node['features_dict'])
-
+				
 		# Add all filler nodes
 		for i in range(len(sorted_nodes) - 1):
 			node1 = sorted_nodes[i]
@@ -47,7 +57,6 @@ def create_graph(piece_start_time, piece_end_time, layers):
 				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index, features_dict={})
 				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 				layer.append(filler_node)
-				print("ADDED", filler_node)
 				
 		# if the first node in the layer starts after the piece start time, we have a gap at the beginning
 		first_node = sorted_nodes[0]
@@ -57,7 +66,6 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5, features_dict={})
 			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5, 'features_dict': {}}
 			layer.append(filler_node)
-			print("ADDED", filler_node)
 
 		# if the layer node in the layer starts after the piece end time, we have a gap at the end
 		last_node = sorted_nodes[-1]
@@ -68,7 +76,6 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index, features_dict={})
 			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 			layer.append(filler_node)
-			print("ADDED", filler_node)
 		layer.sort(key=lambda x: x['start'])
 			
 	for i in range(len(layers) - 1):
@@ -344,50 +351,99 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 	plt.show()
 
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
-	print("START", piece_start_time,"END", piece_end_time)
-	layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
-	layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
-	layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
-	layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
-	G = create_graph(piece_start_time, piece_end_time, layers)
-	
-	layers_with_index = get_unsorted_layers_from_graph_by_index(G)
-	return (G, layers_with_index)
+	try:
+		layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
+		layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
+		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
+		layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
+		G = create_graph(piece_start_time, piece_end_time, layers)
+		
+		for node in G.nodes: # hack for some graphs whose CSV files don't match MIDI for reasons i'm not sure of. they contain nodes like 'Sfiller' due to timing conversion problems
+			if 'filler' in node and 'Pfiller' not in node and 'Mfiller' not in node:
+				print(node, segments_filepath)
+				print(f"Error processing graph at {os.path.dirname(segments_filepath)}: MIDI-CSV conversion problem")
+				return
+			if 'Mfiller' in node:
+				idx = float(node.split('N')[1])
+				melody_nodes = [node for node in G.nodes if node.startswith('M') and not node.startswith('Mfiller')]
+				max_melody_index = max(int(node.split('N')[1]) for node in melody_nodes)
+				if idx not in [0.5, max_melody_index + 0.5]:
+						print(node, segments_filepath)
+						print(f"Error processing graph at {os.path.dirname(segments_filepath)}: Invalid Mfiller node index")
+						return
+		layers_with_index = get_unsorted_layers_from_graph_by_index(G)
+		return (G, layers_with_index)
+	except Exception as e:
+		print(f"Error processing graph at {os.path.dirname(segments_filepath)}: {e}")
 
+def process_graphs(midi_filepath):
+	mid = mido.MidiFile(midi_filepath)
+	tempo_changes = fc.preprocess_tempo_changes(mid)
+
+	base_path = midi_filepath[:-4]
+	mid_df = pd.read_csv(base_path + ".csv")
+
+	# Convert durations to seconds and calculate end times
+	mid_df['duration_seconds'] = mid_df['duration'].apply(
+			lambda duration: fc.ticks_to_secs_with_tempo_changes(
+					duration * mid.ticks_per_beat, tempo_changes, mid.ticks_per_beat)
+	)
+	mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
+	piece_end_time = mid_df['end_time'].max()
+	piece_start_time = mid_df['onset_seconds'].min()
+
+	segments_file = base_path + '_scluster_scluster_segments.txt'
+	# segments_file = base_path + '_sf_fmc2d_segments.txt'
+	motives_file = base_path + '_motives1.txt'
+	harmony_file = base_path + '_functional_harmony.txt'
+	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
+	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
+	if graph_and_layers:
+		G, layers = graph_and_layers
+		# visualize([G], [layers])
+		augment_graph(G)
+		# visualize_p([G], [layers])
+		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
+		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
+		if not os.path.exists(aug_graph_filepath):
+			with open(aug_graph_filepath, 'wb') as f:
+				pickle.dump(G, f)
+				print("Saved graph at", aug_graph_filepath)
+		# else:
+		# 	print(f"File {aug_graph_filepath} already exists, skipping save.")
+	
 if __name__ == "__main__":
-	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/beethoven/kunstderfuge/biamonti_66_(c)orlandi'
+	# def delete_files_with_substring(directory, substring):
+	# 	for root, dirs, files in os.walk(directory):
+	# 		for file in files:
+	# 			if substring in file:
+	# 				file_path = os.path.join(root, file)
+	# 				print(f"Deleting {file_path}")
+	# 				os.remove(file_path)
+
+	# # Example usage:
+	# directory = '/home/ilshapiro/project/datasets'
+	# substring = '_augmented_graph'
+	# delete_files_with_substring(directory, substring)
+	# sys.exit(0)
+
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	directory = '/home/ilshapiro/project/datasets'
+	directory = directory + '/debussy/kunstderfuge/preludes_1_9_(c)dery'
+
+	tasks = []
 	for dirpath, dirnames, filenames in os.walk(directory):
-		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives3.txt')) if os.path.getsize(file) > 0]
+		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
 		if motives_files:
 			motives_file = motives_files[0] 
 			midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
 			if midi_filepaths:
-				mid = mido.MidiFile(midi_filepaths[0])
-				tempo_changes = fc.preprocess_tempo_changes(mid)
-
-				base_path = midi_filepaths[0][:-4]
-				mid_df = pd.read_csv(base_path + ".csv")
-
-				# Convert durations to seconds and calculate end times
-				mid_df['duration_seconds'] = mid_df['duration'].apply(
-						lambda duration: fc.ticks_to_secs_with_tempo_changes(
-								duration * mid.ticks_per_beat, tempo_changes, mid.ticks_per_beat)
-				)
-				mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
-				piece_end_time = mid_df['end_time'].max()
-				piece_start_time = mid_df['onset_seconds'].min()
-
-				# segments_file = base_path + '_scluster_scluster_segments.txt'
-				segments_file = base_path + '_sf_fmc2d_segments.txt'
-				motives_file = base_path + '_motives1.txt'
-				harmony_file = base_path + '_functional_harmony.txt'
-				melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
-				G, layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
-				# visualize([G], [layers])
-				# augment_graph(G)
-				print("AUGMENTED", dirpath)
-				visualize_p([G], [layers])
-			# else:
-			# 	raise Exception("No midi file but motives", dirpath)
+				midi_file = midi_filepaths[0]
+				tasks.append(midi_file)
+			else:
+				raise Exception("No midi file but motives", dirpath)
+	
+	with Pool() as pool:
+		pool.map(process_graphs, tasks)
+			

@@ -76,8 +76,8 @@ def midi_to_csv(filename):
 				new_row = pd.DataFrame([[round(onset_crochets, 3), round(onset_seconds, 3), msg.note, round(duration_crochets, 3), staff]], columns=["onset", "onset_seconds", "pitch", "duration", "staff"]) 
 				df = pd.concat([df, new_row], axis=0) 
 	print(df)
-	# df.to_csv(output_filename, index=False) 
-	# print(f"Data has been written to {output_filename}")
+	df.to_csv(output_filename, index=False) 
+	print(f"Data has been written to {output_filename}")
 
 def convert_dataset_midi_to_csv():
 	midi_files = []
