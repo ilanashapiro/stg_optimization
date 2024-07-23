@@ -13,7 +13,7 @@ import mido
 import sys 
 
 def get_layer_id(node):
-	for layer_id in ['S', 'P', 'FHK', 'FHC', 'M']:
+	for layer_id in ['S', 'P', 'K', 'C', 'M']:
 		if node.startswith(layer_id):
 			return layer_id
 	raise Exception("Invalid node", node)
@@ -26,6 +26,11 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		sorted_nodes = sorted(layer, key=lambda x: x['start'])
 		# Add all real nodes to the graph
 		for node in sorted_nodes:
+			tolerance = 0.001
+			if abs(node['start'] - piece_start_time) <= tolerance:
+				node['start'] = piece_start_time
+			if abs(node['end'] - piece_end_time) <= tolerance:
+					node['end'] = piece_end_time
 			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
 				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'], features_dict=node['features_dict'])
 
@@ -87,26 +92,26 @@ def get_sort_key_for_node(node):
 		return (0, level)
 	elif node.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
 		return (1, 0)
-	elif node.startswith('FHK'): # Next prioritize functional harmony keys
+	elif node.startswith('K'): # Next prioritize functional harmony keys
 		return (2, 0)
-	elif node.startswith('FHC'): # Next prioritize functional harmony chords
-		return (2, 1)
-	elif node.startswith('M'): # Finally prioritize melody
+	elif node.startswith('C'): # Next prioritize functional harmony chords
 		return (3, 0)
+	elif node.startswith('M'): # Finally prioritize melody
+		return (4, 0)
 	raise Exception("Invalid node encountered in sort", node)
 
 def get_unsorted_layers_from_graph_by_index(G):
 	partition_segments = []
 	partition_motives = []
-	partition_fh_keys = []
-	partition_fh_chords = []
+	partition_keys = []
+	partition_chords = []
 	partition_melody = []
 
 	partition_map = {
 		'S': partition_segments,
 		'P': partition_motives,
-		'FHK': partition_fh_keys,
-		'FHC': partition_fh_chords,
+		'K': partition_keys,
+		'C': partition_chords,
 		'M': partition_melody,
 	}
 	
@@ -134,8 +139,8 @@ def get_unsorted_layers_from_graph_by_index(G):
 
 	layers = list(partition_segments_grouped.values()) # Convert the grouped dictionary into a list of nested lists
 	layers.append(partition_motives)
-	layers.append(partition_fh_keys)
-	layers.append(partition_fh_chords)
+	layers.append(partition_keys)
+	layers.append(partition_chords)
 	layers.append(partition_melody)
 	layers = [lst for lst in layers if lst]
 
@@ -148,8 +153,8 @@ def augment_graph(G):
 	prefix_to_layer_rank = {
 			'S': 1,
 			'P': 2,
-			'FHK': 3,
-			'FHC': 4,
+			'K': 3,
+			'C': 4,
 			'M': 5
 	}
 
@@ -336,7 +341,8 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 	plt.show()
 
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
-	layers = parse_analyses.parse_form_file(segments_filepath, piece_start_time, piece_end_time)
+	print("START", piece_start_time,"END", piece_end_time)
+	layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
 	layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
 	layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
 	layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
@@ -346,11 +352,11 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
-	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
+	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/beethoven/kunstderfuge/biamonti_48_(c)orlandi'
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
 	for dirpath, dirnames, filenames in os.walk(directory):
-		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
+		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives3.txt')) if os.path.getsize(file) > 0]
 		if motives_files:
 			motives_file = motives_files[0] 
 			midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
