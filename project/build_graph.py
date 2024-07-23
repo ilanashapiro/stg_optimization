@@ -47,6 +47,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index, features_dict={})
 				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 				layer.append(filler_node)
+				print("ADDED", filler_node)
 				
 		# if the first node in the layer starts after the piece start time, we have a gap at the beginning
 		first_node = sorted_nodes[0]
@@ -56,6 +57,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5, features_dict={})
 			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5, 'features_dict': {}}
 			layer.append(filler_node)
+			print("ADDED", filler_node)
 
 		# if the layer node in the layer starts after the piece end time, we have a gap at the end
 		last_node = sorted_nodes[-1]
@@ -66,6 +68,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index, features_dict={})
 			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 			layer.append(filler_node)
+			print("ADDED", filler_node)
 		layer.sort(key=lambda x: x['start'])
 			
 	for i in range(len(layers) - 1):
@@ -352,7 +355,7 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 	return (G, layers_with_index)
 
 if __name__ == "__main__":
-	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/beethoven/kunstderfuge/biamonti_48_(c)orlandi'
+	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/beethoven/kunstderfuge/biamonti_66_(c)orlandi'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
 	for dirpath, dirnames, filenames in os.walk(directory):

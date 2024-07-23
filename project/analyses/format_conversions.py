@@ -3,7 +3,7 @@ import pandas as pd
 from midi2audio import FluidSynth
 import os
 from pydub import AudioSegment
-import multiprocessing
+import multiprocessing, sys
 
 # DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
 # DIRECTORY = "/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db"
@@ -33,7 +33,10 @@ def preprocess_tempo_changes(mid):
 		for msg in track:
 			current_tick += msg.time
 			if msg.type == 'set_tempo':
-				tempo_changes.append((current_tick, msg.tempo))
+				if current_tick <= 0:
+					tempo_changes[0] = (current_tick, msg.tempo)
+				else:
+					tempo_changes.append((current_tick, msg.tempo))
 	tempo_changes.sort(key=lambda x: x[0])
 	return tempo_changes
 	
@@ -72,11 +75,9 @@ def midi_to_csv(filename):
 
 				new_row = pd.DataFrame([[round(onset_crochets, 3), round(onset_seconds, 3), msg.note, round(duration_crochets, 3), staff]], columns=["onset", "onset_seconds", "pitch", "duration", "staff"]) 
 				df = pd.concat([df, new_row], axis=0) 
-
-	df.to_csv(output_filename, index=False) 
-	print(f"Data has been written to {output_filename}")
-
-# midi_to_csv()
+	print(df)
+	# df.to_csv(output_filename, index=False) 
+	# print(f"Data has been written to {output_filename}")
 
 def convert_dataset_midi_to_csv():
 	midi_files = []
