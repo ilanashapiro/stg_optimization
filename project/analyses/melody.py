@@ -5,9 +5,10 @@ import numpy as np
 import subprocess
 from multiprocessing import Pool
 
-# -------------------------------- THESE WERE BOTH TRAINED ONLY ON POP99 --------------------------------
+# -------------------------------- THESE WERE BOTH TRAINED ONLY ON POP99 ------------------------------------------------------
 # sys.path.append('/Users/ilanashapiro/Documents/MIDI-BERT') # https://github.com/wazenmai/MIDI-BERT
 # sys.path.append('/Users/ilanashapiro/Documents/midi_melody_extraction') # https://github.com/bytedance/midi_melody_extraction
+# -----------------------------------------------------------------------------------------------------------------------------
 
 # sys.path.append('/Users/ilanashapiro/Documents/audio_to_midi_melodia') # https://github.com/justinsalamon/audio_to_midi_melodia
 # FOR MELODIA VERY IMPORTANT, EACH TERMINAL SESSION NEED TO RUN:
@@ -16,11 +17,6 @@ from multiprocessing import Pool
 # confirm with: sonic-annotator -l
 
 DIRECTORY = "/home/ilshapiro/project/datasets"
-
-# file_path = os.path.join(DIRECTORY, 'albeniz/classical_piano_midi_db/alb_esp1/alb_esp1_vamp_mtg-melodia_melodia_melody_converted.csv')
-# converted_file_path_midi = file_path[:-4] + "_converted.csv"
-# converted_file_path_intervals = converted_file_path_midi[:-4] + "_intervals.csv"
-# converted_file_path_signs = converted_file_path_intervals[:-4] + "_signs.csv"
 
 def execute_command(command):
 	print(f"Running command: {' '.join(command)}")
@@ -88,90 +84,54 @@ def convert_hz_to_midi(file_path, tolerance=0.5):
 	df_to_write.to_csv(out_filepath, index=False, header=False)
 	print("Wrote", out_filepath)
 
-def collapse_midi_interval_signs(file_path):
-		data = pd.read_csv(file_path, header=None, names=['secs', 'midi'])
-		if data.empty:
-			print("ERROR: No melody data for", file_path)
-			return
-		
-		transformed_data = []
-		start_time = data['secs'][0]
-		prev_val = data['midi'][0]
-		prev_sign = None
-
-		for row in data.iloc[1:].itertuples(index=True):
-			curr_time, curr_val = row.secs, row.midi
-			curr_sign = np.sign(curr_val - prev_val)
-
-			if curr_sign != prev_sign and curr_sign != 0:
-				transformed_data.append(((start_time, curr_time), curr_sign))
-				start_time = curr_time
-				prev_val = curr_val
-				prev_sign = curr_sign
-				
-		# Handle the last interval and merge it if the sign is the same
-		if prev_sign and transformed_data:
-			last_start_time = transformed_data[-1][0][0]
-			last_sign = transformed_data[-1][1]
-			if last_sign == prev_sign:
-				transformed_data[-1] = ((last_start_time, data.iloc[-1]['secs']), last_sign)
-			else:
-				transformed_data.append(((start_time, data.iloc[-1]['secs']), prev_sign))
-				
-		transformed_df = pd.DataFrame(transformed_data)
-		out_filepath = file_path.replace("_converted", "")[:-4] + "_signs.csv"
-		transformed_df.to_csv(out_filepath, index=False, header=False)
-		print("Wrote", out_filepath)
-
-def collapse_midi_intervals(file_path):
+def extract_melody_contour(file_path, out_file):
 	data = pd.read_csv(file_path, header=None, names=['secs', 'midi'])
 	if data.empty:
 		print("ERROR: No melody data for", file_path)
 		return
 	
-	transformed_data = []
-	start_time = data['secs'][0]
-	start_midi = data['midi'][0]
+	notes = list(data['midi'])
+	timesteps = list(data['secs'])
+	melody_contour = []
+	note_start_idx = 0
+	prev_num = None
 
-	for i in range(1, len(data)):
-		if data['midi'][i] != data['midi'][i - 1]:
-			end_time = data['secs'][i]
-			end_midi = data['midi'][i]
-			interval = end_midi - start_midi
-			transformed_data.append(((start_time, end_time), interval))
-			start_time = data['secs'][i]
-			start_midi = end_midi
+	while note_start_idx < len(notes):
+		num = notes[note_start_idx]
+		note_end_idx = note_start_idx
+		
+		# Find the end of the current segment
+		while note_end_idx < len(notes) and notes[note_end_idx] == num:
+			note_end_idx += 1
+		
+		start_time = timesteps[note_start_idx]
+		end_time = timesteps[note_end_idx] if note_end_idx < len(timesteps) else timesteps[-1]
+		
+		if prev_num is None:
+			interval = 0
+		else:
+			interval = num - prev_num
+		
+		melody_contour.append(((start_time, end_time), interval))
+		
+		prev_num = num
+		note_start_idx = note_end_idx
 
-	# Handle last interval
-	end_time = data['secs'].iloc[-1]
-	last_midi = data['midi'].iloc[-1]
-	last_interval = last_midi - start_midi
-	
-	if last_interval != 0:
-		transformed_data.append(((start_time, end_time), last_interval))
-	elif transformed_data:
-		prev_data = transformed_data[-1]
-		(prev_start_time, _), prev_interval = prev_data
-		transformed_data[-1] = ((prev_start_time, end_time), prev_interval)
-	
-	transformed_df = pd.DataFrame(transformed_data)
-	out_filepath = file_path.replace("_converted", "")[:-4] + "_intervals.csv"
-	transformed_df.to_csv(out_filepath, index=False, header=False)
-	print("Wrote", out_filepath)
+	transformed_df = pd.DataFrame(melody_contour)
+	transformed_df.to_csv(out_file, index=False, header=False)
+	print("Wrote", out_file)
 
 def process_file(filepath):
-		print("PROCESSING", filepath)
-		
-		# if not os.path.exists(filepath[:-4] + "_converted.csv"):
-		# 	convert_hz_to_midi(filepath)
-		
-		# REQUIRES THAT convert_hz_to_midi HAS ALREADY BEEN EXECUTED AND MIDI FILES EXIST
-		# OR THE RESULT IS INCORRECT
-		if not os.path.exists(filepath.replace("_converted", "")[:-4] + "_signs.csv"):
-			collapse_midi_interval_signs(filepath)
-		
-		if not os.path.exists(filepath.replace("_converted", "")[:-4] + "_intervals.csv"):
-			collapse_midi_intervals(filepath)
+	print("PROCESSING", filepath)
+	
+	# if not os.path.exists(filepath[:-4] + "_converted.csv"):
+	# 	convert_hz_to_midi(filepath)
+	
+	# REQUIRES THAT convert_hz_to_midi HAS ALREADY BEEN EXECUTED AND MIDI FILES EXIST
+	# OR THE RESULT IS INCORRECT
+	out_file = filepath.replace("_converted", "")[:-4] + "_contour.csv"
+	if not os.path.exists(out_file):
+		extract_melody_contour(filepath, out_file)
 
 if __name__ == "__main__":
 	commands = extract_melody()
@@ -187,47 +147,10 @@ if __name__ == "__main__":
 			# 		filepath = os.path.join(root, filename)
 			# 		file_queue.append(filepath)
 			
-			if filename.endswith("_melody_converted.csv"): # for collapse_midi_intervals, collapse_midi_interval_signs in process_file
+			if filename.endswith("_melody_converted.csv"): # run this if block for extract_melody_contour
 				filepath = os.path.join(root, filename)
 				file_queue.append(filepath)
 				# process_file(filepath)
 
 	with Pool() as pool:
 		pool.map(process_file, file_queue)
-
-############################# FOR DERIVING THE SIGNS FROM THE INTERVALS ##########################
-
-# def collapse_interval_signs():
-# 	data = pd.read_csv(converted_file_path_intervals, header=None, names=['time_interval', 'value'])
-# 	transformed_data = []
-# 	curr_time_interval = None
-# 	curr_val = None
-
-# 	for _, row in data.iterrows():
-# 		time_interval = row['time_interval']
-# 		val = row['value']
-		
-# 		if curr_time_interval is None:
-# 			curr_time_interval = time_interval
-# 			curr_val = val
-# 		else:
-# 			if curr_val and np.sign(curr_val) != np.sign(val):
-# 				# Merge intervals
-# 				start_val = float(curr_time_interval.split(',')[0][1:])
-# 				end_val = float(time_interval.split(',')[1][:-1])
-# 				transformed_data.append((f"({start_val}, {end_val})", np.sign(val - curr_val)))
-# 				curr_time_interval = time_interval
-# 				curr_val = val
-# 			else:
-# 				# Update the end of the current time interval
-# 				curr_time_interval = f"({curr_time_interval.split(',')[0][1:]}, {time_interval.split(',')[1][:-1]})"
-# 				curr_val = val
-
-# 	# Add the last interval
-# 	if curr_time_interval is not None and curr_val:
-# 		transformed_data.append((curr_time_interval, np.sign(curr_val)))
-
-# 	transformed_df = pd.DataFrame(transformed_data, columns=['interval', 'val'])
-# 	transformed_df.to_csv(converted_file_path_signs, index=False, header=False)
-# 	print("Wrote", converted_file_path_signs)
-# # collapse_interval_signs()

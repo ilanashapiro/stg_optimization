@@ -357,20 +357,13 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
 		layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
 		G = create_graph(piece_start_time, piece_end_time, layers)
-		
+
 		for node in G.nodes: # hack for some graphs whose CSV files don't match MIDI for reasons i'm not sure of. they contain nodes like 'Sfiller' due to timing conversion problems
-			if 'filler' in node and 'Pfiller' not in node and 'Mfiller' not in node:
+			if 'filler' in node and 'Pfiller' not in node:
 				print(node, segments_filepath)
 				print(f"Error processing graph at {os.path.dirname(segments_filepath)}: MIDI-CSV conversion problem")
 				return
-			if 'Mfiller' in node:
-				idx = float(node.split('N')[1])
-				melody_nodes = [node for node in G.nodes if node.startswith('M') and not node.startswith('Mfiller')]
-				max_melody_index = max(int(node.split('N')[1]) for node in melody_nodes)
-				if idx not in [0.5, max_melody_index + 0.5]:
-						print(node, segments_filepath)
-						print(f"Error processing graph at {os.path.dirname(segments_filepath)}: Invalid Mfiller node index")
-						return
+			
 		layers_with_index = get_unsorted_layers_from_graph_by_index(G)
 		return (G, layers_with_index)
 	except Exception as e:
@@ -392,17 +385,17 @@ def process_graphs(midi_filepath):
 	piece_end_time = mid_df['end_time'].max()
 	piece_start_time = mid_df['onset_seconds'].min()
 
-	segments_file = base_path + '_scluster_scluster_segments.txt'
-	# segments_file = base_path + '_sf_fmc2d_segments.txt'
+	# segments_file = base_path + '_scluster_scluster_segments.txt'
+	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
-	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_intervals.csv'
+	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		# visualize([G], [layers])
 		augment_graph(G)
-		# visualize_p([G], [layers])
+		visualize_p([G], [layers])
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
 		if not os.path.exists(aug_graph_filepath):
@@ -421,19 +414,18 @@ if __name__ == "__main__":
 	# 				print(f"Deleting {file_path}")
 	# 				os.remove(file_path)
 
-	# # Example usage:
-	# directory = '/home/ilshapiro/project/datasets'
-	# substring = '_augmented_graph'
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	# substring = '_melody_signs'
 	# delete_files_with_substring(directory, substring)
 	# sys.exit(0)
 
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
-	directory = '/home/ilshapiro/project/datasets'
-	directory = directory + '/debussy/kunstderfuge/preludes_1_9_(c)dery'
+	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	directory = directory + '/chopin/classical_piano_midi_db/chpn-p7'
 
 	tasks = []
-	for dirpath, dirnames, filenames in os.walk(directory):
+	for dirpath, _, _ in os.walk(directory):
 		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
 		if motives_files:
 			motives_file = motives_files[0] 

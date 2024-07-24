@@ -68,7 +68,6 @@ def parse_motives_file(piece_start_time, piece_end_time, file_path):
 	
 	for chunk in data:
 		if chunk.startswith("pattern"):
-			pattern_num += 1
 			lines = chunk.split('\n')[1:]  # Skip the pattern line itself
 			occurrence_num = 0
 			start, end = None, None
@@ -95,7 +94,8 @@ def parse_motives_file(piece_start_time, piece_end_time, file_path):
 			if start is not None and end is not None and not(below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end)):
 				node_label = f"P{pattern_num}O{occurrence_num}"
 				motif_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label, 'features_dict': {'pattern_num': pattern_num}})
-
+		pattern_num += 1
+		
 	# Sort by start time and add index based on the sort
 	motif_layer = sorted(motif_layer, key=lambda x: x['start'])
 	for idx, item in enumerate(motif_layer, start=1):
@@ -107,10 +107,11 @@ def parse_motives_file(piece_start_time, piece_end_time, file_path):
 
 def parse_melody_file(piece_start_time, piece_end_time, file_path):
 	with open(file_path, 'r') as file:
-		data = file.read().strip().split('\n') 
+		lines = file.read().strip().split('\n') 
 	melody_layer = []
+	melody_started = False
 
-	for idx, line in enumerate(data):
+	for idx, line in enumerate(lines):
 		line = line.strip()
 		parts = line.split(')",')
 		time_tuple_str = parts[0].strip('"()')
@@ -118,14 +119,18 @@ def parse_melody_file(piece_start_time, piece_end_time, file_path):
 
 		if start < piece_start_time and end < piece_start_time or start > piece_end_time and end > piece_end_time:
 			continue 
-		if start < piece_start_time:
+		# for the first melody note ending within valid piece start/end time, we want to make sure it starts at piece start time
+		if start < piece_start_time or (not melody_started and start != piece_start_time): 
 			start = piece_start_time
-		if end > piece_end_time:
+		# for the last melody note starting within valid piece start/end time, we want to make sure it starts at piece start time
+		# when end > piece time, this means there's no more valid intervals bc of how we parsed the melody file
+		if end > piece_end_time: 
 			end = piece_end_time
 
 		interval = int(float(parts[1].strip()))
 		node_label = f"M{interval}N{idx}"
 		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'abs_interval': abs(interval), 'interval_sign': '+' if interval > 0 else '-'}})
+		melody_started = True
 
 	return melody_layer
 
@@ -187,7 +192,7 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 				if key != next_key and next_onset_seconds > piece_start_time: # we have encountered a new key
 					if key_start_time < piece_start_time:
 						key_start_time = piece_start_time
-					relative_key_num = 1 if not prev_key else get_relative_key_num(prev_key, key) # first key is set to 1 for standardization
+					relative_key_num = 0 if not prev_key else get_relative_key_num(prev_key, key) # first key is set to 1 for standardization
 					quality = "M" if key.isupper() else "m"
 					node_label = f"K{relative_key_num}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
 					keys_layer.append({'start': key_start_time, 'end': next_onset_seconds, 'id': node_label, 'label': node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': quality}})
@@ -210,7 +215,7 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 		if key_start_time < piece_end_time:
 			if key_start_time < piece_start_time:
 				key_start_time = piece_start_time
-			relative_key_num = 1 if not prev_key else get_relative_key_num(prev_key, last_key) # first key is set to 1 for standardization
+			relative_key_num = 0 if not prev_key else get_relative_key_num(prev_key, last_key) # first key is set to 1 for standardization
 			quality = "M" if key.isupper() else "m"
 			key_node_label = f"K{relative_key_num}Q{quality}N{key_idx}" # functional harmony key {key} number {number}
 			keys_layer.append({'start': key_start_time, 'end': piece_end_time, 'id': key_node_label, 'label': key_node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': quality}})
