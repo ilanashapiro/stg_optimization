@@ -6,8 +6,43 @@ import format_conversions as fc
 # This file is purely for post-processing of the computed timesteps (i.e. 1/16 notes) -> seconds
 
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
+# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
 
-def convert_timesteps_to_seconds(piece_dir):
+def get_functional_chord_label(degree1, degree2, quality, key):
+		maj_roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+		min_roman = [r.lower() for r in maj_roman]
+		quality_map = {'M':'', 'm':'', 'a':'+', 'd':'o', 'M7':'M7', 'm7':'m7', 'D7':'7', 'd7':'o7', 'h7':'ø7', 'a6':'+6', 'a7':'aug7'}
+		accidental_map = {'+':'#', '-':'b'}
+
+		def parse_degree(degree):
+			deg_num = int(degree[1]) if any(acc in degree for acc in accidental_map.keys()) else int(degree)
+			deg_acc = accidental_map[degree[0]] if any(acc in degree for acc in accidental_map.keys()) else ""
+			return (deg_num, deg_acc)
+
+		deg1_num, deg1_acc = parse_degree(degree1)
+		deg2_num, deg2_acc = parse_degree(degree2)
+
+		if any(deg < 1 or deg > 7 for deg in [deg1_num, deg2_num]):
+			raise Exception("Degree not in valid range", degree1, degree2)
+		if quality not in quality_map:
+			raise Exception("Invalid quality", quality)
+		
+		secondary_key_roman = None
+		if deg1_num > 1: # we're in a secondary chord
+			key_letter = key[0]
+			secondary_key_qual_is_major = key_letter.isupper() and deg1_num in [4, 5] or not key_letter.isupper() and deg1_num in [3, 5, 6, 7]
+			secondary_key_roman = deg1_acc + (maj_roman[deg1_num - 1] if secondary_key_qual_is_major else min_roman[deg1_num - 1]) # 0-indexing
+
+		if quality == "a6":
+			chord_roman = "aug6"
+		else:
+			chord_symbol = maj_roman[deg2_num - 1] if quality[0].isupper() else min_roman[deg2_num - 1] # 0-indexing
+			chord_roman = deg2_acc + chord_symbol + quality_map[quality]
+
+		return f'{chord_roman}/{secondary_key_roman}' if secondary_key_roman else chord_roman
+
+# convert timesteps to seconds, i.e. add onset seconds, and add functional/roman chord symbols
+def augment_entry(piece_dir):
 	def timestep_to_ticks(timestep, ticks_per_beat):
 		return timestep * (ticks_per_beat / 4)  # 1 timestep = 1/16 of a quarter note
 	
@@ -44,29 +79,18 @@ def convert_timesteps_to_seconds(piece_dir):
 			lambda duration: fc.ticks_to_secs_with_tempo_changes(
 					timestep_to_ticks(duration * 4, mid.ticks_per_beat), tempo_changes, mid.ticks_per_beat)
 	)
-	mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
-	max_end_time = mid_df['end_time'].max()
 	
 	with open(fh_file, 'r') as f:
 		lines = f.readlines()
 
-	converted_data = [{'end_time': max_end_time}]
+	converted_data = []
 	for line in lines:
 		data = json.loads(line.strip())
 		timestep = data["timestep"]
-		
 		ticks = timestep_to_ticks(timestep, mid.ticks_per_beat)
 		seconds = fc.ticks_to_secs_with_tempo_changes(ticks, tempo_changes, mid.ticks_per_beat)
-		
-		# NOTE: this ONLY seems to be happening at the very end of midi files where there is silence
-		# the silence doesn't get translated to the audio. remove these chord predictions because the 
-		# file has silence, and these are therefore incorrect.s
-		if seconds > max_end_time:
-			tolerance = seconds - max_end_time
-			print(f"Computed seconds value {seconds} exceeds end_time {max_end_time} in CSV file for {piece_dir} with tolerance {tolerance}")
-			continue
-	
 		data["onset_seconds"] = seconds
+		data["roman_chord"] = get_functional_chord_label(data["degree1"], data["degree2"], data["quality"], data["key"])
 		converted_data.append(data)
 	
 	output_file = fh_file
@@ -86,14 +110,12 @@ def contains_functional_harmony(directory):
 
 def main():
 	fh_dirs = []
-	for root, dirs, _ in os.walk(DIRECTORY):
-		for dir_name in dirs:
-			dir_path = os.path.join(root, dir_name)
-			if contains_functional_harmony(dir_path):
-				fh_dirs.append(dir_path)
+	for dir_path, _, _ in os.walk(DIRECTORY):
+		if contains_functional_harmony(dir_path):
+			fh_dirs.append(dir_path)
 
 	with Pool() as pool:
-		pool.map(convert_timesteps_to_seconds, fh_dirs)
+		pool.map(augment_entry, fh_dirs)
 
 if __name__ == "__main__":
 		main()

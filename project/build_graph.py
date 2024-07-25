@@ -55,7 +55,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			if node1['end'] < node2['start'] and node2['start'] <= piece_end_time and node1['end'] >= piece_start_time: 
 				filler_node_index = node1['index'] + 0.5
 				filler_node_id = f"{get_layer_id(node1['id'])}fillerN{filler_node_index}" # Hardcoding P for now since motif/pattern layer is the only one that requires fillers
-				filler_node_label = filler_node_id
+				filler_node_label = filler_node_id.split('N')[0]
 				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index, features_dict={})
 				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 				layer.append(filler_node)
@@ -64,7 +64,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		first_node = sorted_nodes[0]
 		if first_node['start'] > piece_start_time:
 			filler_node_id = f"{get_layer_id(first_node['id'])}fillerN{0.5}"
-			filler_node_label = filler_node_id
+			filler_node_label = filler_node_id.split('N')[0]
 			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5, features_dict={})
 			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5, 'features_dict': {}}
 			layer.append(filler_node)
@@ -74,7 +74,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		if last_node['end'] < piece_end_time:
 			filler_node_index = last_node['index'] + 0.5
 			filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
-			filler_node_label = filler_node_id
+			filler_node_label = filler_node_id.split('N')[0]
 			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index, features_dict={})
 			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
 			layer.append(filler_node)
@@ -207,7 +207,7 @@ def augment_graph(G):
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
-def visualize(graph_list, layers_list, labels_dicts = None):
+def visualize(graph_list, layers_list):
 	n = len(graph_list)
 	
 	# Determine grid size (rows x cols) for subplots
@@ -222,7 +222,8 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 	
 	for idx, G in enumerate(graph_list):
 		layers = layers_list[idx]
-		labels_dict = labels_dicts[idx] if labels_dicts else None
+		labels_dict = {node: data.get('label', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
+
 		pos = {}  # Positions dictionary: node -> (x, y)
 		layer_spacing_factor = 1
 		layer_height = 1.0 / (layer_spacing_factor * (len(layers) + 1))
@@ -265,7 +266,7 @@ def visualize(graph_list, layers_list, labels_dicts = None):
 	plt.tight_layout()
 	plt.show()
 
-def visualize_p(graph_list, layers_list, labels_dicts=None):
+def visualize_p(graph_list, layers_list):
 	n = len(graph_list)
 	
 	# Determine grid size (rows x cols) for subplots
@@ -280,7 +281,7 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 	
 	for idx, G in enumerate(graph_list):
 		layers = layers_list[idx]
-		labels_dict = labels_dicts[idx] if labels_dicts else None
+		labels_dict = {node: data.get('id', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
 		pos = {}  # Positions dictionary: node -> (x, y)
 		prototype_nodes = []
 		
@@ -345,7 +346,7 @@ def visualize_p(graph_list, layers_list, labels_dicts=None):
 		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
-	
+
 	for ax in axes_flat[n:]:
 		ax.axis('off')
 	
@@ -408,7 +409,7 @@ def process_graphs(midi_filepath):
 	
 if __name__ == "__main__":
 	# def delete_files_with_substring(directory, substring):
-	# 	for root, dirs, files in os.walk(directory):
+	# 	for root, _, files in os.walk(directory):
 	# 		for file in files:
 	# 			if substring in file:
 	# 				file_path = os.path.join(root, file)
@@ -416,7 +417,7 @@ if __name__ == "__main__":
 	# 				os.remove(file_path)
 
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# substring = '_melody_signs'
+	# substring = '_augmented_graph'
 	# delete_files_with_substring(directory, substring)
 	# sys.exit(0)
 
