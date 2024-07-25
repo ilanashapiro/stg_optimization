@@ -111,25 +111,31 @@ def parse_melody_file(piece_start_time, piece_end_time, file_path):
 	melody_layer = []
 	melody_started = False
 
-	for idx, line in enumerate(lines):
+	def below_start_bound(time):
+		return float(time) < float(piece_start_time) 
+	def above_end_bound(time):
+		return float(time) > float(piece_end_time)
+
+	for line_idx, line in enumerate(lines):
 		line = line.strip()
 		parts = line.split(')",')
 		time_tuple_str = parts[0].strip('"()')
 		start, end = map(float, time_tuple_str.split(','))
 
-		if start < piece_start_time and end < piece_start_time or start > piece_end_time and end > piece_end_time:
+		if below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end):
 			continue 
 		# for the first melody note ending within valid piece start/end time, we want to make sure it starts at piece start time
-		if start < piece_start_time or (not melody_started and start != piece_start_time): 
+		if below_start_bound(start) or (not melody_started and start != piece_start_time): 
 			start = piece_start_time
 		# for the last melody note starting within valid piece start/end time, we want to make sure it starts at piece start time
 		# when end > piece time, this means there's no more valid intervals bc of how we parsed the melody file
-		if end > piece_end_time: 
+		if above_end_bound(end): 
 			end = piece_end_time
 
 		interval = int(float(parts[1].strip()))
-		node_label = f"M{interval}N{idx}"
-		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'abs_interval': abs(interval), 'interval_sign': '+' if interval > 0 else '-'}})
+		node_idx = line_idx + 1 # 1-indexing
+		node_label = f"M{interval}N{node_idx + 1}" 
+		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_label, 'label': node_label, 'index': node_idx + 1, 'features_dict': {'abs_interval': abs(interval), 'interval_sign': '+' if interval > 0 else '-'}})
 		melody_started = True
 
 	return melody_layer
@@ -159,15 +165,23 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 		
 		relative_index = (new_index - current_index) % 12
 		return relative_index
+	def below_start_bound(time):
+		return float(time) < float(piece_start_time) 
+	def above_end_bound(time):
+		return float(time) > float(piece_end_time)
 	
 	with open(file_path, 'r') as file:
 		prev_key = None
 		key_idx = 1
 		lines = file.readlines()
 		key_start_time = json.loads(lines[1].strip())['onset_seconds']
-
-		# first line is the piece end time, only go up to the last line since we process in pairs
-		for idx, line in enumerate(lines[1:-1], start=1):
+		curr_deg1, curr_deg2, curr_qual = None, None, None
+		node_index = 1
+		
+		# first line is the piece end time
+		# and then only go up until, but not including, the last line since we process in pairs
+		for line_idx in range(1, len(lines) - 1):
+			line = lines[line_idx]
 			curr_harmony_dict = json.loads(line.strip())
 			key = curr_harmony_dict['key']
 			onset_seconds = float(curr_harmony_dict['onset_seconds'])
@@ -175,22 +189,31 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 			degree2 = curr_harmony_dict['degree2']
 			quality = curr_harmony_dict['quality']
 			# inversion = harmony_dict['inversion'] # for now, let's leave this out of the graph, since it doesn't indicate significant harmonic change
-
-			next_harmony_dict = json.loads(lines[idx+1].strip())
+			
+			next_harmony_dict = json.loads(lines[line_idx+1].strip())
 			next_onset_seconds = float(next_harmony_dict['onset_seconds'])
 			next_key = next_harmony_dict['key']
 
-			if onset_seconds != next_onset_seconds and not(onset_seconds < piece_start_time and next_onset_seconds < piece_start_time or onset_seconds > piece_end_time and next_onset_seconds > piece_end_time):
+			if below_start_bound(onset_seconds) and below_start_bound(next_onset_seconds) or above_end_bound(onset_seconds) and above_end_bound(next_onset_seconds):
+				continue
+			
+			if onset_seconds != next_onset_seconds:
 				if onset_seconds < piece_start_time:
 					onset_seconds = piece_start_time
 				if next_onset_seconds > piece_end_time:
 					next_onset_seconds = piece_end_time
 				
-				node_label = f"C{degree1},{degree2}Q{quality}N{idx}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
-				chords_layer.append({'start': onset_seconds, 'end': next_onset_seconds, 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
+				# since we're not considering inversion, we see if chords are equal based oon degrees 1 and 2, and quality
+				if curr_deg1 != degree1 or curr_deg2 != degree2 or curr_qual != quality:
+					curr_deg1, curr_deg2, curr_qual = degree1, degree2, quality
+					node_label = f"C{degree1},{degree2}Q{quality}N{node_index}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
+					chords_layer.append({'start': onset_seconds, 'end': next_onset_seconds, 'id': node_label, 'label': node_label, 'index': node_index, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
+					node_index += 1
+				else: # Extend the end time of the current chord since it's just another inversion 
+					chords_layer[-1]['end'] = next_onset_seconds
 
 				if key != next_key and next_onset_seconds > piece_start_time: # we have encountered a new key
-					if key_start_time < piece_start_time:
+					if below_start_bound(key_start_time):
 						key_start_time = piece_start_time
 					relative_key_num = 0 if not prev_key else get_relative_key_num(prev_key, key) # first key is set to 1 for standardization
 					quality = "M" if key.isupper() else "m"
@@ -207,13 +230,13 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 		degree1 = last_harmony_dict['degree1']
 		degree2 = last_harmony_dict['degree2']
 		quality = last_harmony_dict['quality']
-		
+
 		if last_onset_seconds < piece_end_time:
-			node_label = f"C{degree1},{degree2}Q{quality}N{len(lines) - 1}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
-			chords_layer.append({'start': last_onset_seconds, 'end': piece_end_time, 'id': node_label, 'label': node_label, 'index': idx, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
+			node_label = f"C{degree1},{degree2}Q{quality}N{node_index}" # functional harmony chord {degree1}, {degree2} quality {quality} number {number}
+			chords_layer.append({'start': last_onset_seconds, 'end': piece_end_time, 'id': node_label, 'label': node_label, 'index': node_index, 'features_dict': {'degree1': degree1, 'degree2': degree2, 'quality': quality}})
 		
 		if key_start_time < piece_end_time:
-			if key_start_time < piece_start_time:
+			if below_start_bound(key_start_time):
 				key_start_time = piece_start_time
 			relative_key_num = 0 if not prev_key else get_relative_key_num(prev_key, last_key) # first key is set to 1 for standardization
 			quality = "M" if key.isupper() else "m"

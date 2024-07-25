@@ -41,6 +41,8 @@ def create_graph(piece_start_time, piece_end_time, layers):
 					node['end'] = piece_end_time
 			
 			# Add all real nodes to the graph
+			if node['index'] < 1:
+				raise Exception("Node index < 1:", node)
 			if node['start'] >= piece_start_time and node['end'] <= piece_end_time:
 				G.add_node(node['id'], start=node['start'], end=node['end'], label=node['label'], index=node['index'], features_dict=node['features_dict'])
 				
@@ -360,7 +362,6 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 
 		for node in G.nodes: # hack for some graphs whose CSV files don't match MIDI for reasons i'm not sure of. they contain nodes like 'Sfiller' due to timing conversion problems
 			if 'filler' in node and 'Pfiller' not in node:
-				print(node, segments_filepath)
 				print(f"Error processing graph at {os.path.dirname(segments_filepath)}: MIDI-CSV conversion problem")
 				return
 			
