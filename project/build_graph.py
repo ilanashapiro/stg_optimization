@@ -237,7 +237,7 @@ def visualize(graph_list, layers_list):
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]
-		colors = ["#98FDFF", "#FFB4E4", "#FFDDC1", "#C6E2FF", "#D3FFCE"]
+		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
 		filler_color = '#FF0000'
 		for layer in layers:
 			level = vertical_sort_key(layer)
@@ -281,7 +281,7 @@ def visualize_p(graph_list, layers_list):
 	
 	for idx, G in enumerate(graph_list):
 		layers = layers_list[idx]
-		labels_dict = {node: data.get('id', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
+		labels_dict = {node: data.get('label', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
 		pos = {}  # Positions dictionary: node -> (x, y)
 		prototype_nodes = []
 		
@@ -309,8 +309,8 @@ def visualize_p(graph_list, layers_list):
 		
 		ax = axes_flat[idx]
 		
-		colors = ["#98FDFF", "#FFB4E4", "#FFDDC1", "#C6E2FF", "#D3FFCE"]
-		filler_color = '#FF0000'
+		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
+		filler_color = '#808080'
 		for layer in layers:
 			level = vertical_sort_key(layer)
 			color = colors[level[0] % len(colors)]
@@ -356,6 +356,10 @@ def visualize_p(graph_list, layers_list):
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
 	try:
 		layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
+		# keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
+		# layers.append(keys_layer)
+		# layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
+		# layers.append(chords_layer)
 		layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
 		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
 		layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
@@ -389,14 +393,14 @@ def process_graphs(midi_filepath):
 
 	# segments_file = base_path + '_scluster_scluster_segments.txt'
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
-	motives_file = base_path + '_motives1.txt'
+	motives_file = base_path + '_motivesT.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		# visualize([G], [layers])
-		augment_graph(G)
+		# augment_graph(G)
 		visualize_p([G], [layers])
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
@@ -408,18 +412,18 @@ def process_graphs(midi_filepath):
 		# 	print(f"File {aug_graph_filepath} already exists, skipping save.")
 	
 if __name__ == "__main__":
-	# def delete_files_with_substring(directory, substring):
-	# 	for root, _, files in os.walk(directory):
-	# 		for file in files:
-	# 			if substring in file:
-	# 				file_path = os.path.join(root, file)
-	# 				print(f"Deleting {file_path}")
-	# 				os.remove(file_path)
+	def delete_files_with_substring(directory, substring):
+		for root, _, files in os.walk(directory):
+			for file in files:
+				if substring in file:
+					file_path = os.path.join(root, file)
+					print(f"Deleting {file_path}")
+					os.remove(file_path)
 
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# substring = '_augmented_graph'
-	# delete_files_with_substring(directory, substring)
-	# sys.exit(0)
+	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	substring = '_melody_contour'
+	delete_files_with_substring(directory, substring)
+	sys.exit(0)
 
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
@@ -428,7 +432,7 @@ if __name__ == "__main__":
 
 	tasks = []
 	for dirpath, _, _ in os.walk(directory):
-		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
+		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motivesT.txt')) if os.path.getsize(file) > 0]
 		if motives_files:
 			motives_file = motives_files[0] 
 			midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))

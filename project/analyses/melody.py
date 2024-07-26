@@ -16,7 +16,7 @@ from multiprocessing import Pool
 # export PATH=$PATH:~/project/analyses
 # confirm with: sonic-annotator -l
 
-DIRECTORY = "/home/ilshapiro/project/datasets"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
 
 def execute_command(command):
 	print(f"Running command: {' '.join(command)}")
@@ -94,27 +94,24 @@ def extract_melody_contour(file_path, out_file):
 	timesteps = list(data['secs'])
 	melody_contour = []
 	note_start_idx = 0
-	prev_num = None
+	prev_midi = None
 
 	while note_start_idx < len(notes):
-		num = notes[note_start_idx]
+		curr_midi = notes[note_start_idx]
 		note_end_idx = note_start_idx
 		
 		# Find the end of the current segment
-		while note_end_idx < len(notes) and notes[note_end_idx] == num:
+		while note_end_idx < len(notes) and notes[note_end_idx] == curr_midi:
 			note_end_idx += 1
 		
 		start_time = timesteps[note_start_idx]
 		end_time = timesteps[note_end_idx] if note_end_idx < len(timesteps) else timesteps[-1]
 		
-		if prev_num is None:
-			interval = 0
-		else:
-			interval = num - prev_num
+		if prev_midi is not None:
+			interval = curr_midi - prev_midi
+			melody_contour.append(((start_time, end_time), interval))
 		
-		melody_contour.append(((start_time, end_time), interval))
-		
-		prev_num = num
+		prev_midi = curr_midi
 		note_start_idx = note_end_idx
 
 	transformed_df = pd.DataFrame(melody_contour)
@@ -134,7 +131,7 @@ def process_file(filepath):
 		extract_melody_contour(filepath, out_file)
 
 if __name__ == "__main__":
-	commands = extract_melody()
+	# commands = extract_melody()
 	# with Pool() as pool:
 	# 	pool.map(execute_command, commands)
 
