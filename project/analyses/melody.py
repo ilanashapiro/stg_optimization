@@ -93,30 +93,36 @@ def extract_melody_contour(file_path, out_file):
 	notes = list(data['midi'])
 	timesteps = list(data['secs'])
 	melody_contour = []
+	
 	note_start_idx = 0
-	prev_midi = None
-
 	while note_start_idx < len(notes):
 		curr_midi = notes[note_start_idx]
-		note_end_idx = note_start_idx
+		next_note_start_idx = note_start_idx
 		
 		# Find the end of the current segment
-		while note_end_idx < len(notes) and notes[note_end_idx] == curr_midi:
-			note_end_idx += 1
+		while next_note_start_idx < len(notes) and notes[next_note_start_idx] == curr_midi:
+			next_note_start_idx += 1
 		
+		if next_note_start_idx == len(notes): # this is the last note, no more melodic intervals to process
+			break
+
+		next_midi = notes[next_note_start_idx]
 		start_time = timesteps[note_start_idx]
-		end_time = timesteps[note_end_idx] if note_end_idx < len(timesteps) else timesteps[-1]
+		end_time = timesteps[next_note_start_idx]
 		
-		if prev_midi is not None:
-			interval = curr_midi - prev_midi
+		if start_time < end_time:
+			interval = next_midi - curr_midi
 			melody_contour.append(((start_time, end_time), interval))
-		
-		prev_midi = curr_midi
-		note_start_idx = note_end_idx
+
+		note_start_idx = next_note_start_idx
 
 	transformed_df = pd.DataFrame(melody_contour)
 	transformed_df.to_csv(out_file, index=False, header=False)
 	print("Wrote", out_file)
+
+# TEST
+# extract_melody_contour('/Users/ilanashapiro/Documents/constraints_project/project/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_vamp_mtg-melodia_melodia_melody_converted.csv', 
+# 											 '/Users/ilanashapiro/Documents/constraints_project/project/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_vamp_mtg-melodia_melodia_melody_contour.csv')
 
 def process_file(filepath):
 	print("PROCESSING", filepath)
