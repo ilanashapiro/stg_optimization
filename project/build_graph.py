@@ -96,9 +96,9 @@ def create_graph(piece_start_time, piece_end_time, layers):
 
 def vertical_sort_key(layer):
 	node_id = layer[0]['id'] # get the id of the first node in the layer
-	return get_sort_key_for_node(node_id)
+	return get_layer_rank(node_id)
 
-def get_sort_key_for_node(node):
+def get_layer_rank(node):
 	if node.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
 		level = int(node.split('L')[1].split('N')[0])
 		return (0, level)
@@ -161,20 +161,6 @@ def get_unsorted_layers_from_graph_by_index(G):
 # augment with prototype nodes and intra-level layers
 def augment_graph(G):
 	layers = get_unsorted_layers_from_graph_by_index(G)
-
-	prefix_to_layer_rank = {
-			'S': 1,
-			'P': 2,
-			'K': 3,
-			'C': 4,
-			'M': 5
-	}
-
-	def get_layer_rank(instance_node_id):
-		for prefix, layer_rank in prefix_to_layer_rank.items():
-			if instance_node_id.startswith(prefix):
-				return layer_rank
-		raise Exception("Invalid instance node id", instance_node_id)
 	
 	# Add prototype nodes and edges to instances
 	for layer in layers:
@@ -185,14 +171,16 @@ def augment_graph(G):
 
 			for feature_name, value in features_dict.items():
 				proto_node_id = f"Pr{feature_name.capitalize()}:{value}"
-				proto_nodes.append(proto_node_id)
+				proto_nodes.append((proto_node_id, feature_name, get_layer_id(instance_node_id)))
 			
 			if not bool(features_dict):
-				proto_nodes.append("PrFiller")
+				source_layer_kind = get_layer_id(instance_node_id)
+				feature_name = get_layer_id(instance_node_id) + "filler"
+				proto_nodes.append((f"Pr{feature_name}:{value}", feature_name, source_layer_kind))
 			
-			for proto_node_id in proto_nodes:
+			for (proto_node_id, feature_name, source_layer_kind) in proto_nodes:
 				if proto_node_id not in G:
-					G.add_node(proto_node_id, label=proto_node_id, layer_rank=get_layer_rank(instance_node_id))
+					G.add_node(proto_node_id, label=proto_node_id, layer_rank=get_layer_rank(instance_node_id), feature_name=feature_name, source_layer_kind=source_layer_kind)
 				if not G.has_edge(proto_node_id, instance_node_id):
 					G.add_edge(proto_node_id, instance_node_id)
 
@@ -336,7 +324,7 @@ def visualize_p(graph_list, layers_list):
 		for u, v in all_edges:
 			if u in prototype_nodes or v in prototype_nodes:
 				proto_edges.append((u, v))
-			elif get_sort_key_for_node(u) == get_sort_key_for_node(v):
+			elif get_layer_rank(u) == get_layer_rank(v):
 				intra_level_edges.append((u, v))
 			else:
 				inter_level_edges.append((u, v))
@@ -356,7 +344,7 @@ def visualize_p(graph_list, layers_list):
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
 	try:
 		layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
-		# keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
+		keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
 		# layers.append(keys_layer)
 		# layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
 		# layers.append(chords_layer)
@@ -393,14 +381,14 @@ def process_graphs(midi_filepath):
 
 	# segments_file = base_path + '_scluster_scluster_segments.txt'
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
-	motives_file = base_path + '_motivesT.txt'
+	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		# visualize([G], [layers])
-		# augment_graph(G)
+		augment_graph(G)
 		visualize_p([G], [layers])
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
@@ -425,14 +413,14 @@ if __name__ == "__main__":
 	delete_files_with_substring(directory, substring)
 	sys.exit(0)
 
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
 	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	directory = directory + '/chopin/classical_piano_midi_db/chpn-p7'
+	directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
 
 	tasks = []
 	for dirpath, _, _ in os.walk(directory):
-		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motivesT.txt')) if os.path.getsize(file) > 0]
+		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
 		if motives_files:
 			motives_file = motives_files[0] 
 			midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
