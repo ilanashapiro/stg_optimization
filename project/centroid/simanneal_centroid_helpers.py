@@ -4,8 +4,11 @@ import re
 
 def pad_adj_matrices(graphs):
   all_nodes = set()
+  nodes_features_dict = {}
   for G in graphs:
     all_nodes.update(G.nodes())
+    for node_id, data_dict in G.nodes(data=True):
+      nodes_features_dict[node_id] = {k: v for k, v in data_dict.items() if k in ['features_dict', 'feature_name', 'source_layer_kind', 'layer_rank']} 
   node_idx_mapping = {node: i for i, node in enumerate(all_nodes)}
   idx_node_mapping = {v: k for k, v in node_idx_mapping.items()}
   new_adj_matrices = []
@@ -13,14 +16,12 @@ def pad_adj_matrices(graphs):
   for G in graphs:
     size = len(all_nodes)
     new_A = np.zeros((size, size))
-    
     for node in G.nodes():
       for neighbor in G.neighbors(node):
-          new_A[node_idx_mapping[node], node_idx_mapping[neighbor]] = 1 # Since all STGs are directed this ONLY handles the directed case
-    
+        new_A[node_idx_mapping[node], node_idx_mapping[neighbor]] = 1 # Since all STGs are directed this ONLY handles the directed case
     new_adj_matrices.append(new_A)
     
-  return new_adj_matrices, idx_node_mapping
+  return new_adj_matrices, idx_node_mapping, nodes_features_dict
 
 def adj_matrix_to_graph(A, idx_node_mapping):
   G = nx.DiGraph()

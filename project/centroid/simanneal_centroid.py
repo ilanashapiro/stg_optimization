@@ -3,11 +3,11 @@ import networkx as nx
 import numpy as np
 import random
 import re 
-# from simanneal import Annealer
-from anneal import Annealer
+from simanneal import Annealer
 import sys
 import json 
 import multiprocessing
+import pickle
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
@@ -30,7 +30,7 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 # this is our objective we're trying to minimize
 def loss(A_g, list_alignedA_G):
 	distances = np.array([dist(A_g, A_G) for A_G in list_alignedA_G])
-	distance = np.sum(distances) / len(distances)
+	distance = np.sum(distances)
 	variance = np.var(distances)
 
 	print("DIST", distance, "VAR", variance)
@@ -46,61 +46,87 @@ def dist(A_g, A_G):
 	return np.linalg.norm(A_g - A_G, 'fro')
 
 class GraphAlignmentAnnealer(Annealer):
-	def __init__(self, initial_alignment, A_g, A_G, centroid_node_mapping):
+	def __init__(self, initial_alignment, A_g, A_G, centroid_node_mapping, node_metadata_dict, run_num):
 		super(GraphAlignmentAnnealer, self).__init__(initial_alignment)
+		self.run_num = run_num
 		self.A_g = A_g
 		self.A_G = A_G
 		self.centroid_node_mapping = centroid_node_mapping
+		self.node_metadata_dict = node_metadata_dict
 		self.node_partitions = self.get_node_partitions()
+		for item in node_metadata_dict.items():
+			print(item)
+		print("PARTITIONS", self.node_partitions.keys())
+		
 	
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
 	# def default_update(self, step, T, E, acceptance, improvement):
 	#   return 
 	
-	def get_node_info(self, node_id):
-		if node_id.startswith('PrS'):
-			return ('prototype_segmentation', None)
-		if node_id.startswith('PrP'):
-			return ('prototype_motif', None)
-		s_match = re.match(r'S\d+L(\d+)N\d+', node_id)
-		p_match = re.match(r'P\d+O\d+N\d+', node_id)
-		if s_match:
-			return ('segmentation', int(s_match.group(1)))
-		elif p_match:
-			return ('motif', None)
-		return (None, None)
+	# return: (partition name, sub-level (if any))
+	# partition name is the layer for instance nodes
+	def get_node_partition_info(self, node_id):
+		def get_layer_id(node_id):
+			for layer_id in ['S', 'P', 'K', 'C', 'M']:
+				if node_id.startswith(layer_id):
+					return layer_id
+			raise Exception("Invalid node", node_id)
+		
+		if node_id.startswith('Pr'): # prototype nodes: one partition per prototype feature
+			# EVEN THOUGH IT'S POSOSIBLE FOR THE BEST ALIGNMENT TO MIX ACROSS FEATURE SETS OF THE SAME LEVEL, FOR LARGER GRAPHS THIS IS HIGHLY UNLIKELY
+			# EXPERIMENTAL RESULTS SHOW GREATER ACCURACY BY PARTITIONING PROTOS BY FEATURE SETS, INSTEAD OF MERGED SOURCE LAYER SETS, DUE TO THIS UNLIKELIHOOD AND THE INCREASED 
+			# ANNEALING EFFICIENCY ACHIEVED BY THE SMALLER PARTITIONS
+			feature = self.node_metadata_dict[node_id]['feature_name']
+			feature = feature if 'filler' not in feature else get_layer_id(node_id)
+			return ('proto_' + feature, None)
+			# VERSION WITH MERGED FEATURES INTO SOURCE LAYER PARTITIONS
+			# 	source_layer_kind = self.node_metadata_dict[node_id]['source_layer_kind']
+			# 	return ('proto_' + source_layer_kind, None)
+		else: # instance nodes: one partition per layer kind e.g. P or S or C etc (fillers of that layer are included)
+			layer_id = get_layer_id(node_id)
+			hierarchical_layers = ['S']
+			if layer_id in hierarchical_layers:
+				sublevel = re.search(r'L(\d+)', node_id).group(1)
+				return ("inst_" + layer_id, sublevel)
+			return ("inst_" + layer_id, None)
 	
 	def get_node_partitions(self):
 		"""Partition centroid_node_mapping into labeled sets."""
-		partitions = {'prototype_segmentation': [], 'prototype_motif': [],
-									'segmentation': {}, 'motif': []}
+		partitions = {}
 		for index, node_id in self.centroid_node_mapping.items():
-			kind, layer = self.get_node_info(node_id)
-			if kind == 'segmentation':
-				if layer not in partitions[kind]:
-					partitions[kind][layer] = []
-				partitions[kind][layer].append(index)
-			elif kind:
-				partitions[kind].append(index)
+			partition_name, layer = self.get_node_partition_info(node_id)
+			hierarchical_layers = ['inst_S']
+
+			if partition_name not in partitions:
+					partitions[partition_name] = {} if partition_name in hierarchical_layers else []
+	
+			if partition_name == 'inst_S': # segmentation possibly has a sub-hierarchy
+				if layer not in partitions[partition_name]:
+					partitions[partition_name][layer] = []
+				partitions[partition_name][layer].append(index)
+			else:
+				partitions[partition_name].append(index)
+		
 		return partitions
 
 	def move(self):
 		"""Swaps two rows in the n x n permutation matrix by permuting within valid sets (protype node class or individual level)"""
 		n = len(self.state)
 		i = random.randint(0, n - 1)
-		i_kind, i_layer = self.get_node_info(self.centroid_node_mapping[i])
+		i_partition_name, i_sublevel = self.get_node_partition_info(self.centroid_node_mapping[i])
 		j_options = None 
+		hierarchical_layers = ['inst_S']
 
 		# Identify partition and find a random j within the same partition
-		if i_kind == 'segmentation' and i_layer in self.node_partitions[i_kind]:
-			j_options = self.node_partitions[i_kind][i_layer]
-		elif i_kind:
-			j_options = self.node_partitions[i_kind]
+		if i_partition_name in hierarchical_layers and i_sublevel in self.node_partitions[i_partition_name]:
+			j_options = self.node_partitions[i_partition_name][i_sublevel]
+		elif i_partition_name:
+			j_options = self.node_partitions[i_partition_name]
 
 		# Ensure i is not equal to j
-		if j_options and len(j_options):
+		if j_options and len(j_options) > 1: # if a partition has only 1 element we have infinite loop
 			j = random.choice(j_options)
-			while j == i and len(j_options) > 1: # if a partition has only 1 element we have infinite loop
+			while j == i: 
 				j = random.choice(j_options)
 		else:
 			# Fallback to random selection if no suitable j is found
@@ -114,15 +140,24 @@ class GraphAlignmentAnnealer(Annealer):
 		return dist(self.A_g, align(self.state, self.A_G))
 
 # ---------------------------------------- TEST CODE: --------------------------------------------------------------------------------
-# (g, layers, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/0_short_test/bl11_solo_short_motives.txt')
-# (G, layers1, _) = build_graph.generate_graph('/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_segments.txt', '/Users/ilanashapiro/Documents/constraints_project/project/LOP_database_06_09_17/liszt_classical_archives/1_short_test/beet_3_2_solo_short_motives.txt')
-# padded_matrices, centroid_node_mapping = helpers.pad_adj_matrices([tests.G1, tests.G2])
-# A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
+fp1 = '/home/ilshapiro/project/datasets/chopin/classical_piano_midi_db/chpn-p9/chpn-p9_augmented_graph_flat.pickle'
+fp2 = '/home/ilshapiro/project/datasets/chopin/classical_piano_midi_db/chpn-p2/chpn-p2_augmented_graph_flat.pickle'
+with open(fp1, 'rb') as f:
+	G1 = pickle.load(f)
+with open(fp2, 'rb') as f:
+	G2 = pickle.load(f)
+
+padded_matrices, centroid_node_mapping, node_metadata_dict = helpers.pad_adj_matrices([G1, G2])
+A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
+# print(A_G1, A_G2)
+# print(centroid_node_mapping)
+print()
+# print(nodes_metadata_dict)
 
 # list_G = [tests.G1, tests.G2]
-# listA_G, centroid_node_mapping = helpers.pad_adj_matrices(list_G)
+# listA_G, centroid_idx_node_mapping, nodes_metadata_dict = helpers.pad_adj_matrices(list_G)
 # initial_centroid = listA_G[0]
-# np.savetxt("centroid.txt", initial_centroid)
+# np.savetxt("initial_centroid.txt", initial_centroid)
 
 # A_g_c = np.loadtxt('centroid.txt')
 # with open("centroid_node_mapping.txt", 'r') as file:
@@ -134,21 +169,24 @@ class GraphAlignmentAnnealer(Annealer):
 # layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
 # build_graph.visualize_p([g_c], [layers_g_c])
 
-# initial_state = np.eye(np.shape(A_G)[0])
-# graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, centroid_node_mapping)
-# graph_aligner.Tmax = 1.25
-# graph_aligner.Tmin = 0.01 
-# graph_aligner.steps = 5000 
-# alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
+initial_state = np.eye(np.shape(A_G1)[0])
+graph_aligner = GraphAlignmentAnnealer(initial_state, A_G1, A_G2, centroid_node_mapping, node_metadata_dict, 1)
+graph_aligner.Tmax = 1.25
+graph_aligner.Tmin = 0.01 
+graph_aligner.steps = 2000 # 2000 
+alignment, cost1 = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
 
-# print("Best cost1", cost)
+print("Best cost1", cost1)
+# sys.exit(0)
+graph_aligner = GraphAlignmentAnnealer(alignment, A_G1, A_G2, centroid_node_mapping, node_metadata_dict, 0)
+graph_aligner.Tmax = 0.5 #1.25
+graph_aligner.Tmin = 0.01 
+graph_aligner.steps = 2000 #2000 
+_, cost2 = graph_aligner.anneal()
 
-# graph_aligner = GraphAlignmentAnnealer(alignment, A_g, A_G, centroid_node_mapping)
-# graph_aligner.Tmax = 1.25
-# graph_aligner.Tmin = 0.01 
-# graph_aligner.steps = 5000 
-
-# print("Best cost2", cost)
+print("Best cost2", cost2)
+print("Difference", cost2 - cost1)
+# sys.exit(0)
 # ---------------------------------------- :TEST CODE --------------------------------------------------------------------------------
 
 def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps):
@@ -185,68 +223,55 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 	return alignments
 
 class CentroidAnnealer(Annealer):
-	def __init__(self, initial_centroid, listA_G, centroid_node_mapping):
+	def __init__(self, initial_centroid, listA_G, centroid_node_mapping, node_metadata_dict):
 		super(CentroidAnnealer, self).__init__(initial_centroid)
 		self.listA_G = listA_G
 		self.centroid_node_mapping = centroid_node_mapping
+		self.node_metadata_dict = node_metadata_dict
 		self.step = 0
-
-	def parse_node_name(self, node_name):
-		# Prototype nodes of the form "PrS{n}" or "PrP{n}"
-		proto_match = re.match(r"Pr([SP])(\d+)", node_name)
-		if proto_match:
-			return {
-				"type": "prototype",
-				"kind": proto_match.group(1),
-				"n": int(proto_match.group(2)),
-			}
-		
-		# Instance nodes of the form "S{n1}L{n2}N{n3}" or "P{n1}O{n2}N{n3}"
-		instance_match = re.match(r"([SP])(\d+)L?O?(\d+)N(\d+)", node_name)
-		if instance_match:
-			return {
-				"type": "instance",
-				"kind": instance_match.group(1),
-				"n1": int(instance_match.group(2)),
-				"n2": int(instance_match.group(3)),
-				"n3": int(instance_match.group(4)),
-			}
-		
-		# If the node name does not match any known format
-		return {
-			"type": "unknown",
-			"name": node_name
-		}
 	
-	# i.e. this always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
-	def is_valid_move(self, source_idx, sink_idx, node_mapping):
-		# There would be a self-loop if we flip this coordinate
+	# i.e. the move always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
+	def is_globlly_invalid_move(self, source_idx, sink_idx, node_mapping):
+		# No self-loops (there would be a self-loop if we flip this coordinate)
 		if source_idx == sink_idx and self.state[source_idx, sink_idx] == 0:
-			return False
+			return True
+		
+		source_node_id = node_mapping[source_idx]
+		sink_node_id = node_mapping[sink_idx]
 
-		source_info = self.parse_node_name(node_mapping[source_idx])
-		sink_info = self.parse_node_name(node_mapping[sink_idx])
-
+		def is_proto(node_id):
+			return node_id.startswith('Pr')
+		
 		# The edge is from an instance to a prototype 
-		if source_info['type'] == 'instance' and sink_info['type'] == 'prototype':
-			return False
+		if not is_proto(source_node_id) and is_proto(sink_node_id):
+			return True
 		
 		# The edge is between two prototypes
-		if source_info['type'] == 'prototype' and sink_info['type'] == 'prototype':
-			return False
+		if is_proto(source_node_id) and is_proto(sink_node_id):
+			return True
 		
-		# The edge is from the wrong prototype to an instance (i.e. PrP{n} to S{n1}L{n2}N{n3} or PrS{n} to P{n1}O{n2}N{n3})
-		if source_info['type'] == 'prototype' and sink_info['type'] == 'instance' and source_info['kind'] != sink_info['kind']:
-			return False
+		# The edge is from a prototype to an instance level whose nodes don't have that prototype feature (i.e. PrAbs_interval -> segmentation)
+		if is_proto(source_node_id) and not is_proto(sink_node_id) and self.node_metadata_dict[source_node_id]['feature_name'] not in self.node_metadata_dict[source_node_id]['features_dict'].keys():
+			return True
 		
-		# The edge is from a lower level to a higher level instance node (so either from P{n1}O{n2}N{n3} to S{n1}L{n2}N{n3}, or from S{n1}L{n2}N{n3} to S{n1'}L{n2'}N{n3'} where n2 > n2')
-		if source_info['type'] == 'instance' and sink_info['type'] == 'instance':
-			if source_info['kind'] == 'P' and sink_info['kind'] == 'S':
-				return False
-			if source_info['kind'] == 'S' and sink_info['kind'] == 'S' and source_info['n2'] > sink_info['n2']:
-				return False
+		# Source/sink are both instance, and source level is NOT one level higher (i.e. 1 rank lower) or is NOT the same level than sink level
+		# NOTE: this ONLY works for when we have a fixed number of levels in the graph. if sub-hierarchies are variable levels, then it's totally possible
+		# to have an intermediate valid move of higher source->lower sink level that's not adjacent, like if we're in the process of deleting a level
+		# but if all graphs have the same number of levels, like with flat segmentation or scluster, this won't happen, and hence we can add this important optimization
+		# SO THIS MEANS WE DO NOT SUPPORT VARIABLE LEVEL SUB-HIERARCHIES
+		if not is_proto(source_node_id) and not is_proto(sink_node_id):
+			def rank_difference(rank1, rank2):
+				primary_rank1, secondary_rank1 = rank1
+				primary_rank2, secondary_rank2 = rank2
+				if primary_rank1 == primary_rank2:
+					return secondary_rank1 - secondary_rank2
+				return primary_rank1 - primary_rank2
+			
+			# want difference = 0 (i.e. same source/sink level) or -1 (i.e. source level is one above sink level. higher level means lower rank value)
+			if rank_difference(source_node_id, sink_node_id) not in [0, -1]:
+				return True
 
-		return True
+		return False
 	
 	def move(self):
 		valid_move_found = False
@@ -265,7 +290,7 @@ class CentroidAnnealer(Annealer):
 			flat_index = flat_indices_sorted_by_score[attempt_index]
 			coord = np.unravel_index(flat_index, score_matrix.shape)
 			source_idx, sink_idx = coord
-			valid_move_found = self.is_valid_move(source_idx, sink_idx, self.centroid_node_mapping)
+			valid_move_found = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_node_mapping)
 			if not valid_move_found:
 				attempt_index += 1
 
