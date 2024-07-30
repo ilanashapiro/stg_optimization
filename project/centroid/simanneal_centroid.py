@@ -8,14 +8,14 @@ import sys
 import json 
 import multiprocessing
 import pickle
+import copy
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
 
-DIRECTORY = '/home/ilshapiro/project'
+# DIRECTORY = '/home/ilshapiro/project'
+DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
-# sys.path.append("/home/jonsuss/Ilana_Shapiro/constraints")
-# sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
 import build_graph
 
 '''
@@ -56,8 +56,8 @@ class GraphAlignmentAnnealer(Annealer):
 		self.node_partitions = self.get_node_partitions()
 		
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-	# def default_update(self, step, T, E, acceptance, improvement):
-	#   return 
+	def default_update(self, step, T, E, acceptance, improvement):
+		return 
 	
 	# return: (partition name, sub-level (if any))
 	# partition name is the layer for instance nodes
@@ -198,7 +198,7 @@ def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps, no
 		# each time we make the new alignment annealer at each step of the centroid annealer, we want to UPDATE THE TEMPERATURE PARAM (decrement it at each step)
 		# and can try decreasing number of iterations each time as well
 		alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
-		print(f"ALIGNMENT COST{i}", cost, "|||")
+		# print(f"ALIGNMENT COST{i}", cost, "|||")
 		alignments.append(alignment)
 	return alignments
 
@@ -222,11 +222,15 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 
 class CentroidAnnealer(Annealer):
 	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict):
-		super(CentroidAnnealer, self).__init__(initial_centroid)
+		super(CentroidAnnealer, self).__init__(initial_centroid) # i.e. set initial self.state = initial_centroid
 		self.listA_G = listA_G
 		self.centroid_idx_node_mapping = centroid_idx_node_mapping
 		self.node_metadata_dict = node_metadata_dict
 		self.step = 0
+
+	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
+	def default_update(self, step, T, E, acceptance, improvement):
+		return 
 	
 	# i.e. the move always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
 	def is_globlly_invalid_move(self, source_idx, sink_idx, node_mapping):
@@ -249,8 +253,11 @@ class CentroidAnnealer(Annealer):
 			return True
 		
 		# The edge is from a prototype to an instance level whose nodes don't have that prototype feature (i.e. PrAbs_interval -> segmentation)
-		if is_proto(source_node_id) and not is_proto(sink_node_id) and self.node_metadata_dict[source_node_id]['feature_name'] not in self.node_metadata_dict[sink_node_id]['features_dict'].keys():
-			return True
+		if is_proto(source_node_id) and not is_proto(sink_node_id):
+			source_proto_feature = self.node_metadata_dict[source_node_id]['feature_name']
+			sink_inst_features = self.node_metadata_dict[sink_node_id]['features_dict'].keys()
+			if source_proto_feature not in sink_inst_features:
+				return True
 		
 		# Source/sink are both instance, and source level is NOT one level higher (i.e. 1 rank lower) or is NOT the same level than sink level
 		# NOTE: this ONLY works for when we have a fixed number of levels in the graph. if sub-hierarchies are variable levels, then it's totally possible
@@ -274,6 +281,7 @@ class CentroidAnnealer(Annealer):
 		return False
 	
 	def move(self):
+		print("MOVE")
 		valid_move_found = False
 		attempt_index = 0
 
@@ -300,7 +308,8 @@ class CentroidAnnealer(Annealer):
 		else:
 			print("No valid move found.")
 
-	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
+	def energy(self): # i.e. cost, self.state represents the current centroid g
+		print("ENERGY")
 		current_temp_ratio = (self.T - self.Tmin) / (self.Tmax - self.Tmin)
 		initial_Tmax = 1
 		final_Tmax = 0.05
@@ -311,7 +320,7 @@ class CentroidAnnealer(Annealer):
 		# They get narrower as we get an increasingly more accurate centroid that's easier to align
 		alignment_Tmax = initial_Tmax * current_temp_ratio + final_Tmax * (1 - current_temp_ratio)
 		alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio))
-		alignments = get_alignments_to_centroid_parallel(self.state, self.listA_G, self.centroid_idx_node_mapping, alignment_Tmax, 0.01, alignment_steps, node_metadata_dict)
+		alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, alignment_Tmax, 0.01, alignment_steps, node_metadata_dict)
 		
 		# Align the corpus to the current centroid
 		self.listA_G = list(map(align, alignments, self.listA_G))
@@ -326,29 +335,28 @@ if __name__ == "__main__":
 		G1 = pickle.load(f)
 	with open(fp2, 'rb') as f:
 		G2 = pickle.load(f)
+
 	# list_G = [tests.G1_test, tests.G2_test]
 	list_G = [G1, G2]
 	listA_G, centroid_idx_node_mapping, node_metadata_dict = helpers.pad_adj_matrices(list_G)
 	initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
 	
-	# alignments = get_alignments_to_centroid_parallel(initial_centroid, listA_G, centroid_idx_node_mapping, 2.5, 0.01, 10000, node_metadata_dict)
+	# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_idx_node_mapping, 2.5, 0.01, 10000, node_metadata_dict)
 	# for i, alignment in enumerate(alignments):
 	# 	file_name = f'alignment_{i}.txt'
-	# 	np.savetxt(file_name, alignment)
+	# 	np.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	alignments = [np.loadtxt('alignment_0.txt'), np.loadtxt('alignment_1.txt')]
-
+	alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
 	aligned_listA_G = list(map(align, alignments, listA_G))
 
 	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
 	centroid_annealer.Tmax = 2.5
 	centroid_annealer.Tmin = 0.05 
-	centroid_annealer.steps = 50
+	centroid_annealer.steps = 100
 	centroid, min_loss = centroid_annealer.anneal()
 
 	centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
-	print("DICT", node_metadata_dict)
 	np.savetxt("centroid_test.txt", centroid)
 	print('Saved: centroid_test.txt')
 	with open("centroid_idx_node_mapping_test.txt", 'w') as file:

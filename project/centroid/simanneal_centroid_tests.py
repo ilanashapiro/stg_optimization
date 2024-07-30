@@ -3,7 +3,8 @@ import os, sys
 import networkx as nx
 import ast
 
-DIRECTORY = '/home/ilshapiro/project'
+# DIRECTORY = '/home/ilshapiro/project'
+DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
 

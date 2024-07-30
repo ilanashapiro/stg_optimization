@@ -9,12 +9,16 @@ def pad_adj_matrices(graphs):
     all_nodes.update(G.nodes())
     for node_id, data_dict in G.nodes(data=True):
       nodes_features_dict[node_id] = {k: v for k, v in data_dict.items() if k in ['features_dict', 'feature_name', 'source_layer_kind', 'layer_rank']} 
-  node_idx_mapping = {node: i for i, node in enumerate(all_nodes)}
+  
+  # Convert the set to a sorted list to ensure a consistent order
+  # OTHERWISE THIS FUNCTION IS NONDETERMINISTIC
+  sorted_nodes = sorted(all_nodes) 
+  node_idx_mapping = {node: i for i, node in enumerate(sorted_nodes)}
   idx_node_mapping = {v: k for k, v in node_idx_mapping.items()}
   new_adj_matrices = []
   
   for G in graphs:
-    size = len(all_nodes)
+    size = len(sorted_nodes)
     new_A = np.zeros((size, size))
     for node in G.nodes():
       for neighbor in G.neighbors(node):
