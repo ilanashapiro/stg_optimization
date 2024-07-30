@@ -173,7 +173,6 @@ def translate_predictions(data, pred_cc_values, pred_k_values, pred_r_values, ev
 							results[piece_id] = []
 					results[piece_id].append(curr_chord)
 					roman_padding, key_padding = False, False
-					# print("CURR CHORD", curr_chord)
 
 				prev_chord = curr_chord
 

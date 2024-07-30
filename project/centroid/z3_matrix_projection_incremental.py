@@ -98,7 +98,7 @@ def add_prototype_to_prototype_constraints(idx_node_submap):
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
 def add_prototype_to_instance_constraints(level, instance_proto_submatrix, instance_proto_idx_node_submap):
-	node_idx_submap_instsance_proto = invert_dict(instance_proto_idx_node_submap)
+	node_idx_submap_instance_proto = invert_dict(instance_proto_idx_node_submap)
 	(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
 	define_linearly_adjacent_instance_relations(instance_only_submatrix)
 
@@ -107,11 +107,11 @@ def add_prototype_to_instance_constraints(level, instance_proto_submatrix, insta
 			opt.add(z3.Implies(z3.And(instance_index != end(level)), proto_parent(level, instance_index) != proto_parent(level, succ(instance_index)))) # no 2 linearly adjacent nodes can have the same prototype parent (for seg nodes)
 
 		valid_proto_ids = [node_id for node_id in idx_node_submap.values() if z3_helpers.is_proto(node_id)]  # valid means seg-seg, and motif-motif
-		incoming_prototype_edges = z3.Sum([z3.If(instance_proto_submatrix[node_idx_submap_instsance_proto[proto_id]][instance_index], 1, 0) for proto_id in valid_proto_ids])
+		incoming_prototype_edges = z3.Sum([z3.If(instance_proto_submatrix[node_idx_submap_instance_proto[proto_id]][instance_index], 1, 0) for proto_id in valid_proto_ids])
 		opt.add(incoming_prototype_edges == 1)
 
 		for proto_id in valid_proto_ids:
-			proto_index = node_idx_submap_instsance_proto[proto_id]
+			proto_index = node_idx_submap_instance_proto[proto_id]
 			opt.add(z3.Implies(instance_proto_submatrix[proto_index][instance_index], proto_parent(level, instance_index) == proto_index))
 			
 			# ensure no instance -> proto edges
@@ -202,6 +202,8 @@ def add_instance_parent_relationship_constraints(level, idx_node_submap):
 		if level > 0:
 			segment_level = re.match(r"S\d+L\d+N\d+", node_id)
 			motif_level = re.match(r"P\d+O\d+N\d+", node_id)
+			non_overlapping_layers = [] # layers that don't have overlapping nodes. segmentation, keys, chords, melody, but not motifs/patterns
+			total_spanning_layers = [] # layers whose nodes span the total piece. segmentation, keys, chords, melody, but not motifs/patterns
 			if segment_level:
 				# rules for contiguous and total segmentation
 				opt.add(z3.Implies(i_subA != end(level), rank(instance_parent2(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's first parent must not come before the prev node's last parent
@@ -222,9 +224,7 @@ def get_objective(submatrix, idx_node_submap):
  
 # for optimizer version
 def add_objective(submatrix, idx_node_submap):
-	objective = z3.Sum([z3.If(submatrix[i][j] != bool(approx_centroid[node_idx_mapping[node_id1]][node_idx_mapping[node_id2]]), 1, 0) 
-										 for (i, node_id1) in idx_node_submap.items()
-										 for (j, node_id2) in idx_node_submap.items()])
+	objective = get_objective(submatrix, idx_node_submap)
 	opt.minimize(objective)
 
 # save state ONLY for that level's instances
@@ -303,7 +303,6 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	# opt.set_on_model(on_model)
 
 	result = opt.check()
-	print("HRERE2134")
 	if result != z3.unsat:
 		if result != z3.sat:
 			print(f"Continuing with best-effort guess after timeout for instance levels {parent_level} and {child_level}")

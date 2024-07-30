@@ -20,10 +20,9 @@ def pad_adj_matrices(graphs):
       for neighbor in G.neighbors(node):
         new_A[node_idx_mapping[node], node_idx_mapping[neighbor]] = 1 # Since all STGs are directed this ONLY handles the directed case
     new_adj_matrices.append(new_A)
-    
   return new_adj_matrices, idx_node_mapping, nodes_features_dict
 
-def adj_matrix_to_graph(A, idx_node_mapping):
+def adj_matrix_to_graph(A, idx_node_mapping, node_metadata_dict):
   G = nx.DiGraph()
 
   for i in range(A.shape[0]):
@@ -33,12 +32,13 @@ def adj_matrix_to_graph(A, idx_node_mapping):
       if A[i, j] > 0:
         G.add_edge(source, sink)
             
-  for node in G.nodes():
-    G.nodes[node]['label'] = node
-    match = re.search(r'N(\d+)$', node)
+  for node_id in G.nodes():
+    G.nodes[node_id].update(node_metadata_dict.get(node_id))
+    G.nodes[node_id]['label'] = node_id # not using pretty labels for testing
+    match = re.search(r'N(\d+(\.\d+)?)$', node_id) # matches ints and also decimal numbers
     if match:
-      index = int(match.group(1))
-      G.nodes[node]['index'] = index
+      index = float(match.group(1))
+      G.nodes[node_id]['index'] = index
 
   return G
 

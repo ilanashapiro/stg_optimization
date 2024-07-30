@@ -128,6 +128,8 @@ def get_unsorted_layers_from_graph_by_index(G):
 	}
 	
 	for node, data in G.nodes(data=True):
+		if node.startswith('Pr'): # don't include protos in the partition
+			continue
 		index = int(data['index'])
 		label = data['label']
 		features_dict = data['features_dict']
@@ -388,7 +390,7 @@ def process_graphs(midi_filepath):
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		# visualize([G], [layers])
-		augment_graph(G)
+		# augment_graph(G)
 		visualize_p([G], [layers])
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
@@ -400,22 +402,24 @@ def process_graphs(midi_filepath):
 		# 	print(f"File {aug_graph_filepath} already exists, skipping save.")
 	
 if __name__ == "__main__":
-	def delete_files_with_substring(directory, substring):
-		for root, _, files in os.walk(directory):
-			for file in files:
-				if substring in file:
-					file_path = os.path.join(root, file)
-					print(f"Deleting {file_path}")
-					os.remove(file_path)
+	# def delete_files_with_substring(directory, substring):
+	# 	for root, _, files in os.walk(directory):
+	# 		for file in files:
+	# 			if substring in file:
+	# 				file_path = os.path.join(root, file)
+	# 				print(f"Deleting {file_path}")
+	# 				os.remove(file_path)
 
-	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	substring = '_melody_contour'
-	delete_files_with_substring(directory, substring)
-	sys.exit(0)
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	# substring = '_melody_contour'
+	# delete_files_with_substring(directory, substring)
+	# sys.exit(0)
 
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
 	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	# directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	# directory = directory + '/chopin/classical_piano_midi_db/chpn-p7'
 	directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
 
 	tasks = []

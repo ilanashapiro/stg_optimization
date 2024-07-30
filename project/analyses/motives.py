@@ -9,7 +9,8 @@ import numpy as np
 import SIA
 # import vmo
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn_op7_1"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
+DIRECTORY += '/beethoven/kunstderfuge/biamonti_488_(c)orlandi'
  
 # code modified from https://github.com/Tsung-Ping/motif_discovery/blob/main/experiments.py 
 def load_notes_csv(filename):
@@ -60,10 +61,12 @@ def process_file(file_path):
 	if len(notes) < 1500:
 		# motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
 		# 													adjacentTolerance=(2, 6), min_notes=10, min_cardinality=0.4) # I think this is motives4.txt
-		motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
-															adjacentTolerance=(1, 6), min_notes=5, min_cardinality=0.7) # THIS IS MOTIVES1.TXT
+		# motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
+		# 													adjacentTolerance=(1, 6), min_notes=5, min_cardinality=0.7) # THIS IS MOTIVES1.TXT
 		# motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
 		# 														adjacentTolerance=(1, 6), min_notes=9, min_cardinality=0.5) # THIS SHOULD BE MOTIVES3.TXT, NEED TO CHECK
+		motives = SIA.find_motives(notes, horizontalTolerance=0, verticalTolerance=0, 
+															adjacentTolerance=(1, 6), min_notes=4, min_cardinality=0.7) # THIS IS MOTIVES1.TXT
 		# motives_test = [[[(174., 84.), (174.5, 57.), (175., 52.), (175.5, 54.)], [(178., 79.), (178.5, 52.), (179., 50.), (179.5, 48.)], [(186., 79.), (186.5, 52.), (187., 50.), (187.5, 48.)], [(194., 79.), (194.5, 52.), (195., 50.), (195.5, 48.)], [(198., 79.), (198.5, 52.), (199., 50.), (199.5, 48.)]], [[(174.5, 57.), (175., 52.), (175.5, 54.), (176., 55.)], [(180., 83.), (180.5, 79.), (181., 79.), (181.5, 79.)], [(188., 83.), (188.5, 79.), (189., 79.), (189.5, 79.)]]]
 		write_mirex_motives(motives, file_path[:-4] + "_motivesT.txt", file_path) # "_data.csv" has length 9
 		print("WROTE", file_path[:-4] + "_motivesT.txt")

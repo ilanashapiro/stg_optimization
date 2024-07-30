@@ -215,13 +215,13 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 					chords_layer[-1]['end'] = next_onset_seconds
 
 				if curr_key != key:
-					curr_key = key
 					relative_key_num = 0 if not curr_key else get_relative_key_num(curr_key, key) # first key is set to 1 for standardization
 					key_quality = "M" if key[0].isupper() else "m"
 					key_node_label = f"K{relative_key_num}Q{key_quality}"
 					key_node_id = key_node_label + f"N{key_idx}" # functional harmony: key {relative_key_num} quality {quality} number {number}
 					keys_layer.append({'start': onset_seconds, 'end': next_onset_seconds, 'id': key_node_id, 'label': key_node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': key_quality}})
 					key_idx += 1
+					curr_key = key
 				else: # Extend the end time of the current key
 					keys_layer[-1]['end'] = next_onset_seconds
 		
