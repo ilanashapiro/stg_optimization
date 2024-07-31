@@ -6,22 +6,25 @@ import sys, os
 import z3_matrix_projection_helpers as z3_helpers 
 import z3_tests 
 import simanneal_centroid_helpers as simanneal_helpers 
+import simanneal_centroid_tests as simanneal_tests
 import math 
 import networkx as nx
 import sys
 import time
+import pickle
 
-# sys.path.append("/home/jonsuss/Ilana_Shapiro/constraints")
-sys.path.append("/Users/ilanashapiro/Documents/constraints_project/project")
+DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+
+sys.path.append(DIRECTORY)
 import build_graph
 
-composer = 'albeniz'
-centroid_composer_path = f'/Users/ilanashapiro/Documents/constraints_project/project/classical_piano_midi_db/{composer}'
-# centroid_composer_path = f'/home/jonsuss/Ilana_Shapiro/constraints/classical_piano_midi_db/{composer}'
-approx_centroid = np.loadtxt(os.path.join(centroid_composer_path, f'centroid_{composer}.txt'))
-with open(os.path.join(centroid_composer_path, f'centroid_node_mapping_{composer}.txt'), 'r') as file:
+approx_centroid = np.loadtxt(DIRECTORY + '/centroid/approx_centroid_test.txt')
+with open(DIRECTORY + '/centroid/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
 	idx_node_mapping = json.load(file)
 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+with open(DIRECTORY + '/centroid/approx_centroid_node_metadata_test.txt', 'r') as file:
+	node_metadata_dict = json.load(file)
 
 approx_centroid, idx_node_mapping = simanneal_helpers.remove_dummy_nodes(approx_centroid, idx_node_mapping)
 
@@ -38,18 +41,17 @@ opt = z3.Optimize()
 opt.set('timeout', 300000) # in milliseconds. 300000ms = 5mins
 opt.set("enable_lns", True)
 
-instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping) # dict: level -> instance nodes at that level
-prototype_kinds_partition = z3_helpers.partition_prototype_kinds(idx_node_mapping) # dict: prototype kind -> prototype nodes of that kind
-max_seg_level = len(instance_levels_partition.keys()) - 1
+instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict) # dict: level -> instance nodes at that level
+prototype_features_partition = z3_helpers.partition_prototype_features(idx_node_mapping, node_metadata_dict) # dict: prototype feature -> prototype nodes of that feature
 
 # Declare Z3 variables to enforce constraints on
 # Create a matrix in Z3 for adjacency; A[i][j] == 1 means an edge from i to j
 A = np.array([[z3.Bool(f"A_{i}_{j}") for j in range(n_A)] for i in range(n_A)])
 A_partition_instance_submatrices_list = z3_helpers.create_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
-A_partition_instance_submatrices_list_with_context = z3_helpers.create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition) # USED FOR DUMMYS
-A_partition_instance_submatrices_list_with_proto = z3_helpers.create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition)
+A_partition_instance_submatrices_list_with_proto = z3_helpers.create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_features_partition, node_metadata_dict)
 A_adjacent_instance_submatrices_list = z3_helpers.create_adjacent_level_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition)
-A_adjacent_partition_submatrices_with_context = z3_helpers.create_adjacent_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition) # USED FOR DUMMYS
+# A_partition_instance_submatrices_list_with_context = z3_helpers.create_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition) # USED FOR DUMMYS
+# A_adjacent_partition_submatrices_with_context = z3_helpers.create_adjacent_level_partition_submatrices_with_context(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition) # USED FOR DUMMYS
 
 NodeSort = z3.IntSort()
 
@@ -359,22 +361,19 @@ if opt.check() == z3.sat:
 	print(final_model)
 	result = np.array([[1 if final_model.eval(A[i, j], model_completion=True) else 0 for j in range(n_A)] for i in range(n_A)])
 	print(result, idx_node_mapping)
-	G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping)
-	g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping)
+
+	G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping, node_metadata_dict)
+	g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping, node_metadata_dict)
+
+	final_centroid_filename = os.path.join(DIRECTORY + '/centroid/centroid_test_final.pickle')
+	with open(final_centroid_filename, 'wb') as f:
+		pickle.dump(g, f)
+		print("Saved final centroid at", final_centroid_filename)
 
 	layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
 
-	print(g.edges())
-
-	final_centroid_filename = os.path.join(centroid_composer_path, f'centroid_{composer}_final.txt')
-	layers_filename = os.path.join(centroid_composer_path, f'centroid_node_mapping_{composer}_final.txt')
-	nx.write_edgelist(g, final_centroid_filename)
-	with open(layers_filename, 'w') as file:
-		json.dump(layers_g, file)
-	print(f"Graph and layers saved in {centroid_composer_path}")
-
-	build_graph.visualize_p([G, g], [layers_G, layers_g])
+	# build_graph.visualize_p([G, g], [layers_G, layers_g])
 else:
 		print("Unable to find a satisfiable structure across all levels")
 

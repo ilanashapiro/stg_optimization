@@ -100,7 +100,7 @@ def vertical_sort_key(layer):
 
 def get_layer_rank(node):
 	if node.startswith('S'): # Prioritize segmentation, and sort by subsegmentation level
-		level = int(node.split('L')[1].split('N')[0])
+		level = int(node.split('L')[1].split('N')[0]) - 1 # zero-indexing
 		return (0, level)
 	elif node.startswith('P'): # Prioritize pattern/motifs next. , 0 as a placeholder for level since it's irrelevant for motif
 		return (1, 0)

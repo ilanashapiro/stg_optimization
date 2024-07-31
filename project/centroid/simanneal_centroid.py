@@ -303,7 +303,6 @@ class CentroidAnnealer(Annealer):
 				attempt_index += 1
 
 		if valid_move_found:
-			print(self.centroid_idx_node_mapping[source_idx], self.centroid_idx_node_mapping[sink_idx])
 			self.state[source_idx, sink_idx] = 1 - self.state[source_idx, sink_idx] 
 			self.step += 1
 		else:
@@ -357,17 +356,20 @@ if __name__ == "__main__":
 	# centroid, min_loss = centroid_annealer.anneal()
 
 	# centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
-	# np.savetxt("centroid_test.txt", centroid)
-	# print('Saved: centroid_test.txt')
-	# with open("centroid_idx_node_mapping_test.txt", 'w') as file:
+	# np.savetxt("approx_centroid_test.txt", centroid)
+	# print('Saved: approx_centroid_test.txt')
+	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
 	# 	json.dump(centroid_idx_node_mapping, file)
-	# print('Saved: centroid_idx_node_mapping_test.txt')
+	# print('Saved: approx_centroid_idx_node_mapping_test.txt')
+	# with open("approx_centroid_node_metadata_test.txt", 'w') as file:
+	# 	json.dump(node_metadata_dict, file)
+	# print('Saved: approx_centroid_node_metadata_test.txt')
 	# print("Best centroid", centroid)
 	# print("Best loss", min_loss)
 	# sys.exit(0)
 
 	centroid = np.loadtxt("centroid_test.txt")
-	with open("centroid_idx_node_mapping_test.txt", 'r') as file:
+	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
 	g = helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
