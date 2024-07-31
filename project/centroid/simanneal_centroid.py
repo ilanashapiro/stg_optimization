@@ -259,11 +259,7 @@ class CentroidAnnealer(Annealer):
 			if source_proto_feature not in sink_inst_features:
 				return True
 		
-		# Source/sink are both instance, and source level is NOT one level higher (i.e. 1 rank lower) or is NOT the same level than sink level
-		# NOTE: this ONLY works for when we have a fixed number of levels in the graph. if sub-hierarchies are variable levels, then it's totally possible
-		# to have an intermediate valid move of higher source->lower sink level that's not adjacent, like if we're in the process of deleting a level
-		# but if all graphs have the same number of levels, like with flat segmentation or scluster, this won't happen, and hence we can add this important optimization
-		# SO THIS MEANS WE DO NOT SUPPORT VARIABLE LEVEL SUB-HIERARCHIES
+		# Source/sink are both instance
 		if not is_proto(source_node_id) and not is_proto(sink_node_id):
 			def rank_difference(rank1, rank2):
 				primary_rank1, secondary_rank1 = rank1
@@ -272,6 +268,11 @@ class CentroidAnnealer(Annealer):
 					return secondary_rank1 - secondary_rank2
 				return primary_rank1 - primary_rank2
 			
+			# source level is NOT one level higher (i.e. 1 rank lower) or is NOT the same level than sink level
+			# NOTE: this ONLY works for when we have a fixed number of levels in the graph. if sub-hierarchies are variable levels, then it's totally possible
+			# to have an intermediate valid move of higher source->lower sink level that's not adjacent, like if we're in the process of deleting a level
+			# but if all graphs have the same number of levels, like with flat segmentation or scluster, this won't happen, and hence we can add this important optimization
+			# SO THIS MEANS WE DO NOT SUPPORT VARIABLE LEVEL SUB-HIERARCHIES
 			# want difference = 0 (i.e. same source/sink level) or -1 (i.e. source level is one above sink level. higher level means lower rank value)
 			source_rank = self.node_metadata_dict[source_node_id]['layer_rank']
 			sink_rank = self.node_metadata_dict[sink_node_id]['layer_rank']
@@ -281,7 +282,6 @@ class CentroidAnnealer(Annealer):
 		return False
 	
 	def move(self):
-		print("MOVE")
 		valid_move_found = False
 		attempt_index = 0
 
@@ -303,13 +303,13 @@ class CentroidAnnealer(Annealer):
 				attempt_index += 1
 
 		if valid_move_found:
+			print(self.centroid_idx_node_mapping[source_idx], self.centroid_idx_node_mapping[sink_idx])
 			self.state[source_idx, sink_idx] = 1 - self.state[source_idx, sink_idx] 
 			self.step += 1
 		else:
 			print("No valid move found.")
 
 	def energy(self): # i.e. cost, self.state represents the current centroid g
-		print("ENERGY")
 		current_temp_ratio = (self.T - self.Tmin) / (self.Tmax - self.Tmin)
 		initial_Tmax = 1
 		final_Tmax = 0.05
@@ -347,28 +347,32 @@ if __name__ == "__main__":
 	# 	np.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
-	aligned_listA_G = list(map(align, alignments, listA_G))
+	# alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	# aligned_listA_G = list(map(align, alignments, listA_G))
 
-	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
-	centroid_annealer.Tmax = 2.5
-	centroid_annealer.Tmin = 0.05 
-	centroid_annealer.steps = 100
-	centroid, min_loss = centroid_annealer.anneal()
+	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
+	# centroid_annealer.Tmax = 2.5
+	# centroid_annealer.Tmin = 0.05 
+	# centroid_annealer.steps = 100
+	# centroid, min_loss = centroid_annealer.anneal()
 
-	centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
-	np.savetxt("centroid_test.txt", centroid)
-	print('Saved: centroid_test.txt')
-	with open("centroid_idx_node_mapping_test.txt", 'w') as file:
-		json.dump(centroid_idx_node_mapping, file)
-	print('Saved: centroid_idx_node_mapping_test.txt')
-	print("Best centroid", centroid)
-	print("Best loss", min_loss)
-	sys.exit(0)
-	G1, G2 = tests.G1_test, tests.G2_test
+	# centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
+	# np.savetxt("centroid_test.txt", centroid)
+	# print('Saved: centroid_test.txt')
+	# with open("centroid_idx_node_mapping_test.txt", 'w') as file:
+	# 	json.dump(centroid_idx_node_mapping, file)
+	# print('Saved: centroid_idx_node_mapping_test.txt')
+	# print("Best centroid", centroid)
+	# print("Best loss", min_loss)
+	# sys.exit(0)
+
+	centroid = np.loadtxt("centroid_test.txt")
+	with open("centroid_idx_node_mapping_test.txt", 'r') as file:
+		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
+	
 	g = helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
 	layers_G1 = build_graph.get_unsorted_layers_from_graph_by_index(G1)
 	layers_G2 = build_graph.get_unsorted_layers_from_graph_by_index(G2)
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	build_graph.visualize_p([G1, G1, g], [layers_G1, layers_G2, layers_g])
+	build_graph.visualize_p([G1, G2, g], [layers_G1, layers_G2, layers_g])
