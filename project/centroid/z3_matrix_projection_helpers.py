@@ -13,16 +13,6 @@ def is_instance(node_id):
 def is_proto(node_id):
 	return node_id.startswith('Pr')
 
-def parse_instance_node_id(node_id):
-	s_match = re.match(r'S(\d+)L(\d+)N(\d+)', node_id)
-	p_match = re.match(r'P(\d+)O(\d+)N(\d+)', node_id)
-	if s_match:
-		n1, n2, n3 = map(int, s_match.groups())
-		return ('S', n1, n2, n3)
-	elif p_match:
-		n1, n2, n3 = map(int, p_match.groups())
-		return ('P', n1, n2, n3)
-
 def partition_prototype_features(idx_node_mapping, node_metadata_dict):
 	prototype_features_dict = {}
 	for node_id in idx_node_mapping.values():
@@ -30,25 +20,6 @@ def partition_prototype_features(idx_node_mapping, node_metadata_dict):
 			feature_name = node_metadata_dict[node_id]['feature_name']
 			prototype_features_dict.setdefault(feature_name, []).append(node_id)
 	return prototype_features_dict
-
-
-# partition A by level into matrices with all the instance nodes of that level, and the prototypes of that kind
-def create_instance_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
-	level_submatrices = {}
-	for level, node_ids in instance_levels_partition.items():
-		parsed = parse_instance_node_id(node_ids[0])
-		if parsed:
-				kind = parsed[0]
-
-		# Include prototype nodes of the same kind as the current level nodes
-		prototype_node_ids = prototype_kinds_partition.get(kind, [])
-		combined_node_ids = node_ids + prototype_node_ids
-
-		indices = [node_idx_mapping[node_id] for node_id in combined_node_ids]
-		sub_matrix = A[np.ix_(indices, indices)]
-		sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
-		level_submatrices[level] = (sub_matrix, sub_matrix_mapping)
-	return level_submatrices
 
 def partition_instance_levels(idx_node_mapping, node_metadata_dict):
 	# key: zero-indexed layer rank tuple (primary layer level, secondary subhierarchy level)
@@ -104,6 +75,37 @@ def create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instan
 		sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
 		instance_level_submatrices_with_proto[level] = (sub_matrix, sub_matrix_mapping)
 	return instance_level_submatrices_with_proto
+
+# ------------------------ OLD FUNCTIONS NOT UPDATED BECAUSE NOT IN USE -- DO NOT DELETE ------------------------
+# def parse_instance_node_id(node_id):
+# 	s_match = re.match(r'S(\d+)L(\d+)N(\d+)', node_id)
+# 	p_match = re.match(r'P(\d+)O(\d+)N(\d+)', node_id)
+# 	if s_match:
+# 		n1, n2, n3 = map(int, s_match.groups())
+# 		return ('S', n1, n2, n3)
+# 	elif p_match:
+# 		n1, n2, n3 = map(int, p_match.groups())
+# 		return ('P', n1, n2, n3)
+
+# this was never updated for the more robust STGs because it's not currently needed
+# can update in future if needed, this is the old version 
+# partition A by level into matrices with all the instance nodes of that level, and the prototypes of that kind
+# def create_instance_proto_partition_submatrices(A, node_idx_mapping, instance_levels_partition, prototype_kinds_partition):
+# 	level_submatrices = {}
+# 	for level, node_ids in instance_levels_partition.items():
+# 		parsed = parse_instance_node_id(node_ids[0])
+# 		if parsed:
+# 				kind = parsed[0]
+
+# 		# Include prototype nodes of the same kind as the current level nodes
+# 		prototype_node_ids = prototype_kinds_partition.get(kind, [])
+# 		combined_node_ids = node_ids + prototype_node_ids
+
+# 		indices = [node_idx_mapping[node_id] for node_id in combined_node_ids]
+# 		sub_matrix = A[np.ix_(indices, indices)]
+# 		sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
+# 		level_submatrices[level] = (sub_matrix, sub_matrix_mapping)
+# 	return level_submatrices
 
 # this was never updated for the more robust STGs because it's not currently needed
 # can update in future if needed, this is the old version 
