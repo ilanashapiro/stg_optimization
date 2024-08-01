@@ -6,7 +6,7 @@ import sys, os
 import z3_matrix_projection_helpers as z3_helpers 
 import z3_tests 
 import simanneal_centroid_helpers as simanneal_helpers 
-import simanneal_centroid_tests as simanneal_tests
+# import simanneal_centroid_tests as simanneal_tests
 import math 
 import networkx as nx
 import sys
@@ -14,7 +14,7 @@ import time
 import pickle
 
 DIRECTORY = "/home/ilshapiro/project"
-# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 
 sys.path.append(DIRECTORY)
 import build_graph
@@ -28,6 +28,16 @@ with open(DIRECTORY + '/centroid/approx_centroid_node_metadata_test.txt', 'r') a
 
 approx_centroid, idx_node_mapping = simanneal_helpers.remove_dummy_nodes(approx_centroid, idx_node_mapping)
 
+def visualize_centroid(approx_centroid, repaired_centroid):
+	G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping, node_metadata_dict)
+	g = simanneal_helpers.adj_matrix_to_graph(repaired_centroid, idx_node_mapping, node_metadata_dict)
+	layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
+	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+	build_graph.visualize_p([G, g], [layers_G, layers_g])
+
+repaired_centroid = np.loadtxt(DIRECTORY + '/centroid/centroid_test_final.txt')
+visualize_centroid(approx_centroid, repaired_centroid)
+
 # G = z3_tests.G1
 # approx_centroid = nx.to_numpy_array(G)
 # idx_node_mapping = {index: node for index, node in enumerate(G.nodes())}
@@ -38,7 +48,7 @@ def invert_dict(d):
 node_idx_mapping = invert_dict(idx_node_mapping)
 n_A = len(idx_node_mapping) 
 opt = z3.Optimize()
-opt.set('timeout', 300000) # in milliseconds. 300000ms = 5mins
+opt.set('timeout', 1000) # in milliseconds. 300000ms = 5mins
 opt.set("enable_lns", True)
 
 instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict) # dict: level -> instance nodes at that level
@@ -153,11 +163,21 @@ def add_instance_parent_count_constraints(combined_submatrix,
 				opt.add(z3.Implies(z3.And(parent_condition1, parent_condition2, parent_count == 2), 
 													z3.And(instance_parent1(i_subA2) == parent_index1_subA1, instance_parent2(i_subA2) == parent_index2_subA1)))
 
+# Constraint: An instance level with a single node means that single node is the start and end of the linear chain
+# idx_node_submap should be only the submap for this single-node level!
+def add_intra_level_linear_chain_for_single_node_level(level, idx_node_submap):
+	if len(idx_node_submap.keys()) != 1:
+		raise Exception("Tried to create single node level chain for multi-nodes level")
+	i_subA = list(idx_node_submap.keys())[0]
+	opt.add(start(level) == i_subA)
+	opt.add(end(level) == i_subA)
+	
 # Constraint: The instance nodes in the given partition should form a linear chain
 def add_intra_level_linear_chain(level, 
 																 A_submatrix, 
 																 idx_node_submap):
 	partition_node_ids = list(idx_node_submap.values())
+	print("CHAIN", partition_node_ids)
 	num_partition_nodes = len(partition_node_ids)
 	start_nodes = []
 	end_nodes = []
@@ -204,14 +224,21 @@ def add_instance_parent_relationship_constraints(parent_level, child_level, idx_
 		non_overlap_layers = ['S', 'K', 'C', 'M'] # contiguous layers that don't have overlapping nodes. segmentation, keys, chords, melody, but not motifs/patterns
 		spanning_layers = ['S', 'K', 'C', 'M'] # layers whose nodes span the total piece. segmentation, keys, chords, melody, but not motifs/patterns
 		layer_id = z3_helpers.get_layer_id(node_id)
-		
+		print(layer_id, node_id)
+		print("PARENT LEVEL", parent_level, "CHILD LEVEL", child_level)
+
 		if layer_id in non_overlap_layers: # rules for contiguous, non-overlapping layers
-			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent2(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's FIRST parent must not come before the prev node's LAST parent
+			print("NON OVERLAP")
+			# each node's FIRST parent must not come before the prev node's LAST parent
+			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent2(i_subA)) <= rank(instance_parent1(succ(i_subA))))) 
 		else: # rules for disjoint, non-contiguous, non-spanning sections (i.e. motifs/patterns)
-			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent1(i_subA)) <= rank(instance_parent1(succ(i_subA))))) # each node's FIRST parent must not come before the prev node's FIRST parent (since this is non-contiguous and we can have overlapping motifs)
+			# each node's FIRST parent must not come before the prev node's FIRST parent (since this is non-contiguous and we can have overlapping motifs)
+			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent1(i_subA)) <= rank(instance_parent1(succ(i_subA))))) 
+			print("OVERLAP")
 		if layer_id in spanning_layers: # rules for spanning layers
-			opt.add(z3.Implies(i_subA == end(child_level), instance_parent2(i_subA) == end(parent_level))) # the final node must have the prev level's last node as a parent
 			opt.add(z3.Implies(i_subA == start(child_level), instance_parent1(i_subA) == start(parent_level))) # the first node must have the prev level's first node as a parent
+			opt.add(z3.Implies(i_subA == end(child_level), instance_parent2(i_subA) == end(parent_level))) # the final node must have the prev level's last node as a parent
+		print("-------------------")
 
 # for solver loop version
 def get_objective(submatrix, idx_node_submap):
@@ -227,12 +254,13 @@ def add_objective(submatrix, idx_node_submap):
 # save state ONLY for that level's instances
 # the submatrix will often contains a pair of adjacent levels -- we're only interested in the relevant level
 def save_instance_level_state(level, submatrix, idx_node_mapping, node_metadata_dict, model):
+	print("SAVING", level)
 	state = []
 	for i in range(len(submatrix)):
 		node_id = idx_node_mapping[i] # this will be the SOURCE NODE for subsequent edges
 		for j in range(len(submatrix)):
 			var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
-			node_level = node_metadata_dict[node_id]['layer_rank']
+			node_level = tuple(node_metadata_dict[node_id]['layer_rank'])
 			is_instance_at_level = z3_helpers.is_instance(node_id) and node_level == level # since the level in the node-id is 1-indexed
 			if is_instance_at_level:
 				evaluated_var = model.eval(var, model_completion=True)  # Evaluate this variable in the model
@@ -267,7 +295,6 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	opt.push()  # Save the current optimizer state for potential backtracking
 
 	add_soft_constraints_for_submap(A_combined_submatrix, combined_idx_node_submap)
-
 	if parent_level in level_states:
 		restore_level_state(parent_level, level_states)
 	if child_level in level_states:
@@ -278,10 +305,14 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 
 	if parent_level not in level_states and len(instance_levels_partition[parent_level]) > 1:
 		add_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
-	if child_level not in level_states and len(instance_levels_partition[child_level]) > 1:
-		add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2)
+	if child_level not in level_states:
+		if len(instance_levels_partition[child_level]) > 1:
+			add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2)
+		else: # for all single-node child levels, we need to define that the node is the start and end of its linear chain
+			# this is in order for it to get the correct parents (bc the start/end of linear chain in spanning levels has first/last parents at the ends of the parent chain)
+			add_intra_level_linear_chain_for_single_node_level(child_level, idx_node_submap2)
 		add_instance_parent_relationship_constraints(parent_level, child_level, idx_node_submap2) # we ONLY want to do this for the child node
-
+	
 	add_instance_parent_count_constraints(A_combined_submatrix, idx_node_submap1, idx_node_submap2, combined_idx_node_submap)
 	add_objective(A_combined_submatrix, combined_idx_node_submap)
 
@@ -304,12 +335,13 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 			print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
 		model = opt.model()
 		level_states[parent_level] = save_instance_level_state(parent_level, A_combined_submatrix, combined_idx_node_submap, node_metadata_dict, model)
-		if child_level == len(instance_levels_partition) - 1:
+		if child_level == max(instance_levels_partition.keys()):
 			level_states[child_level] = save_instance_level_state(child_level, A_combined_submatrix, combined_idx_node_submap, node_metadata_dict, model)
 	elif result == z3.unsat:
 		print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
 
 	opt.pop()
+	print()
 
 for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_submatrices_list_with_proto.items():
 	print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
@@ -344,7 +376,7 @@ for level, (instance_proto_submatrix, idx_node_submap) in A_partition_instance_s
 
 # After iterating through all levels, you can check for overall satisfiability
 for level in instance_levels_partition.keys():
-	print("FINAL STATE AT LEVEL", level, level_states[level])
+	# print("FINAL STATE AT LEVEL", level, level_states[level])
 	restore_level_state(level, level_states)
 
 if opt.check() == z3.sat:
@@ -354,13 +386,19 @@ if opt.check() == z3.sat:
 	result = np.array([[1 if final_model.eval(A[i, j], model_completion=True) else 0 for j in range(n_A)] for i in range(n_A)])
 	print(result, idx_node_mapping)
 
-	G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping, node_metadata_dict)
-	g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping, node_metadata_dict)
+	# FOR SAVING MATRIX VERSION
+	final_centroid_filename = DIRECTORY + '/centroid/centroid_test_final.txt'
+	np.savetxt(final_centroid_filename, result)
+	print("Saved final centroid at", final_centroid_filename)
 
-	final_centroid_filename = os.path.join(DIRECTORY + '/centroid/centroid_test_final.pickle')
-	with open(final_centroid_filename, 'wb') as f:
-		pickle.dump(g, f)
-		print("Saved final centroid at", final_centroid_filename)
+	# FOR SAVING NETWORKX GRAPH VERSION AND VISUALIZE
+	# G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping, node_metadata_dict)
+	# g = simanneal_helpers.adj_matrix_to_graph(result, idx_node_mapping, node_metadata_dict)
+
+	# final_centroid_filename = os.path.join(DIRECTORY + '/centroid/centroid_test_final.pickle')
+	# with open(final_centroid_filename, 'wb') as f:
+	# 	pickle.dump(g, f)
+	# 	print("Saved final centroid at", final_centroid_filename)
 
 	# layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
 	# layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)

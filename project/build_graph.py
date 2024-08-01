@@ -12,6 +12,7 @@ from analyses import format_conversions as fc
 import mido
 import sys, pickle
 from multiprocessing import Pool
+from collections import defaultdict, deque
 
 def get_layer_id(node):
 	for layer_id in ['S', 'P', 'K', 'C', 'M']:
@@ -287,18 +288,58 @@ def visualize_p(graph_list, layers_list):
 			y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
+		
+		ax = axes_flat[idx]
+		all_edges = set(G.edges())
+		intra_level_edges = []
+		inter_level_edges = []
+		proto_edges = []
+
+		for u, v in all_edges:
+			if u in prototype_nodes or v in prototype_nodes:
+				proto_edges.append((u, v))
+			elif get_layer_rank(u) == get_layer_rank(v):
+				intra_level_edges.append((u, v))
+			else:
+				inter_level_edges.append((u, v))
+		
+		def topological_sort(nodes, edges):
+			graph = defaultdict(list)
+			in_degree = {node: 0 for node in nodes}
+			for u, v in edges:
+					graph[u].append(v)
+					in_degree[v] += 1
+			queue = deque([node for node in nodes if in_degree[node] == 0])
+			sorted_nodes = []
+			while queue:
+					node = queue.popleft()
+					sorted_nodes.append(node)
+					for neighbor in graph[node]:
+							in_degree[neighbor] -= 1
+							if in_degree[neighbor] == 0:
+									queue.append(neighbor)
+			return sorted_nodes
+
+		def get_layer_nodes_and_edges(layer, edges):
+			"""Return nodes and intra-level edges for a specific layer."""
+			layer_nodes = [node['id'] for node in layer]
+			layer_edges = [(u, v) for u, v in edges if u in layer_nodes and v in layer_nodes]
+			return layer_nodes, layer_edges
 
 		layer_height = 1.0 / (len(layers) + 1)
 		for i, layer in enumerate(layers):
-			layer = sorted(layer, key=lambda node: node['index'])
+			if nx.is_directed_acyclic_graph(G):
+				layer_nodes, layer_edges = get_layer_nodes_and_edges(layer, intra_level_edges)
+				sorted_node_ids = topological_sort(layer_nodes, layer_edges)
+				layer = [next(node for node in layer if node['id'] == node_id) for node_id in sorted_node_ids]
+			else:
+				layer = sorted(layer, key=lambda node: node['index'])
 			y = 1 - (i + 1) * layer_height
 			x_step = 1.0 / (len(layer) + 1)
 			for j, node in enumerate(layer):
 				x = (j + 1) * x_step + 0.1  # Adjust x to the right to accommodate prototypes
 				pos[node['id']] = (x, y)
-		
-		ax = axes_flat[idx]
-		
+				
 		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
 		filler_color = '#808080'
 		for layer in layers:
@@ -317,20 +358,6 @@ def visualize_p(graph_list, layers_list):
 				)		
 		
 		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
-
-		all_edges = set(G.edges())
-		intra_level_edges = []
-		inter_level_edges = []
-		proto_edges = []
-
-		for u, v in all_edges:
-			if u in prototype_nodes or v in prototype_nodes:
-				proto_edges.append((u, v))
-			elif get_layer_rank(u) == get_layer_rank(v):
-				intra_level_edges.append((u, v))
-			else:
-				inter_level_edges.append((u, v))
-
 		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
