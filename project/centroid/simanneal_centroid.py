@@ -4,17 +4,20 @@ import numpy as np
 import random
 import re 
 from simanneal import Annealer
+from centroid_anneal import CustomCentroidAnnealer
 import sys
 import json 
 import multiprocessing
 import pickle
 import copy
+from collections import defaultdict
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
 
-# DIRECTORY = '/home/ilshapiro/project'
-DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
+EPSILON = 1e-8
+DIRECTORY = '/home/ilshapiro/project'
+# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
 
@@ -24,18 +27,6 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 2. Use the resulting average difference adjacency matrix between centroid and corpus to select the best (valid) transform. 
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
-
-# current centroid g, list of alignments list_a to the graphs in the corpus list_G
-# loss is the sum of the distances between current centroid g and each graph in corpus G,
-	# based on the current alignments
-# this is our objective we're trying to minimize
-def loss(A_g, list_alignedA_G):
-	distances = np.array([dist(A_g, A_G) for A_G in list_alignedA_G])
-	distance = np.sum(distances)
-	variance = np.var(distances)
-
-	print("DIST", distance, "VAR", variance)
-	return distance * variance
 
 def align(a, A_G):
 	return a.T @ A_G @ a 
@@ -220,17 +211,39 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 		alignments = pool.map(align_single_graph, args)
 	return alignments
 
-class CentroidAnnealer(Annealer):
+# current centroid g, list of alignments list_a to the graphs in the corpus list_G
+# loss is the sum of the distances between current centroid g and each graph in corpus G,
+	# based on the current alignments
+# this is our objective we're trying to minimize
+def loss(A_g, list_alignedA_G):
+	distances = np.array([dist(A_g, A_G) for A_G in list_alignedA_G])
+	distance = np.mean(distances) # unit is distance
+	std = np.std(distances) # unit is also distance (vs unit of variance would be distance^2)
+
+	# We want to square the result to moderately amplify differences between losses/energies in different states
+	# we want to amplify the larger differences, but not the smaller ones
+	# A large energy positive difference means very low acceptance probability (i.e. we don't want to accept a very bad state)
+	# vs small positive energy difference has higher acceptance probability
+	# so make sure this distinction is possible via the scale of the loss function
+	print("DIST", distance, "STD", std)
+	
+	# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
+	return (distance * (std + EPSILON)) ** 2 
+
+class CentroidAnnealer(CustomCentroidAnnealer):
 	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict):
 		super(CentroidAnnealer, self).__init__(initial_centroid) # i.e. set initial self.state = initial_centroid
 		self.listA_G = listA_G
 		self.centroid_idx_node_mapping = centroid_idx_node_mapping
 		self.node_metadata_dict = node_metadata_dict
 		self.step = 0
+		self.rejected_moves_since_last_accept = []
+		self.last_accepted_move = None
+		self.prev_move = None
 
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-	def default_update(self, step, T, E, acceptance, improvement):
-		return 
+	# def default_update(self, step, T, E, acceptance, improvement):
+	# 	return 
 	
 	# i.e. the move always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
 	def is_globlly_invalid_move(self, source_idx, sink_idx, node_mapping):
@@ -282,28 +295,51 @@ class CentroidAnnealer(Annealer):
 		return False
 	
 	def move(self):
+		diff_matrices = np.abs(np.array([self.state - A_G for A_G in self.listA_G]))
+		difference_matrix = np.mean(diff_matrices, axis=0)
+		std_matrix = np.std(diff_matrices, axis=0) + EPSILON # we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
+		score_matrix = difference_matrix * std_matrix # don't need to square as we do in loss because this won't change the score ordering, it just would scale it, not necessary
+		
+		# Flatten the score matrix to sort scores highest->lowest
+		flat_scores = score_matrix.flatten()
+		flat_indices_sorted_by_score = np.argsort(flat_scores)[::-1]
+
+		# Create a dictionary to group indices in the score matrix by score
+		score_index_mapping = defaultdict(list)
+		for flat_index in flat_indices_sorted_by_score:
+			score = flat_scores[flat_index]
+			score_index_mapping[score].append(flat_index)
+		
+		unique_scores_descending = sorted(score_index_mapping.keys(), reverse=True) # highest -> lowest score
+		# randomly shuffle the indices for each score partition, so we're trying a more variable set of moves that equally/most contribute to the loss
+		# this helps the annear be less stuck and explore a wider variety of equally possible moves
+		flat_indices_sorted_by_score_and_shuffled = [] 
+		for score in unique_scores_descending:
+			indices = score_index_mapping[score]
+			random.shuffle(indices) # Shuffle indices in the current score partition
+			flat_indices_sorted_by_score_and_shuffled.extend(indices)
+
 		valid_move_found = False
 		attempt_index = 0
-
-		# Calculate the matrices only once for efficiency
-		diff_matrices = np.array([self.state - A_G for A_G in self.listA_G])
-		difference_matrix = np.mean(diff_matrices, axis=0)
-		variance_matrix = np.var(diff_matrices, axis=0)
-		score_matrix = np.abs(difference_matrix) * variance_matrix 
-		
-		# Flatten the score matrix to sort scores
-		flat_indices_sorted_by_score = np.argsort(score_matrix, axis=None)[::-1]
-
-		while not valid_move_found and attempt_index < len(flat_indices_sorted_by_score):
-			flat_index = flat_indices_sorted_by_score[attempt_index]
+		while not valid_move_found and attempt_index < len(flat_indices_sorted_by_score_and_shuffled):
+			flat_index = flat_indices_sorted_by_score_and_shuffled[attempt_index]
 			coord = np.unravel_index(flat_index, score_matrix.shape)
 			source_idx, sink_idx = coord
-			valid_move_found = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
-			if not valid_move_found:
+			
+			move_not_globally_invalid = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
+			have_not_already_tried_move = coord not in self.rejected_moves_since_last_accept
+			is_not_undoing_last_accept = coord != self.last_accepted_move
+			if is_not_undoing_last_accept and have_not_already_tried_move and move_not_globally_invalid:
+				valid_move_found = True
+			else:
 				attempt_index += 1
 
 		if valid_move_found:
+			print("Coord", coord, "State at coord", self.state[source_idx, sink_idx])
+			print("Rejected moves since last accept", self.rejected_moves_since_last_accept)
+			print("Last accepted move", self.last_accepted_move)
 			self.state[source_idx, sink_idx] = 1 - self.state[source_idx, sink_idx] 
+			self.prev_move = coord
 			self.step += 1
 		else:
 			print("No valid move found.")
@@ -324,7 +360,7 @@ class CentroidAnnealer(Annealer):
 		# Align the corpus to the current centroid
 		self.listA_G = list(map(align, alignments, self.listA_G))
 		l = loss(self.state, self.listA_G) 
-		print("LOSS", l, "\n")
+		print("LOSS", l)
 		return l
 
 if __name__ == "__main__":
@@ -346,27 +382,27 @@ if __name__ == "__main__":
 	# 	np.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	# alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
-	# aligned_listA_G = list(map(align, alignments, listA_G))
+	alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	aligned_listA_G = list(map(align, alignments, listA_G))
 
-	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
-	# centroid_annealer.Tmax = 2.5
-	# centroid_annealer.Tmin = 0.05 
-	# centroid_annealer.steps = 100
-	# centroid, min_loss = centroid_annealer.anneal()
+	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
+	centroid_annealer.Tmax = 4.5
+	centroid_annealer.Tmin = 0.05 
+	centroid_annealer.steps = 500
+	centroid, min_loss = centroid_annealer.anneal()
 
-	# centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
-	# np.savetxt("approx_centroid_test.txt", centroid)
-	# print('Saved: approx_centroid_test.txt')
-	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
-	# 	json.dump(centroid_idx_node_mapping, file)
-	# print('Saved: approx_centroid_idx_node_mapping_test.txt')
-	# with open("approx_centroid_node_metadata_test.txt", 'w') as file:
-	# 	json.dump(node_metadata_dict, file)
-	# print('Saved: approx_centroid_node_metadata_test.txt')
-	# print("Best centroid", centroid)
-	# print("Best loss", min_loss)
-	# sys.exit(0)
+	centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
+	np.savetxt("approx_centroid_test.txt", centroid)
+	print('Saved: approx_centroid_test.txt')
+	with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
+		json.dump(centroid_idx_node_mapping, file)
+	print('Saved: approx_centroid_idx_node_mapping_test.txt')
+	with open("approx_centroid_node_metadata_test.txt", 'w') as file:
+		json.dump(node_metadata_dict, file)
+	print('Saved: approx_centroid_node_metadata_test.txt')
+	print("Best centroid", centroid)
+	print("Best loss", min_loss)
+	sys.exit(0)
 
 	centroid = np.loadtxt("centroid_test.txt")
 	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:
