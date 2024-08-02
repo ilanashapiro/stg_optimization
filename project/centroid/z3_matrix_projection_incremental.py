@@ -34,6 +34,7 @@ def visualize_centroid(approx_centroid, repaired_centroid):
 	layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
 	build_graph.visualize_p([G, g], [layers_G, layers_g])
+	sys.exit(0)
 
 repaired_centroid = np.loadtxt(DIRECTORY + '/centroid/centroid_test_final.txt')
 visualize_centroid(approx_centroid, repaired_centroid)
@@ -48,7 +49,7 @@ def invert_dict(d):
 node_idx_mapping = invert_dict(idx_node_mapping)
 n_A = len(idx_node_mapping) 
 opt = z3.Optimize()
-opt.set('timeout', 1000) # in milliseconds. 300000ms = 5mins
+opt.set('timeout', 10000) # in milliseconds. 300000ms = 5mins
 opt.set("enable_lns", True)
 
 instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict) # dict: level -> instance nodes at that level
@@ -77,7 +78,6 @@ proto_parent = z3.Function('proto_parent', NodeSort, NodeSort, NodeSort) # level
 # try to reformulate the problem in a PURELY FINITE DOMAIN (i.e. w.o. uninterpreted functions)
 # orderings for linear chain
 # IMPORTANT: the nodes indices for these functions refer to the RELEVANT PARTITION SUBMATRIX, NOT the entire centroid matrix A!!!
-pred = z3.Function('pred', NodeSort, NodeSort)
 succ = z3.Function('succ', NodeSort, NodeSort)
 start = z3.Function('start', z3.IntSort(), z3.IntSort(), NodeSort) # (primary level, secondary level) -> node index in relevant submatrix
 end = z3.Function('end', z3.IntSort(), z3.IntSort(), NodeSort) # (primary level, secondary level) -> node index in relevant submatrix
@@ -155,13 +155,18 @@ def add_instance_parent_count_constraints(combined_submatrix,
 
 			parent_condition1 = combined_submatrix[parent_index1_combined][child_idx_combined]
 			# if 1 parent, then instance_parent1 and instance_parent2 are the same
-			opt.add(z3.Implies(z3.And(parent_count == 1, parent_condition1), z3.And(instance_parent1(i_subA2) == parent_index1_subA1, instance_parent2(i_subA2) == parent_index1_subA1))) 
+			opt.add(z3.Implies(z3.And(parent_count == 1, parent_condition1), 
+											z3.And(instance_parent1(i_subA2) == parent_index1_subA1, 
+														instance_parent2(i_subA2) == parent_index1_subA1, 
+														rank(instance_parent1(i_subA2)) == rank(instance_parent2(i_subA2)))))
 			
 			for parent_index2_subA1, parent_id2 in list(idx_node_submap1.items())[list_idx+1:]: # ensure we're only looking at distinct tuples of parents, otherwise we are UNSAT
 				parent_index2_combined = combined_node_idx_submap[parent_id2]
 				parent_condition2 = combined_submatrix[parent_index2_combined][child_idx_combined]
 				opt.add(z3.Implies(z3.And(parent_condition1, parent_condition2, parent_count == 2), 
-													z3.And(instance_parent1(i_subA2) == parent_index1_subA1, instance_parent2(i_subA2) == parent_index2_subA1)))
+													z3.And(instance_parent1(i_subA2) == parent_index1_subA1, 
+																instance_parent2(i_subA2) == parent_index2_subA1, 
+																rank(instance_parent1(i_subA2)) < rank(instance_parent2(i_subA2)))))
 
 # Constraint: An instance level with a single node means that single node is the start and end of the linear chain
 # idx_node_submap should be only the submap for this single-node level!
@@ -177,7 +182,6 @@ def add_intra_level_linear_chain(level,
 																 A_submatrix, 
 																 idx_node_submap):
 	partition_node_ids = list(idx_node_submap.values())
-	print("CHAIN", partition_node_ids)
 	num_partition_nodes = len(partition_node_ids)
 	start_nodes = []
 	end_nodes = []
@@ -213,32 +217,23 @@ def define_linearly_adjacent_instance_relations(A_submatrix):
 		for j in range(len(A_submatrix)):
 			if i != j:  # Avoid self-loops
 				edge_i_to_j = A_submatrix[i, j]
-				opt.add(z3.Implies(edge_i_to_j, succ(i) == j)) # again, these indices are all w.r.t. the SINGLE LEVEL INSTANCE ONLY partition
-				opt.add(z3.Implies(edge_i_to_j, pred(j) == i))
-				opt.add(z3.Implies(edge_i_to_j, rank(i) < rank(j)))
+				opt.add(z3.Implies(edge_i_to_j, z3.And(succ(i) == j, rank(i) < rank(j)))) # again, these indices are all w.r.t. the SINGLE LEVEL INSTANCE ONLY partition
 
-# Constraint: segmentation: each node's first parent must not come before the prev node's last parent in the chain, and start and end must align to start and end above 
-#             motif: node's first parent must not come before the prev node's first parent (since this is non-contiguous and we can have overlapping motifs)
 def add_instance_parent_relationship_constraints(parent_level, child_level, idx_node_submap):
 	for i_subA, node_id in idx_node_submap.items(): 
 		non_overlap_layers = ['S', 'K', 'C', 'M'] # contiguous layers that don't have overlapping nodes. segmentation, keys, chords, melody, but not motifs/patterns
 		spanning_layers = ['S', 'K', 'C', 'M'] # layers whose nodes span the total piece. segmentation, keys, chords, melody, but not motifs/patterns
 		layer_id = z3_helpers.get_layer_id(node_id)
-		print(layer_id, node_id)
-		print("PARENT LEVEL", parent_level, "CHILD LEVEL", child_level)
 
 		if layer_id in non_overlap_layers: # rules for contiguous, non-overlapping layers
-			print("NON OVERLAP")
-			# each node's FIRST parent must not come before the prev node's LAST parent
+			# each node's LAST parent must not come after the next node's FIRST parent
 			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent2(i_subA)) <= rank(instance_parent1(succ(i_subA))))) 
 		else: # rules for disjoint, non-contiguous, non-spanning sections (i.e. motifs/patterns)
-			# each node's FIRST parent must not come before the prev node's FIRST parent (since this is non-contiguous and we can have overlapping motifs)
+			# each node's FIRST parent must not come after the next node's FIRST parent (since this is non-contiguous and we can have overlapping e.g. motifs)
 			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent1(i_subA)) <= rank(instance_parent1(succ(i_subA))))) 
-			print("OVERLAP")
 		if layer_id in spanning_layers: # rules for spanning layers
 			opt.add(z3.Implies(i_subA == start(child_level), instance_parent1(i_subA) == start(parent_level))) # the first node must have the prev level's first node as a parent
 			opt.add(z3.Implies(i_subA == end(child_level), instance_parent2(i_subA) == end(parent_level))) # the final node must have the prev level's last node as a parent
-		print("-------------------")
 
 # for solver loop version
 def get_objective(submatrix, idx_node_submap):
@@ -261,7 +256,7 @@ def save_instance_level_state(level, submatrix, idx_node_mapping, node_metadata_
 		for j in range(len(submatrix)):
 			var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
 			node_level = tuple(node_metadata_dict[node_id]['layer_rank'])
-			is_instance_at_level = z3_helpers.is_instance(node_id) and node_level == level # since the level in the node-id is 1-indexed
+			is_instance_at_level = z3_helpers.is_instance(node_id) and node_level == level 
 			if is_instance_at_level:
 				evaluated_var = model.eval(var, model_completion=True)  # Evaluate this variable in the model
 				state.append((var, evaluated_var))
@@ -291,14 +286,12 @@ def add_soft_constraints_for_submap(submatrix, idx_node_submap):
 level_states = {}
 # parent_level < next_level, meaning parent_level is HIGHER in the hierarchy than next_level (i.e. parent level of next_level)
 for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items()):
-	print(f"LEVELS {parent_level, child_level}", time.perf_counter())
 	opt.push()  # Save the current optimizer state for potential backtracking
+  
+	# NOTE: we never need to restore level states here, because for each (parent, child) pair we only save the parent each time, 
+	# and the next (parent, child) pair is (child, grandchild) of the prev parent, neither of which would ever be saved in the prev iteration or we end up UNSAT
 
 	add_soft_constraints_for_submap(A_combined_submatrix, combined_idx_node_submap)
-	if parent_level in level_states:
-		restore_level_state(parent_level, level_states)
-	if child_level in level_states:
-		restore_level_state(child_level, level_states)
 
 	(A_submatrix1, idx_node_submap1) = A_partition_instance_submatrices_list[parent_level]
 	(A_submatrix2, idx_node_submap2) = A_partition_instance_submatrices_list[child_level]
@@ -308,8 +301,8 @@ for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap
 	if child_level not in level_states:
 		if len(instance_levels_partition[child_level]) > 1:
 			add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2)
-		else: # for all single-node child levels, we need to define that the node is the start and end of its linear chain
-			# this is in order for it to get the correct parents (bc the start/end of linear chain in spanning levels has first/last parents at the ends of the parent chain)
+		else: # for all single-node *child* levels, we need to define that the node is the start and end of its linear chain
+			# this is in order for it to get the correct parents (bc the start/end of linear chain in spanning levels has first/last parents at the ends of the parent chain
 			add_intra_level_linear_chain_for_single_node_level(child_level, idx_node_submap2)
 		add_instance_parent_relationship_constraints(parent_level, child_level, idx_node_submap2) # we ONLY want to do this for the child node
 	
