@@ -52,7 +52,8 @@ opt = z3.Optimize()
 opt.set('timeout', 10000) # in milliseconds. 300000ms = 5mins
 opt.set("enable_lns", True)
 
-instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict) # dict: level -> instance nodes at that level
+rank_to_flat_levels_mapping = z3_helpers.get_flat_levels_mapping(node_metadata_dict)
+instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict, rank_to_flat_levels_mapping) # dict: level -> instance nodes at that level
 prototype_features_partition = z3_helpers.partition_prototype_features(idx_node_mapping, node_metadata_dict) # dict: prototype feature -> prototype nodes of that feature
 
 # Declare Z3 variables to enforce constraints on
@@ -72,19 +73,36 @@ instance_parent1 = z3.Function('instance_parent1', NodeSort, NodeSort)
 # 	assert(isinstance(child_i, int))
 # 	return z3.Const(f"instance_parent1{child_i}", NodeSort)
 
-instance_parent2 = z3.Function('instance_parent2', NodeSort, NodeSort)
-proto_parent = z3.Function('proto_parent', NodeSort, NodeSort, NodeSort) # level number, index within level partition -> prototype index in entire centroid matrix A
+instance_parent2 = z3.Function('instance_parent2', NodeSort, NodeSort) # index within CHILD level partition -> prototype index in PARENT level partition
+proto_parent = z3.Function('proto_parent', NodeSort, NodeSort) # index within CHILD level partition -> prototype index in PARENT level partition
 
 # try to reformulate the problem in a PURELY FINITE DOMAIN (i.e. w.o. uninterpreted functions)
 # orderings for linear chain
 # IMPORTANT: the nodes indices for these functions refer to the RELEVANT PARTITION SUBMATRIX, NOT the entire centroid matrix A!!!
 succ = z3.Function('succ', NodeSort, NodeSort)
-start = z3.Function('start', z3.IntSort(), z3.IntSort(), NodeSort) # (primary level, secondary level) -> node index in relevant submatrix
-end = z3.Function('end', z3.IntSort(), z3.IntSort(), NodeSort) # (primary level, secondary level) -> node index in relevant submatrix
+start = z3.Function('start', z3.IntSort(), NodeSort) # flat level -> node index in relevant submatrix
+end = z3.Function('end', z3.IntSort(),  NodeSort) # flat level -> node index in relevant submatrix
 rank = z3.Function('rank', NodeSort, z3.IntSort())
 
 idx_node_mapping_prototype = {idx: node_id for idx, node_id in idx_node_mapping.items() if node_id.startswith("Pr")}
 idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.items() if not node_id.startswith("Pr")}
+
+# Constrain the domain and range of all uninterpreted functions to be the z3 variables used to define the
+# centroid matrix, so that we can overcome the performace cost of having unbounded complexity of infinite domain/range functions
+# domains is the list of domain universes for each input param to the function
+# def constrain_function_to_universe(f, domains, range):
+# 	def restrict_range_to_universe(universe_size):
+# 			for i in range(universe_size):
+# 					for j in range(universe_size):
+# 							opt.add(z3.Implies(f(z3.Int(f"A_{i}_{j}")), z3.And(
+# 									f(z3.Int(f"A_{i}_{j}")) >= 0,
+# 									f(z3.Int(f"A_{i}_{j}")) < range
+# 							)))
+# 	def restrict_domain_to_universe(universe_size):
+# 		???
+# 	for domain in domains:
+# 		restrict_domain_to_universe(domain)
+# 	restrict_range_to_universe(range)
 
 # Constraint: the graph can't have self loops, and set the dummys, for INSTANCES (I realize never need to check if a prototype is a dummy)
 # submatrix_with_context is the submatrix for a single instance level, with context (these are the requirements to check for dummys)
@@ -109,14 +127,24 @@ def add_prototype_to_prototype_constraints(idx_node_submap):
 # Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
-def add_prototype_to_instance_constraints(level, instance_proto_submatrix, instance_proto_idx_node_submap):
+def add_prototype_to_instance_constraints(level, instance_proto_submatrix, instance_proto_idx_node_submap, node_metadata_dict):
 	node_idx_submap_instance_proto = invert_dict(instance_proto_idx_node_submap)
-	(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[rank]
+	(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
 	define_linearly_adjacent_instance_relations(instance_only_submatrix)
 
+	no_consecutive_repeat_layers = ['S', 'K', 'C'] # layers who can't have consecutive nodes be equivalent in the linear chain
+	
 	for instance_index in idx_node_submap_instance_only.keys():
-		if level != len(instance_levels_partition) - 1: # NEED TO FIX
-			# no 2 linearly adjacent nodes can have the same prototype parent (for seg nodes)
+		node_id = idx_node_submap_instance_only[instance_index]
+		layer_id = z3_helpers.get_layer_id(node_id)
+
+		# for feature_name in node_metadata_dict[node_id]['features_dict']:
+			# proto_nodes_of_this_feature = prototype_features_partition[feature_name]
+			# ????? this node should have a proto_parent from proto_nodes_of_this_feature, for each feature
+			# the total number of proto_parents should be len(node_metadata_dict[node_id]['features_dict'].keys())
+
+		if layer_id in no_consecutive_repeat_layers:
+			# no 2 linearly adjacent nodes can have the same prototype parent
 			opt.add(z3.Implies(z3.And(instance_index != end(level)), proto_parent(level, instance_index) != proto_parent(level, succ(instance_index)))) 
 
 		valid_proto_ids = [node_id for node_id in idx_node_submap.values() if z3_helpers.is_proto(node_id)]  # valid means seg-seg, and motif-motif
@@ -125,6 +153,7 @@ def add_prototype_to_instance_constraints(level, instance_proto_submatrix, insta
 
 		for proto_id in valid_proto_ids:
 			proto_index = node_idx_submap_instance_proto[proto_id]
+			# assign proto parents
 			opt.add(z3.Implies(instance_proto_submatrix[proto_index][instance_index], proto_parent(level, instance_index) == proto_index))
 			
 			# ensure no instance -> proto edges
@@ -222,7 +251,6 @@ def define_linearly_adjacent_instance_relations(A_submatrix):
 def add_instance_parent_relationship_constraints(parent_level, child_level, idx_node_submap):
 	for i_subA, node_id in idx_node_submap.items(): 
 		non_overlap_layers = ['S', 'K', 'C', 'M'] # contiguous layers that don't have overlapping nodes. segmentation, keys, chords, melody, but not motifs/patterns
-		spanning_layers = ['S', 'K', 'C', 'M'] # layers whose nodes span the total piece. segmentation, keys, chords, melody, but not motifs/patterns
 		layer_id = z3_helpers.get_layer_id(node_id)
 
 		if layer_id in non_overlap_layers: # rules for contiguous, non-overlapping layers
@@ -231,9 +259,8 @@ def add_instance_parent_relationship_constraints(parent_level, child_level, idx_
 		else: # rules for disjoint, non-contiguous, non-spanning sections (i.e. motifs/patterns)
 			# each node's FIRST parent must not come after the next node's FIRST parent (since this is non-contiguous and we can have overlapping e.g. motifs)
 			opt.add(z3.Implies(i_subA != end(child_level), rank(instance_parent1(i_subA)) <= rank(instance_parent1(succ(i_subA))))) 
-		if layer_id in spanning_layers: # rules for spanning layers
-			opt.add(z3.Implies(i_subA == start(child_level), instance_parent1(i_subA) == start(parent_level))) # the first node must have the prev level's first node as a parent
-			opt.add(z3.Implies(i_subA == end(child_level), instance_parent2(i_subA) == end(parent_level))) # the final node must have the prev level's last node as a parent
+		opt.add(z3.Implies(i_subA == start(child_level), instance_parent1(i_subA) == start(parent_level))) # the first node must have the prev level's first node as a parent
+		opt.add(z3.Implies(i_subA == end(child_level), instance_parent2(i_subA) == end(parent_level))) # the final node must have the prev level's last node as a parent
 
 # for solver loop version
 def get_objective(submatrix, idx_node_submap):
@@ -255,7 +282,7 @@ def save_instance_level_state(level, submatrix, idx_node_mapping, node_metadata_
 		node_id = idx_node_mapping[i] # this will be the SOURCE NODE for subsequent edges
 		for j in range(len(submatrix)):
 			var = submatrix[i, j]  # Access the Z3 variable at this position in the submatrix
-			node_level = tuple(node_metadata_dict[node_id]['layer_rank'])
+			node_level = rank_to_flat_levels_mapping[tuple(node_metadata_dict[node_id]['layer_rank'])] # flatten tuple rank to integer
 			is_instance_at_level = z3_helpers.is_instance(node_id) and node_level == level 
 			if is_instance_at_level:
 				evaluated_var = model.eval(var, model_completion=True)  # Evaluate this variable in the model

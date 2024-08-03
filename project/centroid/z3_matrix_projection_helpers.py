@@ -2,6 +2,15 @@ import re
 import numpy as np
 import sys
 
+def get_flat_levels_mapping(node_metadata_dict):
+	unique_ranks = set()
+	for node_metadata in node_metadata_dict.values():
+		if 'layer_rank' in node_metadata:
+			unique_ranks.add(tuple(node_metadata['layer_rank'])) # zero-indexed layer rank tuple (primary layer level, secondary subhierarchy level)
+	sorted_level_ranks = sorted(list(unique_ranks))
+	flat_levels = list(range(len(sorted_level_ranks)))
+	return {tup: rank for rank, tup in zip(flat_levels, sorted_level_ranks)}
+
 def get_layer_id(node):
 	for layer_id in ['S', 'P', 'K', 'C', 'M']:
 		if node.startswith(layer_id):
@@ -21,14 +30,15 @@ def partition_prototype_features(idx_node_mapping, node_metadata_dict):
 			prototype_features_dict.setdefault(feature_name, []).append(node_id)
 	return prototype_features_dict
 
-def partition_instance_levels(idx_node_mapping, node_metadata_dict):
-	# key: zero-indexed layer rank tuple (primary layer level, secondary subhierarchy level)
+def partition_instance_levels(idx_node_mapping, node_metadata_dict, rank_to_flat_levels_mapping):
+	# key: zero-indexed flat layer rank (integer ranking, not tuples)
 	# value: list of node IDs
 	node_levels = {} 
 	for node_id in idx_node_mapping.values():
 		if is_instance(node_id):
 			layer_rank = tuple(node_metadata_dict[node_id]['layer_rank'])
-			node_levels.setdefault(layer_rank, []).append(node_id)
+			flat_level = rank_to_flat_levels_mapping[layer_rank]
+			node_levels.setdefault(flat_level, []).append(node_id)
 	return node_levels
 
 def create_instance_partition_submatrices(A, node_idx_mapping, instance_levels_partition):
@@ -68,8 +78,8 @@ def create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instan
 		prototype_node_ids = []
 		for feature in inst_layer_features:
 			prototype_node_ids.extend(prototype_features_partition.get(feature))
-		combined_node_ids = instance_node_ids + prototype_node_ids
 		
+		combined_node_ids = instance_node_ids + prototype_node_ids
 		indices_A = [node_idx_mapping[node_id] for node_id in combined_node_ids]
 		sub_matrix = A[np.ix_(indices_A, indices_A)]
 		sub_matrix_mapping = {i: node_id for i, node_id in enumerate(combined_node_ids)}
