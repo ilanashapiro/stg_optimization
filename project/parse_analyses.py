@@ -10,9 +10,9 @@ def parse_segments_file(file_path, piece_start_time, piece_end_time):
 		return float(time) < float(piece_start_time) 
 	def above_end_bound(time):
 		return float(time) > float(piece_end_time)
-	def create_label(start, end, idx):
-		node_label = f"S{id}L{layer_idx + 1}"
-		node_id = f"{node_label}N{idx}"
+	def create_label(start, end, seg_num, idx):
+		node_label = str(seg_num)
+		node_id = f"S{seg_num}L{layer_idx + 1}N{idx}"
 		return {'start': float(start), 'end': float(end), 'id': node_id, 'index': idx, 'label': node_label}
 		
 	segment_layers = []
@@ -21,7 +21,7 @@ def parse_segments_file(file_path, piece_start_time, piece_end_time):
 		layer = []
 		idx = 1
 		for line in lines:
-			start, end, id = line.split('\t')
+			start, end, seg_num = line.split('\t')
 
 			if below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end):
 				continue
@@ -30,7 +30,7 @@ def parse_segments_file(file_path, piece_start_time, piece_end_time):
 			if above_end_bound(end):
 				end = piece_end_time
 
-			layer.append(create_label(start, end, idx))
+			layer.append(create_label(start, end, seg_num, idx))
 			idx += 1
 		segment_layers.append(layer)
 	
@@ -50,7 +50,7 @@ def parse_segments_file(file_path, piece_start_time, piece_end_time):
 			new_s_num = s_num_mapping[old_s_num]
 			parts = node['id'].split('L') # this is e.g. "10N9"
 			new_id = f'S{new_s_num}L{parts[1]}'
-			new_label = new_id.split('N')[0] # update labels too, not just node id's
+			new_label = str(new_s_num) # update labels too, not just node id's
 			updated_nodes.append({'start': node['start'], 'end': node['end'], 'index': node['index'], 'features_dict': {'section_num': new_s_num}, 'id': new_id, 'label': new_label})
 		segment_layers[idx] = updated_nodes
 	
@@ -84,7 +84,7 @@ def parse_motives_file(piece_start_time, piece_end_time, file_path):
 							end = piece_end_time
 						# Save the previous occurrence before starting a new one
 						node_id = f"P{pattern_num}O{occurrence_num}"
-						node_label = node_id
+						node_label = pattern_num
 						motif_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label, 'features_dict': {'pattern_num': pattern_num}})
 					occurrence_num += 1
 					start, end = None, None # Reset start and end for the new occurrence
@@ -96,7 +96,7 @@ def parse_motives_file(piece_start_time, piece_end_time, file_path):
 			# Add the last occurrence in the chunk
 			if start is not None and end is not None and not(below_start_bound(start) and below_start_bound(end) or above_end_bound(start) and above_end_bound(end)):
 				node_id = f"P{pattern_num}O{occurrence_num}"
-				node_label = node_id
+				node_label = pattern_num
 				motif_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label, 'features_dict': {'pattern_num': pattern_num}})
 		pattern_num += 1
 		
@@ -137,8 +137,8 @@ def parse_melody_file(piece_start_time, piece_end_time, file_path):
 			end = piece_end_time
 
 		interval = int(float(parts[1].strip()))
-		node_label = f"M{interval}"
-		node_id = node_label + f"N{node_idx}" 
+		node_label = interval
+		node_id = f"M{interval}N{node_idx}" 
 		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label, 'index': node_idx, 'features_dict': {'abs_interval': abs(interval), 'interval_sign': '+' if interval > 0 else '-'}})
 		melody_started = True
 		node_idx += 1
@@ -217,8 +217,8 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 				if curr_key != key:
 					relative_key_num = 0 if not curr_key else get_relative_key_num(curr_key, key) # first key is set to 1 for standardization
 					key_quality = "M" if key[0].isupper() else "m"
-					key_node_label = f"K{relative_key_num}Q{key_quality}"
-					key_node_id = key_node_label + f"N{key_idx}" # functional harmony: key {relative_key_num} quality {quality} number {number}
+					key_node_label = f"{relative_key_num}{key_quality}"
+					key_node_id = f"K{relative_key_num}Q{key_quality}N{key_idx}" # functional harmony: key {relative_key_num} quality {quality} number {number}
 					keys_layer.append({'start': onset_seconds, 'end': next_onset_seconds, 'id': key_node_id, 'label': key_node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': key_quality}})
 					key_idx += 1
 					curr_key = key
@@ -245,8 +245,8 @@ def parse_harmony_file(piece_start_time, piece_end_time, file_path):
 			if curr_key != last_key:
 				relative_key_num = 0 if not curr_key else get_relative_key_num(curr_key, last_key) # first key is set to 1 for standardization
 				last_key_quality = "M" if last_key[0].isupper() else "m"
-				key_node_label = f"K{relative_key_num}Q{last_key_quality}"
-				key_node_id = key_node_label + f"N{key_idx}" # functional harmony: key {relative_key_num} quality {quality} number {number}
+				key_node_label = f"{relative_key_num}{key_quality}"
+				key_node_id = f"K{relative_key_num}Q{last_key_quality}N{key_idx}" # functional harmony: key {relative_key_num} quality {quality} number {number}
 				keys_layer.append({'start': last_onset_seconds, 'end': piece_end_time, 'id': key_node_id, 'label': key_node_label, 'index': key_idx, 'features_dict': {'relative_key_num': relative_key_num, 'quality': last_key_quality}})
 			else: # Extend the end time of the current key
 				keys_layer[-1]['end'] = piece_end_time

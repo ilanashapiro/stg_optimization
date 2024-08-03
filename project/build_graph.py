@@ -56,18 +56,16 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			if node1['end'] < node2['start'] and node2['start'] <= piece_end_time and node1['end'] >= piece_start_time: 
 				filler_node_index = node1['index'] + 0.5
 				filler_node_id = f"{get_layer_id(node1['id'])}fillerN{filler_node_index}" # Hardcoding P for now since motif/pattern layer is the only one that requires fillers
-				filler_node_label = filler_node_id.split('N')[0]
-				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label=filler_node_label, index=filler_node_index, features_dict={})
-				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
+				G.add_node(filler_node_id, start=node1['end'], end=node2['start'], label="filler", index=filler_node_index, features_dict={})
+				filler_node = {'id': filler_node_id, 'start': node1['end'], 'end': node2['start'], 'label': "filler", 'index': filler_node_index, 'features_dict': {}}
 				layer.append(filler_node)
 				
 		# if the first node in the layer starts after the piece start time, we have a gap at the beginning
 		first_node = sorted_nodes[0]
 		if first_node['start'] > piece_start_time:
 			filler_node_id = f"{get_layer_id(first_node['id'])}fillerN{0.5}"
-			filler_node_label = filler_node_id.split('N')[0]
-			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label=filler_node_label, index=0.5, features_dict={})
-			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': filler_node_label, 'index': 0.5, 'features_dict': {}}
+			G.add_node(filler_node_id, start=piece_start_time, end=first_node['start'], label="filler", index=0.5, features_dict={})
+			filler_node = {'id': filler_node_id, 'start': piece_start_time, 'end': first_node['start'], 'label': "filler", 'index': 0.5, 'features_dict': {}}
 			layer.append(filler_node)
 
 		# if the layer node in the layer starts after the piece end time, we have a gap at the end
@@ -75,9 +73,8 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		if last_node['end'] < piece_end_time:
 			filler_node_index = last_node['index'] + 0.5
 			filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
-			filler_node_label = filler_node_id.split('N')[0]
-			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label=filler_node_label, index=filler_node_index, features_dict={})
-			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': filler_node_label, 'index': filler_node_index, 'features_dict': {}}
+			G.add_node(filler_node_id, start=last_node['end'], end=piece_end_time, label="filler", index=filler_node_index, features_dict={})
+			filler_node = {'id': filler_node_id, 'start': last_node['end'], 'end': piece_end_time, 'label': "filler", 'index': filler_node_index, 'features_dict': {}}
 			layer.append(filler_node)
 		layer.sort(key=lambda x: x['start'])
 			
@@ -88,7 +85,7 @@ def create_graph(piece_start_time, piece_end_time, layers):
 				start_b, end_b = node_b['start'], node_b['end']
 				# node has edge to parent if its interval overlaps with that parent's interval
 				if (start_a <= start_b < end_a) or (start_a < end_b <= end_a):
-					G.add_edge(node_a['id'], node_b['id'], label=f"({node_a['label']},{node_b['label']})")
+					G.add_edge(node_a['id'], node_b['id'])
 
 	# Remove unused filler nodes
 	unused_filler_nodes = [node for node in G.nodes() if "filler" in node and G.out_degree(node) == 0]
@@ -145,7 +142,7 @@ def get_unsorted_layers_from_graph_by_index(G):
 
 	for item in partition_segments:
 		# Extract the L{n2} part using regular expression
-		match = re.search(r'L(\d+)', item['label'])
+		match = re.search(r'L(\d+)', item['id'])
 		if match:
 			l_value = match.group(1)
 			if l_value not in partition_segments_grouped:
@@ -356,7 +353,7 @@ def visualize_p(graph_list, layers_list):
 						edgecolors='black',
 						linewidths=0.5
 				)		
-		
+
 		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
@@ -412,13 +409,14 @@ def process_graphs(midi_filepath):
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives1.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
-	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
+	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour_TEST.csv'
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		# visualize([G], [layers])
 		# augment_graph(G)
 		visualize_p([G], [layers])
+		sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
 		if not os.path.exists(aug_graph_filepath):
