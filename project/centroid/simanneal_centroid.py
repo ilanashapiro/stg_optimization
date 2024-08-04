@@ -1,4 +1,3 @@
-from curses import A_RIGHT
 import networkx as nx
 import numpy as np
 import random
@@ -9,7 +8,6 @@ import sys
 import json 
 import multiprocessing
 import pickle
-import copy
 from collections import defaultdict
 
 import simanneal_centroid_tests as tests
@@ -17,7 +15,7 @@ import simanneal_centroid_helpers as helpers
 
 EPSILON = 1e-8
 DIRECTORY = '/home/ilshapiro/project'
-# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
+DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
 
@@ -28,8 +26,8 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
-def align(a, A_G):
-	return a.T @ A_G @ a 
+def align(P, A_G):
+	return P.T @ A_G @ P
 
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
@@ -47,8 +45,8 @@ class GraphAlignmentAnnealer(Annealer):
 		self.node_partitions = self.get_node_partitions()
 		
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-	def default_update(self, step, T, E, acceptance, improvement):
-		return 
+	# def default_update(self, step, T, E, acceptance, improvement):
+	# 	return 
 	
 	# return: (partition name, sub-level (if any))
 	# partition name is the layer for instance nodes
@@ -242,8 +240,8 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		self.prev_move = None
 
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-	# def default_update(self, step, T, E, acceptance, improvement):
-	# 	return 
+	def default_update(self, step, T, E, acceptance, improvement):
+		return 
 	
 	# i.e. the move always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
 	def is_globlly_invalid_move(self, source_idx, sink_idx, node_mapping):
@@ -291,14 +289,15 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 			sink_rank = self.node_metadata_dict[sink_node_id]['layer_rank']
 			if rank_difference(source_rank, sink_rank) not in [0, -1]:
 				return True
-
+		
 		return False
 	
 	def move(self):
 		diff_matrices = np.abs(np.array([self.state - A_G for A_G in self.listA_G]))
 		difference_matrix = np.mean(diff_matrices, axis=0)
-		std_matrix = np.std(diff_matrices, axis=0) + EPSILON # we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
-		score_matrix = difference_matrix * std_matrix # don't need to square as we do in loss because this won't change the score ordering, it just would scale it, not necessary
+		std_matrix = np.std(diff_matrices, axis=0) 
+		# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
+		score_matrix = difference_matrix * (std_matrix + EPSILON) # don't need to square as we do in loss because this won't change the score ordering, it just would scale it, not necessary
 		
 		# Flatten the score matrix to sort scores highest->lowest
 		flat_scores = score_matrix.flatten()
@@ -325,7 +324,6 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 			flat_index = flat_indices_sorted_by_score_and_shuffled[attempt_index]
 			coord = np.unravel_index(flat_index, score_matrix.shape)
 			source_idx, sink_idx = coord
-			
 			move_not_globally_invalid = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
 			have_not_already_tried_move = coord not in self.rejected_moves_since_last_accept
 			is_not_undoing_last_accept = coord != self.last_accepted_move
@@ -366,6 +364,9 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 if __name__ == "__main__":
 	fp1 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
 	fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_flat.pickle'
+	# fp1 = DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_hier.pickle'
+	# fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_459_(c)orlandi/biamonti_459_(c)orlandi_augmented_graph_hier.pickle'
+
 	with open(fp1, 'rb') as f:
 		G1 = pickle.load(f)
 	with open(fp2, 'rb') as f:
@@ -382,29 +383,29 @@ if __name__ == "__main__":
 	# 	np.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
-	aligned_listA_G = list(map(align, alignments, listA_G))
+	# alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	# aligned_listA_G = list(map(align, alignments, listA_G))
 
-	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
-	centroid_annealer.Tmax = 4.5
-	centroid_annealer.Tmin = 0.05 
-	centroid_annealer.steps = 500
-	centroid, min_loss = centroid_annealer.anneal()
+	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
+	# centroid_annealer.Tmax = 4.5
+	# centroid_annealer.Tmin = 0.05 
+	# centroid_annealer.steps = 500
+	# centroid, min_loss = centroid_annealer.anneal()
 
-	centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping)
-	np.savetxt("approx_centroid_test.txt", centroid)
-	print('Saved: approx_centroid_test.txt')
-	with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
-		json.dump(centroid_idx_node_mapping, file)
-	print('Saved: approx_centroid_idx_node_mapping_test.txt')
-	with open("approx_centroid_node_metadata_test.txt", 'w') as file:
-		json.dump(node_metadata_dict, file)
-	print('Saved: approx_centroid_node_metadata_test.txt')
-	print("Best centroid", centroid)
-	print("Best loss", min_loss)
-	sys.exit(0)
+	# centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	# np.savetxt("approx_centroid_test.txt", centroid)
+	# print('Saved: approx_centroid_test.txt')
+	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
+	# 	json.dump(centroid_idx_node_mapping, file)
+	# print('Saved: approx_centroid_idx_node_mapping_test.txt')
+	# with open("approx_centroid_node_metadata_test.txt", 'w') as file:
+	# 	json.dump(node_metadata_dict, file)
+	# print('Saved: approx_centroid_node_metadata_test.txt')
+	# print("Best centroid", centroid)
+	# print("Best loss", min_loss)
+	# sys.exit(0)
 
-	centroid = np.loadtxt("centroid_test.txt")
+	centroid = np.loadtxt("approx_centroid_test.txt")
 	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	

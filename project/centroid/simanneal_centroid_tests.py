@@ -16,7 +16,7 @@ def find_two_smallest_pickles(directory='/home/ilshapiro/project/datasets'):
 	
 	for root, _, files in os.walk(directory):
 		for file in files:
-			if file.endswith('_augmented_graph_flat.pickle'):
+			if file.endswith('_augmented_graph_hier.pickle'):
 				file_path = os.path.join(root, file)
 				file_size = os.path.getsize(file_path)
 				
@@ -37,6 +37,7 @@ fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biam
 
 # smallest, second_smallest = find_two_smallest_pickles()
 # print(smallest, second_smallest)
+
 
 with open(fp1, 'rb') as f:
 	G1 = pickle.load(f)

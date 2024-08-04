@@ -2,6 +2,9 @@ import re
 import numpy as np
 import sys
 
+def invert_dict(d):
+	return {v: k for k, v in d.items()}
+
 def get_flat_levels_mapping(node_metadata_dict):
 	unique_ranks = set()
 	for node_metadata in node_metadata_dict.values():
@@ -69,11 +72,15 @@ def create_instance_with_proto_partition_submatrices(A, node_idx_mapping, instan
 	for level in instance_levels_partition:
 		instance_node_ids = instance_levels_partition[level]
 
-		i = 0
-		inst_layer_features = []
-		while not inst_layer_features and i < len(instance_node_ids): # we want to find the first non-filler inst node so we can get the features dict for this level
-			inst_layer_features = node_metadata_dict[instance_node_ids[i]]['features_dict'].keys()
-			i += 1
+		# Extract a node_id that does not contain "filler"
+		non_filler_node = next((node_id for node_id in instance_node_ids if "filler" not in node_id), None)
+
+		# Extract a node_id that contains "filler"
+		filler_node = next((node_id for node_id in instance_node_ids if "filler" in node_id), None)
+		
+		inst_layer_features = list(node_metadata_dict[non_filler_node]['features_dict'].keys())
+		if filler_node:
+			inst_layer_features.extend(list(node_metadata_dict[filler_node]['features_dict'].keys()))
 
 		prototype_node_ids = []
 		for feature in inst_layer_features:

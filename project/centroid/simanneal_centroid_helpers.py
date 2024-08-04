@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx 
 import re 
+import z3_matrix_projection_helpers as z3_helpers
 
 def pad_adj_matrices(graphs):
   all_nodes = set()
@@ -29,13 +30,21 @@ def pad_adj_matrices(graphs):
 def adj_matrix_to_graph(A, idx_node_mapping, node_metadata_dict):
   G = nx.DiGraph()
 
+  non_dummy_nodes = set()
   for i in range(A.shape[0]):
     for j in range(A.shape[1]):
       source = idx_node_mapping[i]
       sink = idx_node_mapping[j] 
       if A[i, j] > 0:
         G.add_edge(source, sink)
-            
+        non_dummy_nodes.update([source, sink])
+  
+  # Add the remaining dummy nodes
+  all_nodes = set(idx_node_mapping.values())
+  remaining_nodes = all_nodes - non_dummy_nodes
+  for node_id in remaining_nodes:
+      G.add_node(node_id)
+
   for node_id in G.nodes():
     G.nodes[node_id].update(node_metadata_dict.get(node_id))
     G.nodes[node_id]['label'] = node_id # not using pretty labels for testing
@@ -46,10 +55,27 @@ def adj_matrix_to_graph(A, idx_node_mapping, node_metadata_dict):
 
   return G
 
-def remove_dummy_nodes(A, node_mapping):
-  non_instance_dummy_indices = np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0]
-  filtered_matrix = A[non_instance_dummy_indices][:, non_instance_dummy_indices]
-  updated_mapping = {new_idx: node_mapping[old_idx] for new_idx, old_idx in enumerate(non_instance_dummy_indices)}
+def remove_dummy_nodes(A, idx_node_mapping, node_metadata_dict):
+  node_idx_mapping = z3_helpers.invert_dict(idx_node_mapping)
+  non_dummy_indices = np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0] # at least 1 incoming or outgoing edges, i.e. node isn't zero-artiy/dummy
+  
+  # add ONLY the possible prototypes, dummy or not
+  # we do not add all prototypes blindly, just those for feature VALUES that appear in the non-dummy instance nodes
+  # i.e. for melody node M4N3, we make sure we have protos PrAbs_interval:4 and PrInterval_sign:+, but not PrInterval_sign:- etc
+  proto_node_indices = set()
+  prototype_features_partition = z3_helpers.partition_prototype_features(idx_node_mapping, node_metadata_dict) # dict: prototype feature -> prototype nodes of that feature
+  for non_dummy_index in non_dummy_indices:
+    node_id = idx_node_mapping[non_dummy_index]
+    if z3_helpers.is_instance(node_id):
+      for feature, value in node_metadata_dict[node_id]['features_dict'].items():
+        all_proto_ids_for_feature = prototype_features_partition[feature]
+        filtered_proto_ids = list(filter(lambda proto: str(value) in proto, all_proto_ids_for_feature))
+        proto_node_indices.update([node_idx_mapping[proto_id] for proto_id in filtered_proto_ids])
+  # proto_node_indices = [proto_node_idx for proto_node_idx, proto_node_id in idx_node_mapping.items() if z3_helpers.is_proto(proto_node_id)] # ALL the prototypes (dummy or not)
+  
+  filtered_indices = list(set(non_dummy_indices) | proto_node_indices) 
+  filtered_matrix = A[filtered_indices][:, filtered_indices]
+  updated_mapping = {new_idx: idx_node_mapping[old_idx] for new_idx, old_idx in enumerate(filtered_indices)}
   return filtered_matrix, updated_mapping
 
 # Generates random n x n permutation alignment matrix
@@ -57,6 +83,7 @@ def random_alignment(n):
 	perm_indices = np.random.permutation(n)
 	identity = np.eye(n)
 	return identity[perm_indices]
+
 
 '''
 RULES:
