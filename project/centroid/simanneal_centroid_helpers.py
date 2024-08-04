@@ -55,7 +55,20 @@ def adj_matrix_to_graph(A, idx_node_mapping, node_metadata_dict):
 
   return G
 
-def remove_dummy_nodes(A, idx_node_mapping, node_metadata_dict):
+def remove_all_dummy_nodes(A, idx_node_mapping):
+  non_dummy_indices = list(np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0]) # NOTE: the sort order here is nondeterministic!!!
+  self_loop_indices = list(np.where(np.diag(A) != 0)[0]) # we consider these dummys (these will only be protos by construction from our constraints, and all non-dummy nodes have constraints preventing self-loops)
+  non_dummy_indices += self_loop_indices
+
+  for idx in self_loop_indices: # double check we have no forbidden self-loops
+    if np.count_nonzero(A[idx]) > 1 and np.count_nonzero(A[:, idx]) > 1:
+      raise Exception("Self-loop found in non-dummy node", idx_node_mapping[idx])
+
+  filtered_matrix = A[non_dummy_indices][:, non_dummy_indices]
+  updated_mapping = {new_idx: idx_node_mapping[old_idx] for new_idx, old_idx in enumerate(non_dummy_indices)}
+  return filtered_matrix, updated_mapping
+
+def remove_unnecessary_dummy_nodes(A, idx_node_mapping, node_metadata_dict):
   node_idx_mapping = z3_helpers.invert_dict(idx_node_mapping)
   non_dummy_indices = np.where(np.any(A != 0, axis=0) | np.any(A != 0, axis=1))[0] # at least 1 incoming or outgoing edges, i.e. node isn't zero-artiy/dummy
   

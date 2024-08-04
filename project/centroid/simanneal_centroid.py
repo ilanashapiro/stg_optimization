@@ -392,7 +392,7 @@ if __name__ == "__main__":
 	# centroid_annealer.steps = 500
 	# centroid, min_loss = centroid_annealer.anneal()
 
-	# centroid, centroid_idx_node_mapping = helpers.remove_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	# centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	# np.savetxt("approx_centroid_test.txt", centroid)
 	# print('Saved: approx_centroid_test.txt')
 	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
