@@ -129,18 +129,22 @@ def add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_n
 			for node_idx in proto_node_indices_for_feature:
 				z3_set = z3.SetAdd(z3_set, node_idx)
 			prototype_feature_sets[instance_feature] = z3_set
-
+			
 		if layer_id in no_consecutive_repeat_layers:
 			# proto_parents: input is indices wrt instance_only_submatrix, output is indices wrt instance_proto_submatrix --> THESE ARE DIFFERENT MATRICES
 			# constraint: no 2 linearly adjacent instance nodes can have the same prototype parent sets
 			opt.add(z3.Implies(z3.And(instance_submap_index != end(level)), proto_parents(instance_submap_index) != proto_parents(succ(instance_submap_index)))) 
 
-		# these are all the proto_ids in the current partition, i.e. instance_proto_submatrix
-		possible_proto_ids = [node_id for node_id in node_idx_submap_instance_proto.keys() if z3_helpers.is_proto(node_id)]
+		possible_proto_ids = [node_id for node_id in node_idx_submap_instance_proto.keys() if z3_helpers.is_proto(node_id)] # these are all the proto_ids in the current partition, i.e. instance_proto_submatrix
 		num_incoming_prototype_edges = z3.Sum([z3.If(instance_proto_submatrix[node_idx_submap_instance_proto[proto_id]][instance_index], 1, 0) for proto_id in possible_proto_ids])
 
 		# constraint: we want one prototype per instance feature, so the num incoming proto edges should be num instance features
 		opt.add(num_incoming_prototype_edges == len(instance_features)) 
+
+		for proto_feature_z3set in prototype_feature_sets.values():
+			x = z3.Int('x') # arbitrary variable x
+			# constraint: there must be some x that's both a proto parent of this instance node, and in one of the instance node's feature sets, for every feature set of the instance node
+			opt.add(z3.Exists(x, z3.And(z3.IsMember(x, proto_feature_z3set), z3.IsMember(x, proto_parents(instance_submap_index)))))
 
 		for proto_id in possible_proto_ids:
 			proto_index = node_idx_submap_instance_proto[proto_id]
@@ -151,7 +155,7 @@ def add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_n
 			opt.add(instance_proto_submatrix[instance_index][proto_index] == False) 
 
 			# ensure no invalid proto-instance connections --> FIXED WITH INCREMENTAL SOLVING (see nonincremental version for original constraints)
-
+		
 # Constraint: Every instance node not at the top level of the hierarchy, must have 1 or 2 parents in the level above it
 # idx_node_submap1 is a level above idx_node_submap2
 # A_sub_matrix1, idx_node_submap1 are the parents of/level above A_sub_matrix2, idx_node_submap2
