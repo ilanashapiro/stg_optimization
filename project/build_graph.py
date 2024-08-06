@@ -171,16 +171,18 @@ def augment_graph(G):
 
 			for feature_name, value in features_dict.items():
 				proto_node_id = f"Pr{feature_name.capitalize()}:{value}"
-				proto_nodes.append((proto_node_id, feature_name, get_layer_id(instance_node_id)))
+				proto_node_label = f"{feature_name}:{value}"
+				proto_nodes.append((proto_node_id, proto_node_label, feature_name, get_layer_id(instance_node_id)))
 			
 			if not bool(features_dict):
 				source_layer_kind = get_layer_id(instance_node_id)
 				feature_name = get_layer_id(instance_node_id) + "filler"
-				proto_nodes.append((f"Pr{feature_name}:{value}", feature_name, source_layer_kind))
+				proto_node_label = "filler"
+				proto_nodes.append((f"Pr{feature_name}:{value}", proto_node_label, feature_name, source_layer_kind))
 			
-			for (proto_node_id, feature_name, source_layer_kind) in proto_nodes:
+			for (proto_node_id, proto_node_label, feature_name, source_layer_kind) in proto_nodes:
 				if proto_node_id not in G:
-					G.add_node(proto_node_id, label=proto_node_id, layer_rank=get_layer_rank(instance_node_id), feature_name=feature_name, source_layer_kind=source_layer_kind)
+					G.add_node(proto_node_id, label=proto_node_label, layer_rank=get_layer_rank(instance_node_id), feature_name=feature_name, source_layer_kind=source_layer_kind)
 				if not G.has_edge(proto_node_id, instance_node_id):
 					G.add_edge(proto_node_id, instance_node_id)
 
@@ -195,66 +197,35 @@ def augment_graph(G):
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
+def compress_graph(G):
+	prototype_nodes = [node for node in G if node.startswith("Pr")]
+	proto_parents = defaultdict(list)
+
+	# Gather prototype parent information
+	for u, v in G.edges():
+		if u in prototype_nodes:
+			proto_parents[v].append(u)
+
+	# Remove prototype nodes and update labels
+	new_G = nx.DiGraph()
+	for node, data in G.nodes(data=True):
+		if node not in prototype_nodes:
+			new_label = data.get('label', node)
+			if node in proto_parents:
+				new_label = "+".join(sorted(proto_parents[node])) + "-" + new_label
+			new_G.add_node(node, label=new_label, **data)
+	
+	# Add updated edges
+	for u, v, data in G.edges():
+		if u not in prototype_nodes and v not in prototype_nodes:
+			new_G.add_edge(u, v)
+		elif u in prototype_nodes and v not in prototype_nodes:
+			for parent in proto_parents[v]:
+				new_G.add_edge(parent, v)
+	
+	return new_G
+
 def visualize(graph_list, layers_list):
-	n = len(graph_list)
-	
-	# Determine grid size (rows x cols) for subplots
-	cols = int(math.ceil(math.sqrt(n)))
-	rows = int(math.ceil(n / cols))
-	
-	# Create a figure with subplots arranged in the calculated grid
-	_, axes = plt.subplots(rows, cols, figsize=(10 * cols, 14 * rows))
-	
-	# Flatten axes array for easy iteration if it's 2D (which happens with multiple rows and columns)
-	axes_flat = axes.flatten() if n > 1 else [axes]
-	
-	for idx, G in enumerate(graph_list):
-		layers = layers_list[idx]
-		labels_dict = {node: data.get('label', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
-
-		pos = {}  # Positions dictionary: node -> (x, y)
-		layer_spacing_factor = 1
-		layer_height = 1.0 / (layer_spacing_factor * (len(layers) + 1))
-		for i, layer in enumerate(layers):
-			y = 1 - (i + 1) * layer_height
-			layer = sorted(layer, key=lambda node: node['index'])
-					
-			x_step = 1.0 / (len(layer) + 1)
-			for j, node in enumerate(layer):
-				x = (j + 1) * x_step
-				pos[node['id']] = (x, y)
-		
-		ax = axes_flat[idx]
-		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
-		filler_color = '#FF0000'
-		for layer in layers:
-			level = vertical_sort_key(layer)
-			color = colors[level[0] % len(colors)]
-			for node in layer:
-				node_color = filler_color if "filler" in node['id'] else color
-				nx.draw_networkx_nodes(
-						G, pos,
-						nodelist=[node['id']],
-						node_color=node_color,
-						node_size=1000,
-						ax=ax,
-						edgecolors='black',
-						linewidths=0.5
-				)
-
-		# Draw edges and labels for all nodes
-		nx.draw_networkx_edges(G, pos, edge_color="black", arrows=True, ax=ax, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
-		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
-		ax.set_title(f"Graph {idx + 1}")
-	
-	# Hide any unused subplots in the grid
-	for ax in axes_flat[n:]:
-			ax.axis('off')
-	
-	plt.tight_layout()
-	plt.show()
-
-def visualize_p(graph_list, layers_list):
 	n = len(graph_list)
 	
 	# Determine grid size (rows x cols) for subplots
@@ -337,7 +308,7 @@ def visualize_p(graph_list, layers_list):
 				x = (j + 1) * x_step + 0.1  # Adjust x to the right to accommodate prototypes
 				pos[node['id']] = (x, y)
 				
-		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
+		colors = ["#B797FF", "#fd7373", "#ffb34d", "#99d060", "#99e4ff"]
 		filler_color = '#808080'
 		for layer in layers:
 			level = vertical_sort_key(layer)
@@ -413,9 +384,8 @@ def process_graphs(midi_filepath):
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
-		# visualize([G], [layers])
 		# augment_graph(G)
-		visualize_p([G], [layers])
+		visualize([G], [layers])
 		sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
