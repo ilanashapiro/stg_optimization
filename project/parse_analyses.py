@@ -137,7 +137,8 @@ def parse_melody_file(piece_start_time, piece_end_time, file_path):
 			end = piece_end_time
 
 		interval = int(float(parts[1].strip()))
-		node_label = interval
+		interval_sign_tag = "+" if interval > 0 else "" # need to ad + explicitly for labels for positive numbers
+		node_label = interval_sign_tag + str(interval)
 		node_id = f"M{interval}N{node_idx}" 
 		melody_layer.append({'start': float(start), 'end': float(end), 'id': node_id, 'label': node_label, 'index': node_idx, 'features_dict': {'abs_interval': abs(interval), 'interval_sign': '+' if interval > 0 else '-'}})
 		melody_started = True

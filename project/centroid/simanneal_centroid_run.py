@@ -2,11 +2,11 @@ import simanneal_centroid
 import multiprocessing
 import numpy as np
 
-def align_graph_pair(A_G1, A_G2, index_node_mapping, Tmax = 1.25, Tmin = 0.01, steps = 5000):
+def align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict, Tmax = 1.5, Tmin = 0.01, steps = 2000):
   if A_G1.shape != A_G2.shape:
     raise ValueError("Graphs must be of the same size to align.")
   initial_state = np.eye(np.shape(A_G1)[0]) # or A_G2
-  graph_aligner = simanneal_centroid.GraphAlignmentAnnealer(initial_state, A_G1, A_G2, index_node_mapping)
+  graph_aligner = simanneal_centroid.GraphAlignmentAnnealer(initial_state, A_G1, A_G2, idx_node_mapping, node_metadata_dict)
   graph_aligner.Tmax = Tmax
   graph_aligner.Tmin = Tmin 
   graph_aligner.steps = steps 

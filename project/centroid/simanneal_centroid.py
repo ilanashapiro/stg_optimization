@@ -8,6 +8,7 @@ import sys
 import json 
 import multiprocessing
 import pickle
+import scipy.sparse as sp
 from collections import defaultdict
 
 import simanneal_centroid_tests as tests
@@ -15,7 +16,7 @@ import simanneal_centroid_helpers as helpers
 
 EPSILON = 1e-8
 DIRECTORY = '/home/ilshapiro/project'
-DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
+# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
 
@@ -27,7 +28,10 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 '''
 
 def align(P, A_G):
-	return P.T @ A_G @ P
+	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
+	A_G_sparse = sp.csr_matrix(A_G)
+	x = P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
+	return x
 
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
@@ -118,11 +122,12 @@ class GraphAlignmentAnnealer(Annealer):
 			j = random.randint(0, n - 1)
 			while j == i:
 				j = random.randint(0, n - 1)
-
 		self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
 
 	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
-		return dist(self.A_g, align(self.state, self.A_G))
+		e = dist(self.A_g, align(self.state, self.A_G))
+		# print("ENERGY", e)
+		return e
 
 # ---------------------------------------- TEST CODE: --------------------------------------------------------------------------------
 # fp1 = DIRECTORY + '/project/datasets/chopin/classical_piano_midi_db/chpn-p9/chpn-p9_augmented_graph_flat.pickle'
@@ -383,27 +388,27 @@ if __name__ == "__main__":
 	# 	np.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	# alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
-	# aligned_listA_G = list(map(align, alignments, listA_G))
+	alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	aligned_listA_G = list(map(align, alignments, listA_G))
 
-	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
-	# centroid_annealer.Tmax = 4.5
-	# centroid_annealer.Tmin = 0.05 
-	# centroid_annealer.steps = 500
-	# centroid, min_loss = centroid_annealer.anneal()
+	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
+	centroid_annealer.Tmax = 4.5
+	centroid_annealer.Tmin = 0.05 
+	centroid_annealer.steps = 500
+	centroid, min_loss = centroid_annealer.anneal()
 
-	# centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
-	# np.savetxt("approx_centroid_test.txt", centroid)
-	# print('Saved: approx_centroid_test.txt')
-	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
-	# 	json.dump(centroid_idx_node_mapping, file)
-	# print('Saved: approx_centroid_idx_node_mapping_test.txt')
-	# with open("approx_centroid_node_metadata_test.txt", 'w') as file:
-	# 	json.dump(node_metadata_dict, file)
-	# print('Saved: approx_centroid_node_metadata_test.txt')
-	# print("Best centroid", centroid)
-	# print("Best loss", min_loss)
-	# sys.exit(0)
+	centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	np.savetxt("approx_centroid_test.txt", centroid)
+	print('Saved: approx_centroid_test.txt')
+	with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
+		json.dump(centroid_idx_node_mapping, file)
+	print('Saved: approx_centroid_idx_node_mapping_test.txt')
+	with open("approx_centroid_node_metadata_test.txt", 'w') as file:
+		json.dump(node_metadata_dict, file)
+	print('Saved: approx_centroid_node_metadata_test.txt')
+	print("Best centroid", centroid)
+	print("Best loss", min_loss)
+	sys.exit(0)
 
 	centroid = np.loadtxt("approx_centroid_test.txt")
 	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:

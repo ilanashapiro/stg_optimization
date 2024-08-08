@@ -3,8 +3,8 @@ import os, sys
 import networkx as nx
 import ast
 
-# DIRECTORY = '/home/ilshapiro/project'
-DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
+DIRECTORY = '/home/ilshapiro/project'
+# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
 
@@ -37,7 +37,7 @@ fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biam
 
 # smallest, second_smallest = find_two_smallest_pickles()
 # print(smallest, second_smallest)
-
+# sys.exit(0)
 
 with open(fp1, 'rb') as f:
 	G1 = pickle.load(f)

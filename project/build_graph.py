@@ -56,13 +56,12 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			if node1['end'] < node2['start'] and node2['start'] <= piece_end_time and node1['end'] >= piece_start_time: 
 				filler_node_index = node1['index'] + 0.5
 				filler_node_id = f"{get_layer_id(node1['id'])}fillerN{filler_node_index}" 
-				filler_node_label = filler_node_id.split('N')[0]
-				filler_feature_name = filler_node_label
+				filler_feature_name = filler_node_id.split('N')[0]
 				filler_node = {
 					'id': filler_node_id,
 					'start': node1['end'],
 					'end': node2['start'],
-					'label': filler_node_label,
+					'label': "filler",
 					'index': filler_node_index,
 					'features_dict': {filler_feature_name: filler_feature_name},
 					'layer_rank': get_layer_rank(node1['id'])
@@ -74,13 +73,12 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		first_node = sorted_nodes[0]
 		if first_node['start'] > piece_start_time:
 			filler_node_id = f"{get_layer_id(first_node['id'])}fillerN{0.5}"
-			filler_node_label = filler_node_id.split('N')[0]
-			filler_feature_name = filler_node_label
+			filler_feature_name = filler_node_id.split('N')[0]
 			filler_node = {
 				'id': filler_node_id, 
 				'start': piece_start_time, 
 				'end': first_node['start'], 
-				'label': filler_node_label, 
+				'label': "filler", 
 				'index': 0.5, 
 				'features_dict': {filler_feature_name: filler_feature_name}, 
 				'layer_rank': get_layer_rank(first_node['id'])
@@ -93,13 +91,12 @@ def create_graph(piece_start_time, piece_end_time, layers):
 		if last_node['end'] < piece_end_time:
 			filler_node_index = last_node['index'] + 0.5
 			filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
-			filler_node_label = filler_node_id.split('N')[0]
-			filler_feature_name = filler_node_label
+			filler_feature_name = filler_node_id.split('N')[0]
 			filler_node = {
 				'id': filler_node_id, 
 				'start': last_node['end'], 
 				'end': piece_end_time, 
-				'label': filler_node_label, 
+				'label': "filler", 
 				'index': filler_node_index, 
 				'features_dict': {filler_feature_name: filler_feature_name}, 
 				'layer_rank': get_layer_rank(last_node['id'])
@@ -200,22 +197,22 @@ def augment_graph(G):
 			proto_nodes = []
 
 			for feature_name, value in features_dict.items():
+				if "filler" in feature_name: # hack to fix the label for fillers to not have layer prefix
+					proto_label = "filler:filler"
+				else:
+					proto_label = f"{feature_name}:{value}"
 				proto_node_id = f"Pr{feature_name.capitalize()}:{value}"
-				proto_node_label = f"{feature_name}:{value}"
-				proto_nodes.append((proto_node_id, proto_node_label, feature_name, get_layer_id(instance_node_id)))
+				proto_nodes.append((proto_node_id, proto_label, feature_name, get_layer_id(instance_node_id)))
 			
 			if not bool(features_dict):
-				source_layer_kind = get_layer_id(instance_node_id)
-				feature_name = get_layer_id(instance_node_id) + "filler"
-				proto_node_label = "filler"
-				proto_nodes.append((f"Pr{feature_name}:{value}", proto_node_label, feature_name, source_layer_kind))
+				raise Exception("Node", node, "doesn't have a features dict.")
 			
-			for (proto_node_id, proto_node_label, feature_name, source_layer_kind) in proto_nodes:
+			for (proto_node_id, proto_label, feature_name, source_layer_kind) in proto_nodes:
 				if proto_node_id not in G:
-					G.add_node(proto_node_id, label=proto_node_label, layer_rank=get_layer_rank(instance_node_id), feature_name=feature_name, source_layer_kind=source_layer_kind)
+					G.add_node(proto_node_id, label=proto_label, layer_rank=get_layer_rank(instance_node_id), feature_name=feature_name, source_layer_kind=source_layer_kind)
 				if not G.has_edge(proto_node_id, instance_node_id):
 					G.add_edge(proto_node_id, instance_node_id)
-
+					
 	# Add intra-level edges based on index
 	for layer in layers:
 		# Sort nodes within each layer by their index to ensure proper sequential connections
@@ -287,60 +284,20 @@ def visualize(graph_list, layers_list):
 			y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
-		
-		ax = axes_flat[idx]
-		all_edges = set(G.edges())
-		intra_level_edges = []
-		inter_level_edges = []
-		proto_edges = []
-
-		for u, v in all_edges:
-			if u in prototype_nodes or v in prototype_nodes:
-				proto_edges.append((u, v))
-			elif get_layer_rank(u) == get_layer_rank(v):
-				intra_level_edges.append((u, v))
-			else:
-				inter_level_edges.append((u, v))
-		
-		def topological_sort(nodes, edges):
-			graph = defaultdict(list)
-			in_degree = {node: 0 for node in nodes}
-			for u, v in edges:
-					graph[u].append(v)
-					in_degree[v] += 1
-			queue = deque([node for node in nodes if in_degree[node] == 0])
-			sorted_nodes = []
-			while queue:
-					node = queue.popleft()
-					sorted_nodes.append(node)
-					for neighbor in graph[node]:
-							in_degree[neighbor] -= 1
-							if in_degree[neighbor] == 0:
-									queue.append(neighbor)
-			return sorted_nodes
-
-		def get_layer_nodes_and_edges(layer, edges):
-			"""Return nodes and intra-level edges for a specific layer."""
-			layer_nodes = [node['id'] for node in layer]
-			layer_edges = [(u, v) for u, v in edges if u in layer_nodes and v in layer_nodes]
-			return layer_nodes, layer_edges
 
 		layer_height = 1.0 / (len(layers) + 1)
 		for i, layer in enumerate(layers):
-			if nx.is_directed_acyclic_graph(G):
-				layer_nodes, layer_edges = get_layer_nodes_and_edges(layer, intra_level_edges)
-				sorted_node_ids = topological_sort(layer_nodes, layer_edges)
-				layer = [next(node for node in layer if node['id'] == node_id) for node_id in sorted_node_ids]
-			else:
-				layer = sorted(layer, key=lambda node: node['index'])
+			layer = sorted(layer, key=lambda node: node['index'])
 			y = 1 - (i + 1) * layer_height
 			x_step = 1.0 / (len(layer) + 1)
 			for j, node in enumerate(layer):
 				x = (j + 1) * x_step + 0.1  # Adjust x to the right to accommodate prototypes
 				pos[node['id']] = (x, y)
-				
-		colors = ["#B797FF", "#fd7373", "#ffb34d", "#99d060", "#99e4ff"]
-		filler_color = '#808080'
+		
+		ax = axes_flat[idx]
+		
+		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
+		filler_color = '#A9A9A9'
 		for layer in layers:
 			level = vertical_sort_key(layer)
 			color = colors[level[0] % len(colors)]
@@ -355,12 +312,26 @@ def visualize(graph_list, layers_list):
 						edgecolors='black',
 						linewidths=0.5
 				)		
-
+		
 		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+
+		all_edges = set(G.edges())
+		intra_level_edges = []
+		inter_level_edges = []
+		proto_edges = []
+
+		for u, v in all_edges:
+			if u in prototype_nodes or v in prototype_nodes:
+				proto_edges.append((u, v))
+			elif get_layer_rank(u) == get_layer_rank(v):
+				intra_level_edges.append((u, v))
+			else:
+				inter_level_edges.append((u, v))
+
 		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
-		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=8, ax=ax)
+		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=10, font_weight='bold', ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
 
 	for ax in axes_flat[n:]:
@@ -372,12 +343,12 @@ def visualize(graph_list, layers_list):
 def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
 	try:
 		layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
-		keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
+		# keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
 		# layers.append(keys_layer)
 		# layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
 		# layers.append(chords_layer)
 		layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
-		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath))
+		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)) # contains key level and chords level
 		layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
 		G = create_graph(piece_start_time, piece_end_time, layers)
 
@@ -409,16 +380,16 @@ def process_graphs(midi_filepath):
 
 	# segments_file = base_path + '_scluster_scluster_segments.txt'
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
-	motives_file = base_path + '_motives1.txt'
+	motives_file = base_path + '_motives3.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour_TEST.csv'
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		augment_graph(G)
-		G_c = compress_graph(G)
-		layers_c = get_unsorted_layers_from_graph_by_index(G_c)
-		visualize([G, G_c], [layers, layers_c])
+		# G_c = compress_graph(G)
+		# layers_c = get_unsorted_layers_from_graph_by_index(G_c)
+		visualize([G], [layers])
 		sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
@@ -439,7 +410,7 @@ if __name__ == "__main__":
 	# 				os.remove(file_path)
 
 	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# substring = '_melody_contour'
+	# substring = '_augmented_graph'
 	# delete_files_with_substring(directory, substring)
 	# sys.exit(0)
 
@@ -452,16 +423,19 @@ if __name__ == "__main__":
 
 	tasks = []
 	for dirpath, _, _ in os.walk(directory):
-		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives1.txt')) if os.path.getsize(file) > 0]
+		motives_files = [file for file in glob.glob(os.path.join(dirpath, '*_motives3.txt')) if os.path.getsize(file) > 0]
 		if motives_files:
 			motives_file = motives_files[0] 
 			midi_filepaths = glob.glob(os.path.join(dirpath, '*.mid'))
+			midi_filepaths_caps = glob.glob(os.path.join(dirpath, '*.MID'))
 			if midi_filepaths:
 				midi_file = midi_filepaths[0]
+				tasks.append(midi_file)
+			elif midi_filepaths_caps:
+				midi_file = midi_filepaths_caps[0]
 				tasks.append(midi_file)
 			else:
 				raise Exception("No midi file but motives", dirpath)
 	
 	with Pool() as pool:
 		pool.map(process_graphs, tasks)
-			

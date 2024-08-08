@@ -13,7 +13,7 @@ import time
 import pickle
 
 DIRECTORY = "/home/ilshapiro/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 
 sys.path.append(DIRECTORY)
 import build_graph
@@ -26,19 +26,19 @@ with open(DIRECTORY + '/centroid/approx_centroid_idx_node_mapping_test.txt', 'r'
 with open(DIRECTORY + '/centroid/approx_centroid_node_metadata_test.txt', 'r') as file:
 	node_metadata_dict = json.load(file)
 
-def visualize_centroid(approx_centroid, repaired_centroid, final_idx_node_mapping):
-	G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping, node_metadata_dict)
-	g = simanneal_helpers.adj_matrix_to_graph(repaired_centroid, final_idx_node_mapping, node_metadata_dict)
-	layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
-	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	build_graph.visualize([G, g], [layers_G, layers_g])
-	sys.exit(0)
+# def visualize_centroid(approx_centroid, repaired_centroid, final_idx_node_mapping):
+# 	G = simanneal_helpers.adj_matrix_to_graph(approx_centroid, idx_node_mapping, node_metadata_dict)
+# 	g = simanneal_helpers.adj_matrix_to_graph(repaired_centroid, final_idx_node_mapping, node_metadata_dict)
+# 	layers_G = build_graph.get_unsorted_layers_from_graph_by_index(G)
+# 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+# 	build_graph.visualize([G, g], [layers_G, layers_g])
+# 	sys.exit(0)
 
-repaired_centroid = np.loadtxt(DIRECTORY + '/centroid/final_centroid_test.txt')
-with open(DIRECTORY + '/centroid/final_centroid_idx_node_mapping_test.txt', 'r') as file: # this may be different than the approx centroid mapping because at the end we remove ALL remaining dummys
-	final_idx_node_mapping = json.load(file)
-	final_idx_node_mapping = {int(idx): node_id for idx, node_id in final_idx_node_mapping.items()}
-visualize_centroid(approx_centroid, repaired_centroid, final_idx_node_mapping)
+# repaired_centroid = np.loadtxt(DIRECTORY + '/centroid/final_centroid_test.txt')
+# with open(DIRECTORY + '/centroid/final_centroid_idx_node_mapping_test.txt', 'r') as file:
+# 	final_idx_node_mapping = json.load(file)
+# 	final_idx_node_mapping = {int(idx): node_id for idx, node_id in final_idx_node_mapping.items()}
+# visualize_centroid(approx_centroid, repaired_centroid, final_idx_node_mapping)
 
 # G = z3_tests.G1
 # approx_centroid = nx.to_numpy_array(G)
