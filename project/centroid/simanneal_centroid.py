@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 import random
 import re 
-from simanneal import Annealer
+from anneal import Annealer
 from centroid_anneal import CustomCentroidAnnealer
 import sys
 import json 
@@ -10,6 +10,12 @@ import multiprocessing
 import pickle
 import scipy.sparse as sp
 from collections import defaultdict
+import cupy as cp
+import cupyx as cpx
+import cupy.sparse as cpsp
+import dask.array as da
+import dask_cuda
+import sparse
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
@@ -27,26 +33,96 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
-def align(P, A_G):
-	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
-	A_G_sparse = sp.csr_matrix(A_G)
-	x = P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
-	return x
+# def align_naive(P, A_G):
+# 	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
+# 	A_G_sparse = sp.csr_matrix(A_G)
+# 	return P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
+
+def align_naive(P, A_G):
+	# Convert CuPy arrays to sparse matrices
+	P_sparse = cpsp.csr_matrix(P)
+	A_G_sparse = cpsp.csr_matrix(A_G)
+
+	# Perform sparse matrix multiplication using CuPy
+	result = P_sparse.T @ A_G_sparse @ P_sparse
+
+	# Convert result to a dense array if needed
+	return result.toarray()
+
+def align(P, A_G, client, cluster):
+	def split_sparse_array(array, num_chunks):
+		shape = array.shape
+		chunk_size = shape[0] // num_chunks
+		chunks = [array[i * chunk_size:(i + 1) * chunk_size] for i in range(num_chunks)]
+		if shape[0] % num_chunks != 0:
+			chunks.append(array[num_chunks * chunk_size:])
+		return chunks
+
+	def get_gpu_memory(client):
+		def mem_info():
+			import cupy as cp
+			return cp.cuda.Device().mem_info[0]
+		workers = client.ncores().keys() # Get the number of workers
+		memory_info = client.run(mem_info, workers=workers) # Retrieve memory information for each worker
+		gpu_memory = [memory_info[worker] for worker in workers] # Extract memory values from the dictionary
+		return gpu_memory
+	
+	gpu_memory = get_gpu_memory(client) # Get the memory information for each GPU
+	total_memory = sum(gpu_memory) # Determine the total available memory
+	
+	P_size = P.nbytes
+	A_G_size = A_G.nbytes
+	
+	num_gpus_needed = max(1, (P_size + A_G_size) // total_memory + 1) # Determine the number of GPUs needed based on the memory requirements
+	
+	# Create Dask arrays with chunk sizes based on the number of GPUs needed
+	chunk_size_P = P.shape[0] // num_gpus_needed
+	chunk_size_A_G = A_G.shape[0] // num_gpus_needed
+	
+	P_dask = da.from_array(P, chunks=(chunk_size_P, P.shape[1]))
+	P_T_dask = da.from_array(P.T, chunks=(chunk_size_P, P.shape[1]))
+	A_G_dask = da.from_array(A_G, chunks=(chunk_size_A_G, A_G.shape[1]))
+
+	P_sparse = P_dask.map_blocks(sparse.COO)
+	P_T_sparse = P_T_dask.map_blocks(sparse.COO)
+	A_G_sparse = A_G_dask.map_blocks(sparse.COO)
+
+	chunked_P = split_sparse_array(P_sparse, num_gpus_needed)
+	chunked_P_T = split_sparse_array(P_T_sparse, num_gpus_needed)
+	chunked_A_G = split_sparse_array(A_G_sparse, num_gpus_needed)
+
+	# Scatter the Dask arrays to the workers
+	scattered_P_chunks = [client.scatter(chunk, broadcast=False) for chunk in chunked_P]
+	scattered_P_T_chunks = [client.scatter(chunk, broadcast=False) for chunk in chunked_P_T]
+	scattered_A_G_chunks = [client.scatter(chunk, broadcast=False) for chunk in chunked_A_G]
+
+	def align_chunk(P_T_sparse, A_G_sparse, P_sparse):
+		return (P_T_sparse @ A_G_sparse @ P_sparse).compute()
+
+	futures = []
+	for P_chunk, P_T_chunk, A_G_chunk in zip(scattered_P_chunks, scattered_P_T_chunks, scattered_A_G_chunks):
+		future = client.submit(align_chunk, P_T_chunk, A_G_chunk, P_chunk)
+		futures.append(future)
+
+	results_sparse = client.gather(futures)
+	return da.concatenate(results_sparse, axis=0).compute().todense()
 
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
 # ||A_g - a^t * A_G * a|| where ||.|| is the norm (using Frobenius norm)
 def dist(A_g, A_G):
-	return np.linalg.norm(A_g - A_G, 'fro')
+	return cp.linalg.norm(A_g - A_G, 'fro')
 
 class GraphAlignmentAnnealer(Annealer):
-	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict):
+	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict):#, client, cluster):
 		super(GraphAlignmentAnnealer, self).__init__(initial_alignment)
 		self.A_g = A_g
 		self.A_G = A_G
 		self.centroid_idx_node_mapping = centroid_idx_node_mapping
 		self.node_metadata_dict = node_metadata_dict
 		self.node_partitions = self.get_node_partitions()
+		# self.client = client
+		# self.cluster = cluster
 		
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
 	# def default_update(self, step, T, E, acceptance, improvement):
@@ -125,7 +201,7 @@ class GraphAlignmentAnnealer(Annealer):
 		self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
 
 	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
-		e = dist(self.A_g, align(self.state, self.A_G))
+		e = dist(self.A_g, align_naive(self.state, self.A_G))#, self.client, self.cluster))
 		# print("ENERGY", e)
 		return e
 
@@ -149,9 +225,9 @@ class GraphAlignmentAnnealer(Annealer):
 # list_G = [tests.G1, tests.G2]
 # listA_G, centroid_idx_node_mapping, nodes_metadata_dict = helpers.pad_adj_matrices(list_G)
 # initial_centroid = listA_G[0]
-# np.savetxt("initial_centroid.txt", initial_centroid)
+# cp.savetxt("initial_centroid.txt", initial_centroid)
 
-# A_g_c = np.loadtxt('centroid.txt')
+# A_g_c = cp.loadtxt('centroid.txt')
 # with open("centroid_idx_node_mapping.txt", 'r') as file:
 #   centroid_idx_node_mapping = json.load(file)
 #   centroid_idx_node_mapping = {int(k): v for k, v in centroid_idx_node_mapping.items()}
@@ -161,7 +237,7 @@ class GraphAlignmentAnnealer(Annealer):
 # layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
 # build_graph.visualize_p([g_c], [layers_g_c])
 
-# initial_state = np.eye(np.shape(A_G1)[0])
+# initial_state = cp.eye(cp.shape(A_G1)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_G1, A_G2, centroid_idx_node_mapping, node_metadata_dict)
 # graph_aligner.Tmax = 1.25
 # graph_aligner.Tmin = 0.01 
@@ -184,7 +260,7 @@ class GraphAlignmentAnnealer(Annealer):
 def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps, node_metadata_dict):
 	alignments = []
 	for i, A_G in enumerate(listA_G): # for each graph in the corpus, find its best alignment with current centroid
-		initial_state = np.eye(np.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
+		initial_state = cp.eye(cp.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
 		graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, node_mapping, node_metadata_dict)
 		graph_aligner.Tmax = Tmax
 		graph_aligner.Tmin = Tmin
@@ -198,8 +274,8 @@ def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps, no
 
 def align_single_graph(args):
 	A_g, A_G, node_mapping, Tmax, Tmin, steps, node_metadata_dict = args
-	initial_state = np.eye(np.shape(A_G)[0])  # Identity matrix as initial state
-	if np.array_equal(A_g, A_G):
+	initial_state = cp.eye(cp.shape(A_G)[0])  # Identity matrix as initial state
+	if cp.array_equal(A_g, A_G):
 		return initial_state
 	graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, node_mapping, node_metadata_dict)
 	graph_aligner.Tmax = Tmax
@@ -219,9 +295,9 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 	# based on the current alignments
 # this is our objective we're trying to minimize
 def loss(A_g, list_alignedA_G):
-	distances = np.array([dist(A_g, A_G) for A_G in list_alignedA_G])
-	distance = np.mean(distances) # unit is distance
-	std = np.std(distances) # unit is also distance (vs unit of variance would be distance^2)
+	distances = cp.array([dist(A_g, A_G) for A_G in list_alignedA_G])
+	distance = cp.mean(distances) # unit is distance
+	std = cp.std(distances) # unit is also distance (vs unit of variance would be distance^2)
 
 	# We want to square the result to moderately amplify differences between losses/energies in different states
 	# we want to amplify the larger differences, but not the smaller ones
@@ -298,15 +374,15 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		return False
 	
 	def move(self):
-		diff_matrices = np.abs(np.array([self.state - A_G for A_G in self.listA_G]))
-		difference_matrix = np.mean(diff_matrices, axis=0)
-		std_matrix = np.std(diff_matrices, axis=0) 
+		diff_matrices = cp.abs(cp.array([self.state - A_G for A_G in self.listA_G]))
+		difference_matrix = cp.mean(diff_matrices, axis=0)
+		std_matrix = cp.std(diff_matrices, axis=0) 
 		# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
 		score_matrix = difference_matrix * (std_matrix + EPSILON) # don't need to square as we do in loss because this won't change the score ordering, it just would scale it, not necessary
 		
 		# Flatten the score matrix to sort scores highest->lowest
 		flat_scores = score_matrix.flatten()
-		flat_indices_sorted_by_score = np.argsort(flat_scores)[::-1]
+		flat_indices_sorted_by_score = cp.argsort(flat_scores)[::-1]
 
 		# Create a dictionary to group indices in the score matrix by score
 		score_index_mapping = defaultdict(list)
@@ -327,7 +403,7 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		attempt_index = 0
 		while not valid_move_found and attempt_index < len(flat_indices_sorted_by_score_and_shuffled):
 			flat_index = flat_indices_sorted_by_score_and_shuffled[attempt_index]
-			coord = np.unravel_index(flat_index, score_matrix.shape)
+			coord = cp.unravel_index(flat_index, score_matrix.shape)
 			source_idx, sink_idx = coord
 			move_not_globally_invalid = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
 			have_not_already_tried_move = coord not in self.rejected_moves_since_last_accept
@@ -385,10 +461,10 @@ if __name__ == "__main__":
 	# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_idx_node_mapping, 2.5, 0.01, 10000, node_metadata_dict)
 	# for i, alignment in enumerate(alignments):
 	# 	file_name = f'alignment_{i}.txt'
-	# 	np.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
+	# 	cp.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	alignments = [np.loadtxt('alignment_0.txt', dtype=int, delimiter=","), np.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	alignments = [cp.loadtxt('alignment_0.txt', dtype=int, delimiter=","), cp.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
 	aligned_listA_G = list(map(align, alignments, listA_G))
 
 	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
@@ -398,7 +474,7 @@ if __name__ == "__main__":
 	centroid, min_loss = centroid_annealer.anneal()
 
 	centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
-	np.savetxt("approx_centroid_test.txt", centroid)
+	cp.savetxt("approx_centroid_test.txt", centroid)
 	print('Saved: approx_centroid_test.txt')
 	with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
 		json.dump(centroid_idx_node_mapping, file)
@@ -410,7 +486,7 @@ if __name__ == "__main__":
 	print("Best loss", min_loss)
 	sys.exit(0)
 
-	centroid = np.loadtxt("approx_centroid_test.txt")
+	centroid = cp.loadtxt("approx_centroid_test.txt")
 	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
