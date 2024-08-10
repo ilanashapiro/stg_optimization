@@ -3,7 +3,7 @@ import multiprocessing
 import numpy as np
 import cupy as cp
 
-def align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict, Tmax = 2, Tmin = 0.01, steps = 2000):
+def align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict, Tmax = 1.75, Tmin = 0.01, steps = 2000):
   if A_G1.shape != A_G2.shape:
     raise ValueError("Graphs must be of the same size to align.")
   initial_state = cp.eye(cp.shape(A_G1)[0]) # or A_G2
