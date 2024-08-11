@@ -16,6 +16,7 @@ import cupy.sparse as cpsp
 import dask.array as da
 import dask_cuda
 import sparse
+import torch
 
 import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
@@ -33,12 +34,11 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
-# def align_naive(P, A_G):
+# def align(P, A_G):
 # 	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
 # 	A_G_sparse = sp.csr_matrix(A_G)
 # 	return P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
-
-def align_naive(P, A_G):
+def align_cupy(P, A_G):
 	# Convert CuPy arrays to sparse matrices
 	P_sparse = cpsp.csr_matrix(P)
 	A_G_sparse = cpsp.csr_matrix(A_G)
@@ -46,87 +46,39 @@ def align_naive(P, A_G):
 	# Perform sparse matrix multiplication using CuPy
 	result = P_sparse.T @ A_G_sparse @ P_sparse
 
-	# Convert result to a dense array if needed
+	# Convert to dense
 	return result.toarray()
 
-def align(P, A_G, client, cluster):
-	def split_sparse_array(array, num_chunks):
-		shape = array.shape
-		chunk_size = shape[0] // num_chunks
-		chunks = [array[i * chunk_size:(i + 1) * chunk_size] for i in range(num_chunks)]
-		if shape[0] % num_chunks != 0:
-			chunks.append(array[num_chunks * chunk_size:])
-		return chunks
-
-	def get_gpu_memory(client):
-		def mem_info():
-			import cupy as cp
-			return cp.cuda.Device().mem_info[0]
-		workers = client.ncores().keys() # Get the number of workers
-		memory_info = client.run(mem_info, workers=workers) # Retrieve memory information for each worker
-		gpu_memory = [memory_info[worker] for worker in workers] # Extract memory values from the dictionary
-		return gpu_memory
-	
-	gpu_memory = get_gpu_memory(client) # Get the memory information for each GPU
-	total_memory = sum(gpu_memory) # Determine the total available memory
-	
-	P_size = P.nbytes
-	A_G_size = A_G.nbytes
-	
-	num_gpus_needed = max(1, (P_size + A_G_size) // total_memory + 1) # Determine the number of GPUs needed based on the memory requirements
-	
-	# Create Dask arrays with chunk sizes based on the number of GPUs needed
-	chunk_size_P = P.shape[0] // num_gpus_needed
-	chunk_size_A_G = A_G.shape[0] // num_gpus_needed
-	
-	P_dask = da.from_array(P, chunks=(chunk_size_P, P.shape[1]))
-	P_T_dask = da.from_array(P.T, chunks=(chunk_size_P, P.shape[1]))
-	A_G_dask = da.from_array(A_G, chunks=(chunk_size_A_G, A_G.shape[1]))
-
-	P_sparse = P_dask.map_blocks(sparse.COO)
-	P_T_sparse = P_T_dask.map_blocks(sparse.COO)
-	A_G_sparse = A_G_dask.map_blocks(sparse.COO)
-
-	chunked_P = split_sparse_array(P_sparse, num_gpus_needed)
-	chunked_P_T = split_sparse_array(P_T_sparse, num_gpus_needed)
-	chunked_A_G = split_sparse_array(A_G_sparse, num_gpus_needed)
-
-	# Scatter the Dask arrays to the workers
-	scattered_P_chunks = [client.scatter(chunk, broadcast=False) for chunk in chunked_P]
-	scattered_P_T_chunks = [client.scatter(chunk, broadcast=False) for chunk in chunked_P_T]
-	scattered_A_G_chunks = [client.scatter(chunk, broadcast=False) for chunk in chunked_A_G]
-
-	def align_chunk(P_T_sparse, A_G_sparse, P_sparse):
-		return (P_T_sparse @ A_G_sparse @ P_sparse).compute()
-
-	futures = []
-	for P_chunk, P_T_chunk, A_G_chunk in zip(scattered_P_chunks, scattered_P_T_chunks, scattered_A_G_chunks):
-		future = client.submit(align_chunk, P_T_chunk, A_G_chunk, P_chunk)
-		futures.append(future)
-
-	results_sparse = client.gather(futures)
-	return da.concatenate(results_sparse, axis=0).compute().todense()
+def align(P, A_G):
+	P_sparse = P.to_sparse()
+	A_G_sparse = A_G.to_sparse()
+	result = torch.sparse.mm(torch.sparse.mm(P_sparse.t(), A_G_sparse), P_sparse)
+	return result.to_dense()
 
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
 # ||A_g - a^t * A_G * a|| where ||.|| is the norm (using Frobenius norm)
-def dist(A_g, A_G):
+def dist_cupy(A_g, A_G):
 	return cp.linalg.norm(A_g - A_G, 'fro')
 
+def dist(A_g, A_G):
+	return torch.norm(A_g - A_G, p='fro')
+
 class GraphAlignmentAnnealer(Annealer):
-	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict):#, client, cluster):
+	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict, device=None):#, client, cluster):
 		super(GraphAlignmentAnnealer, self).__init__(initial_alignment)
 		self.A_g = A_g
 		self.A_G = A_G
 		self.centroid_idx_node_mapping = centroid_idx_node_mapping
 		self.node_metadata_dict = node_metadata_dict
 		self.node_partitions = self.get_node_partitions()
+		self.device = device
 		# self.client = client
 		# self.cluster = cluster
 		
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-	# def default_update(self, step, T, E, acceptance, improvement):
-	# 	return 
+	def default_update(self, step, T, E, acceptance, improvement):
+		return 
 	
 	# return: (partition name, sub-level (if any))
 	# partition name is the layer for instance nodes
@@ -201,7 +153,8 @@ class GraphAlignmentAnnealer(Annealer):
 		self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
 
 	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
-		e = dist(self.A_g, align_naive(self.state, self.A_G))#, self.client, self.cluster))
+		# state_tensor = torch.tensor(self.state, device=self.device, dtype=torch.float32)
+		e = dist(self.A_g, align(self.state, self.A_G))
 		# print("ENERGY", e)
 		return e
 
@@ -257,27 +210,28 @@ class GraphAlignmentAnnealer(Annealer):
 # sys.exit(0)
 # ---------------------------------------- :TEST CODE --------------------------------------------------------------------------------
 
-def get_alignments_to_centroid(A_g, listA_G, node_mapping, Tmax, Tmin, steps, node_metadata_dict):
+def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dict, device=None, Tmax=2, Tmin=0.01, steps=2000):
 	alignments = []
 	for i, A_G in enumerate(listA_G): # for each graph in the corpus, find its best alignment with current centroid
-		initial_state = cp.eye(cp.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
-		graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, node_mapping, node_metadata_dict)
+		# initial_state = cp.eye(cp.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
+		initial_state = torch.eye(A_G.shape[0], dtype=torch.float32, device=device)
+
+		graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, idx_node_mapping, node_metadata_dict, device=device)
 		graph_aligner.Tmax = Tmax
 		graph_aligner.Tmin = Tmin
 		graph_aligner.steps = steps
 		# each time we make the new alignment annealer at each step of the centroid annealer, we want to UPDATE THE TEMPERATURE PARAM (decrement it at each step)
 		# and can try decreasing number of iterations each time as well
 		alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
-		# print(f"ALIGNMENT COST{i}", cost, "|||")
 		alignments.append(alignment)
-	return alignments
+	return cost, alignments
 
 def align_single_graph(args):
-	A_g, A_G, node_mapping, Tmax, Tmin, steps, node_metadata_dict = args
+	A_g, A_G, idx_node_mapping, Tmax, Tmin, steps, node_metadata_dict = args
 	initial_state = cp.eye(cp.shape(A_G)[0])  # Identity matrix as initial state
 	if cp.array_equal(A_g, A_G):
 		return initial_state
-	graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, node_mapping, node_metadata_dict)
+	graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, idx_node_mapping, node_metadata_dict)
 	graph_aligner.Tmax = Tmax
 	graph_aligner.Tmin = Tmin
 	graph_aligner.steps = steps
@@ -294,7 +248,7 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
 	# based on the current alignments
 # this is our objective we're trying to minimize
-def loss(A_g, list_alignedA_G):
+def loss_cupy(A_g, list_alignedA_G):
 	distances = cp.array([dist(A_g, A_G) for A_G in list_alignedA_G])
 	distance = cp.mean(distances) # unit is distance
 	std = cp.std(distances) # unit is also distance (vs unit of variance would be distance^2)
@@ -309,8 +263,15 @@ def loss(A_g, list_alignedA_G):
 	# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
 	return (distance * (std + EPSILON)) ** 2 
 
+def loss(A_g, list_alignedA_G, device):
+	distances = torch.tensor([dist(A_g, A_G) for A_G in list_alignedA_G], device=device)
+	distance = torch.mean(distances)  # unit is distance
+	std = torch.std(distances)  # unit is also distance
+	print("DIST", distance, "STD", std)
+	return (distance * (std + EPSILON)) ** 2
+
 class CentroidAnnealer(CustomCentroidAnnealer):
-	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict):
+	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=None):
 		super(CentroidAnnealer, self).__init__(initial_centroid) # i.e. set initial self.state = initial_centroid
 		self.listA_G = listA_G
 		self.centroid_idx_node_mapping = centroid_idx_node_mapping
@@ -319,10 +280,11 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		self.rejected_moves_since_last_accept = []
 		self.last_accepted_move = None
 		self.prev_move = None
+		self.device = device
 
-	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
-	def default_update(self, step, T, E, acceptance, improvement):
-		return 
+	# this prevents us from printing out annealing updates 
+	# def default_update(self, step, T, E, acceptance, improvement):
+	# 	return 
 	
 	# i.e. the move always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
 	def is_globlly_invalid_move(self, source_idx, sink_idx, node_mapping):
@@ -374,46 +336,76 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		return False
 	
 	def move(self):
-		diff_matrices = cp.abs(cp.array([self.state - A_G for A_G in self.listA_G]))
-		difference_matrix = cp.mean(diff_matrices, axis=0)
-		std_matrix = cp.std(diff_matrices, axis=0) 
+		# diff_matrices = cp.abs(cp.array([self.state - A_G for A_G in self.listA_G]))
+		# difference_matrix = cp.mean(diff_matrices, axis=0)
+		# std_matrix = cp.std(diff_matrices, axis=0) 
+		diff_matrices = torch.abs(torch.stack([self.state - A_G for A_G in self.listA_G]))
+		difference_matrix = torch.mean(diff_matrices, dim=0)
+		std_matrix = torch.std(diff_matrices, dim=0)
 		# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
 		score_matrix = difference_matrix * (std_matrix + EPSILON) # don't need to square as we do in loss because this won't change the score ordering, it just would scale it, not necessary
-		
+
 		# Flatten the score matrix to sort scores highest->lowest
 		flat_scores = score_matrix.flatten()
-		flat_indices_sorted_by_score = cp.argsort(flat_scores)[::-1]
-
-		# Create a dictionary to group indices in the score matrix by score
-		score_index_mapping = defaultdict(list)
-		for flat_index in flat_indices_sorted_by_score:
-			score = flat_scores[flat_index]
-			score_index_mapping[score].append(flat_index)
 		
-		unique_scores_descending = sorted(score_index_mapping.keys(), reverse=True) # highest -> lowest score
-		# randomly shuffle the indices for each score partition, so we're trying a more variable set of moves that equally/most contribute to the loss
-		# this helps the annear be less stuck and explore a wider variety of equally possible moves
-		flat_indices_sorted_by_score_and_shuffled = [] 
-		for score in unique_scores_descending:
-			indices = score_index_mapping[score]
-			random.shuffle(indices) # Shuffle indices in the current score partition
-			flat_indices_sorted_by_score_and_shuffled.extend(indices)
+		# flat_indices_sorted_by_score = cp.argsort(flat_scores)[::-1]
+		flat_indices_sorted_by_score = torch.argsort(flat_scores, descending=True)
 
 		valid_move_found = False
-		attempt_index = 0
-		while not valid_move_found and attempt_index < len(flat_indices_sorted_by_score_and_shuffled):
-			flat_index = flat_indices_sorted_by_score_and_shuffled[attempt_index]
-			coord = cp.unravel_index(flat_index, score_matrix.shape)
-			source_idx, sink_idx = coord
-			move_not_globally_invalid = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
-			have_not_already_tried_move = coord not in self.rejected_moves_since_last_accept
-			is_not_undoing_last_accept = coord != self.last_accepted_move
-			if is_not_undoing_last_accept and have_not_already_tried_move and move_not_globally_invalid:
-				valid_move_found = True
-			else:
-				attempt_index += 1
+		score_batch_size = 1 # the number of scores we want to include in score_index_mapping from flat_indices_sorted_by_score, in each batch
+		next_score_start_index = 0 # index in flat_indices_sorted_by_score
+		current_score = None
+		# go through flat_indices_sorted_by_score in batches (batch num is num of unique scores)
+		# since flat_indices_sorted_by_score is VERY VERY LARGE and takes way too long to go through all of it
+		while not valid_move_found and next_score_start_index < len(flat_indices_sorted_by_score):
+			# Create a dictionary to group indices in the score matrix by score
+			score_index_mapping = defaultdict(list)
+			batch = flat_indices_sorted_by_score[next_score_start_index:]
+			batch = batch.cpu().numpy() # convert from tensor to CPU numpy so we can iterate through it
+			
+			for flat_index in batch:
+				score = flat_scores[flat_index]
+				score = score.item() # when score is a tensor we need to extract the value
+				# print("FLAT INDEX", flat_index, "NEW  SCORE", score, "CURR SCORE", current_score, "NUM SCORES", len(score_index_mapping), "SCORES EQUAL", score == current_score)
+				if score != current_score:
+					current_score = score
+					next_score_start_index += 1
+					if len(score_index_mapping) >= score_batch_size:
+						break 
+				score_index_mapping[score].append(flat_index)
+			# print("SCORES", score_index_mapping.keys())
+
+			unique_scores_descending = sorted(score_index_mapping.keys(), reverse=True) # highest -> lowest score
+			# randomly shuffle the indices for each score partition, so we're trying a more variable set of moves that equally/most contribute to the loss
+			# this helps the annear be less stuck and explore a wider variety of equally possible moves
+			batch_flat_indices_sorted_by_score_and_shuffled = [] 
+			for score in unique_scores_descending:
+				indices = score_index_mapping[score]
+				random.shuffle(indices) # Shuffle indices in the current score partition
+				batch_flat_indices_sorted_by_score_and_shuffled.extend(indices)
+
+			# valid_move_found = False
+			batch_attempt_index = 0
+			while not valid_move_found and batch_attempt_index < len(batch_flat_indices_sorted_by_score_and_shuffled):
+				flat_index = batch_flat_indices_sorted_by_score_and_shuffled[batch_attempt_index]
+				
+				# coord = cp.unravel_index(flat_index, score_matrix.shape)
+				# coord = torch.unravel_index(flat_index, score_matrix.shape)
+				coord = np.unravel_index(flat_index, score_matrix.shape) # it's ok if score_matrix.shape is of type torch.shape bc this is still a tuple of ints
+				
+				source_idx, sink_idx = coord
+				# source_idx, sink_idx = source_idx.item(), sink_idx.item() # for when source_idx, sink_idx are tensors, we need to unpack
+				
+				move_not_globally_invalid = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
+				have_not_already_tried_move = coord not in self.rejected_moves_since_last_accept
+				is_not_undoing_last_accept = coord != self.last_accepted_move
+				if is_not_undoing_last_accept and have_not_already_tried_move and move_not_globally_invalid:
+					valid_move_found = True
+				else:
+					batch_attempt_index += 1
 
 		if valid_move_found:
+			print("Flat index", flat_index)
 			print("Coord", coord, "State at coord", self.state[source_idx, sink_idx])
 			print("Rejected moves since last accept", self.rejected_moves_since_last_accept)
 			print("Last accepted move", self.last_accepted_move)
@@ -427,18 +419,18 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		current_temp_ratio = (self.T - self.Tmin) / (self.Tmax - self.Tmin)
 		initial_Tmax = 1
 		final_Tmax = 0.05
-		initial_steps = 100
+		initial_steps = 500
 		final_steps = 5
 		
 		# Alignment annealer params Tmax and steps are dynamic based on the current temperature ratio for the centroid
 		# They get narrower as we get an increasingly more accurate centroid that's easier to align
 		alignment_Tmax = initial_Tmax * current_temp_ratio + final_Tmax * (1 - current_temp_ratio)
-		alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio))
-		alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, alignment_Tmax, 0.01, alignment_steps, node_metadata_dict)
-		
+		alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio)) 
+		cost, alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
+
 		# Align the corpus to the current centroid
 		self.listA_G = list(map(align, alignments, self.listA_G))
-		l = loss(self.state, self.listA_G) 
+		l = loss(self.state, self.listA_G, self.device) 
 		print("LOSS", l)
 		return l
 

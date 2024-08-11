@@ -86,7 +86,7 @@ def remove_unnecessary_dummy_nodes(A, idx_node_mapping, node_metadata_dict):
         proto_node_indices.update([node_idx_mapping[proto_id] for proto_id in filtered_proto_ids])
   # proto_node_indices = [proto_node_idx for proto_node_idx, proto_node_id in idx_node_mapping.items() if z3_helpers.is_proto(proto_node_id)] # ALL the prototypes (dummy or not)
   
-  filtered_indices = list(set(non_dummy_indices) | proto_node_indices) 
+  filtered_indices = list(set(non_dummy_indices) | proto_node_indices)
   filtered_matrix = A[filtered_indices][:, filtered_indices]
   updated_mapping = {new_idx: idx_node_mapping[old_idx] for new_idx, old_idx in enumerate(filtered_indices)}
   return filtered_matrix, updated_mapping

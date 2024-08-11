@@ -1,0 +1,87 @@
+MEAN 173.50973915737302
+MIN 4.5
+SAVED /home/ubuntu/project/experiments/filtered_composer_graphs.txt
+debussy 5
+scarlatti 5
+beethoven 1
+schubert 2
+tchaikovsky 1
+saint-saens 1
+brahms 1
+clementi 2
+bach 5
+haydn 4
+rameau 1
+telemann 1
+debussy 174.47 74775
+scarlatti 171.995 132525
+beethoven 173.87 112948
+schubert 171.319 85385
+tchaikovsky 172.47 214089
+saint-saens 175.486 131124
+brahms 172.295 108065
+clementi 176.203 166154
+bach 173.107 145382
+haydn 175.2 121953
+rameau 173.452 246333
+telemann 174.706 143188
+
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     2.00000          0.00                         0:00:00            Energy reached 0 at step 0
+
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         62.94   100.00%     5.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         59.72   100.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         54.87   100.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         74.19   100.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         62.31   100.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         58.89    95.00%     5.00%     0:00:43     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         68.20    95.00%     0.00%     0:00:43     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         64.78    95.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         61.57   100.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         78.96   100.00%     0.00%     0:00:42     0:00:00
+ Temperature        Energy    Accept   Improve     Elapsed   Remaining
+     0.01000         64.76   100.00%     5.00%     0:00:42     0:00:00debussy to debussy is 0.0
+/home/ubuntu/project/datasets/debussy/kunstderfuge/preludes_1_8_(c)galimberti/preludes_1_8_(c)galimberti_augmented_graph_flat.pickle
+
+debussy to scarlatti is 61.814237842102365
+/home/ubuntu/project/datasets/scarlatti/kunstderfuge/k132/k132_augmented_graph_flat.pickle
+
+debussy to beethoven is 59.2452529743945
+/home/ubuntu/project/datasets/beethoven/kunstderfuge/variations_hess72_(c)orlandi/variations_hess72_(c)orlandi_augmented_graph_flat.pickle
+
+debussy to schubert is 54.286278192559855
+/home/ubuntu/project/datasets/schubert/kunstderfuge/sonata_120_2_(c)yogore/sonata_120_2_(c)yogore_augmented_graph_flat.pickle
+
+debussy to tchaikovsky is 73.53910524340094
+/home/ubuntu/project/datasets/tchaikovsky/classical_piano_midi_db/ty_november/ty_november_augmented_graph_flat.pickle
+
+debussy to saint-saens is 61.814237842102365
+/home/ubuntu/project/datasets/saint-saens/kunstderfuge/etudes_52-4_(c)yogore/etudes_52-4_(c)yogore_augmented_graph_flat.pickle
+
+debussy to brahms is 58.58327406350724
+/home/ubuntu/project/datasets/brahms/classical_piano_midi_db/br_im5/br_im5_augmented_graph_flat.pickle
+
+debussy to clementi is 67.47592163134935
+/home/ubuntu/project/datasets/clementi/classical_piano_midi_db/clementi_opus36_5_3/clementi_opus36_5_3_augmented_graph_flat.pickle
+
+debussy to bach is 64.03905058634146
+/home/ubuntu/project/datasets/bach/kunstderfuge/BWV525_1_(c)bricault/BWV525_1_(c)bricault_augmented_graph_flat.pickle
+
+debussy to haydn is 60.32412452742269
+/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_4_2_(c)edwards/string_quartet_4_2_(c)edwards_augmented_graph_flat.pickle
+
+debussy to rameau is 78.40280607223188
+/home/ubuntu/project/datasets/rameau/kunstderfuge/rameau_poule_(c)werths/rameau_poule_(c)werths_augmented_graph_flat.pickle
+
+debussy to telemann is 64.20280367709809
+/home/ubuntu/project/datasets/telemann/kunstderfuge/telemann_fantasie_per_cembalo_4_(c)icking-archive/telemann_fantasie_per_cembalo_4_(c)icking-archive_augmented_graph_flat.pickle

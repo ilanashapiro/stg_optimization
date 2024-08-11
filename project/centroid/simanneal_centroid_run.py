@@ -2,6 +2,7 @@ import simanneal_centroid
 import multiprocessing
 import numpy as np
 import cupy as cp
+import torch
 
 def align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict, Tmax = 1.75, Tmin = 0.01, steps = 2000):
   if A_G1.shape != A_G2.shape:
@@ -58,14 +59,18 @@ def optimal_alignments_for_graph_list_parallel(A_g, graph_list, index_node_mappi
 
 # find the graph in the corpus that has the overall minimum loss to all the other graphs in the corpus,
 # along with its optimal alignments
-def initial_centroid_and_alignments(list_A_G, index_node_mapping):
+def initial_centroid_and_alignments(list_A_G, index_node_mapping, node_metadata_dict, device=None):
   min_loss = cp.inf
   min_loss_A_G = None
   optimal_alignments = []
-  for A_g in list_A_G:
-    current_loss, alignments = optimal_alignments_for_graph_list(A_g, list_A_G, index_node_mapping)
+
+  for i, A_g in enumerate(list_A_G):
+    assert isinstance(A_g, torch.Tensor) # Ensure that A_g is a tensor (comment out if we're not doing multiprocess)
+    current_loss, alignments = simanneal_centroid.get_alignments_to_centroid(A_g, list_A_G, index_node_mapping, node_metadata_dict, device, Tmax=2, Tmin=0.01, steps=2000)
     if current_loss < min_loss:
       min_loss = current_loss
       min_loss_A_G = A_g
+      min_loss_A_G_list_index = i
       optimal_alignments = alignments
-  return min_loss_A_G, min_loss, optimal_alignments
+
+  return min_loss_A_G, min_loss_A_G_list_index, min_loss, optimal_alignments
