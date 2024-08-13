@@ -12,7 +12,7 @@ import sys
 import time
 import pickle
 
-DIRECTORY = "/home/ishapiro/project"
+# DIRECTORY = "/home/ilshapiro/project"
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 
 sys.path.append(DIRECTORY)
@@ -85,7 +85,9 @@ def initialize_globals(approx_centroid_val, idx_node_mapping_val, node_metadata_
 	n_A = len(idx_node_mapping)
 	opt = z3.Optimize()
 	opt.set('timeout', 10000) # in milliseconds. 300000ms = 5mins
+	# opt.set("enable_sls", True)
 	opt.set("enable_lns", True)
+	z3.set_param("parallel.enable", True)
 
 	rank_to_flat_levels_mapping = z3_helpers.get_flat_levels_mapping(node_metadata_dict)
 	instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict, rank_to_flat_levels_mapping) # dict: level -> instance nodes at that level
@@ -146,19 +148,17 @@ def add_prototype_to_prototype_constraints(idx_node_submap):
 # Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
-def add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap_instance_proto, node_metadata_dict):
+def add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap_instance_proto, idx_node_submap_instance_only, node_metadata_dict):
 	node_idx_submap_instance_proto = z3_helpers.invert_dict(idx_node_submap_instance_proto)
-	(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
-	define_linearly_adjacent_instance_relations(level, instance_only_submatrix)
 
 	level_var = z3.Int(f"level:{level}")
 	no_consecutive_repeat_layers = ['S', 'K', 'C'] # layers who can't have consecutive nodes be equivalent in the linear chain
-	for instance_submap_index, instance_node_id in idx_node_submap_instance_only.items(): # instance_submap_index is wrt instance_only_submatrix
-		instance_index = node_idx_submap_instance_proto[instance_node_id] # instance_index is wrt instance_proto_submatrix
+	for instance_submap_index, instance_node_id in idx_node_submap_instance_only.items(): # instance_submap_index is wrt instance_only_submatrix, NOT instance_proto_submatrix
+		instance_index = node_idx_submap_instance_proto[instance_node_id] # instance_index is wrt instance_proto_submatrix, NOT instance_proto_submatrix
 		layer_id = z3_helpers.get_layer_id(instance_node_id)
 		instance_features = node_metadata_dict[instance_node_id]['features_dict']
 		instance_submap_index_var = z3.Int(f"level:{level}_i_subA:{instance_submap_index}")
-		
+
 		non_consec_feature_conditions = [] # one condition per feature. each condition in the list says curr node and next node in linear chain must not have the same proto parent node FOR THAT FEATURE 
 		for instance_feature in instance_features:
 			proto_node_ids = prototype_features_partition[instance_feature]
@@ -191,7 +191,7 @@ def add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_n
 			proto_instance_edge = instance_proto_submatrix[proto_index][instance_index]
 			
 			# assign proto parents for each instance node
-			opt.add(z3.Implies(proto_instance_edge, z3.IsMember(proto_index, proto_parents(instance_submap_index_var))))
+			opt.add(proto_instance_edge == z3.IsMember(proto_index, proto_parents(instance_submap_index_var)))
 			
 			# ensure no instance -> proto edges
 			opt.add(instance_proto_submatrix[instance_index][proto_index] == False) 
@@ -423,7 +423,15 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 		add_soft_constraints_for_submap(instance_proto_submatrix, idx_node_submap)
 		restore_level_state(level, level_states)
 		add_prototype_to_prototype_constraints(idx_node_submap)
-		add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap, node_metadata_dict)
+		
+		# we need the linear chain functions defined for the subsequent proto-instance constraints
+		(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
+		if len(instance_levels_partition[level]) > 1:
+			add_intra_level_linear_chain(level, instance_only_submatrix, idx_node_submap_instance_only)
+		else: 
+			add_intra_level_linear_chain_for_single_node_level(level, idx_node_submap_instance_only)
+
+		add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap, idx_node_submap_instance_only, node_metadata_dict)
 		add_objective(instance_proto_submatrix, idx_node_submap)
 
 		# crashes with timeout bc the model might be unsat
