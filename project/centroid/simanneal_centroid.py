@@ -10,20 +10,17 @@ import multiprocessing
 import pickle
 import scipy.sparse as sp
 from collections import defaultdict
-import cupy as cp
-import cupyx as cpx
-import cupy.sparse as cpsp
-import dask.array as da
-import dask_cuda
-import sparse
+# import cupy as cp
+# import cupyx as cpx
+# import cupy.sparse as cpsp
 import torch
 
-import simanneal_centroid_tests as tests
+# import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
 
 EPSILON = 1e-8
 DIRECTORY = '/home/ilshapiro/project'
-# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
+DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
 
@@ -34,35 +31,39 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
-# def align(P, A_G):
-# 	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
-# 	A_G_sparse = sp.csr_matrix(A_G)
-# 	return P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
-def align_cupy(P, A_G):
-	# Convert CuPy arrays to sparse matrices
-	P_sparse = cpsp.csr_matrix(P)
-	A_G_sparse = cpsp.csr_matrix(A_G)
-
-	# Perform sparse matrix multiplication using CuPy
-	result = P_sparse.T @ A_G_sparse @ P_sparse
-
-	# Convert to dense
-	return result.toarray()
-
 def align(P, A_G):
-	P_sparse = P.to_sparse()
-	A_G_sparse = A_G.to_sparse()
-	result = torch.sparse.mm(torch.sparse.mm(P_sparse.t(), A_G_sparse), P_sparse)
-	return result.to_dense()
+	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
+	A_G_sparse = sp.csr_matrix(A_G)
+	return P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
+
+# def align_cupy(P, A_G):
+# 	# Convert CuPy arrays to sparse matrices
+# 	P_sparse = cpsp.csr_matrix(P)
+# 	A_G_sparse = cpsp.csr_matrix(A_G)
+
+# 	# Perform sparse matrix multiplication using CuPy
+# 	result = P_sparse.T @ A_G_sparse @ P_sparse
+
+# 	# Convert to dense
+# 	return result.toarray()
+
+# def align(P, A_G):
+# 	P_sparse = P.to_sparse()
+# 	A_G_sparse = A_G.to_sparse()
+# 	result = torch.sparse.mm(torch.sparse.mm(P_sparse.t(), A_G_sparse), P_sparse)
+# 	return result.to_dense()
 
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
 # ||A_g - a^t * A_G * a|| where ||.|| is the norm (using Frobenius norm)
-def dist_cupy(A_g, A_G):
-	return cp.linalg.norm(A_g - A_G, 'fro')
-
 def dist(A_g, A_G):
-	return torch.norm(A_g - A_G, p='fro')
+	return np.linalg.norm(A_g - A_G, 'fro')
+
+# def dist_cupy(A_g, A_G):
+# 	return cp.linalg.norm(A_g - A_G, 'fro')
+
+# def dist(A_g, A_G):
+# 	return torch.norm(A_g - A_G, p='fro')
 
 class GraphAlignmentAnnealer(Annealer):
 	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict, device=None):#, client, cluster):
@@ -447,8 +448,10 @@ if __name__ == "__main__":
 
 	# list_G = [tests.G1_test, tests.G2_test]
 	list_G = [G1, G2]
+
 	listA_G, centroid_idx_node_mapping, node_metadata_dict = helpers.pad_adj_matrices(list_G)
-	initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
+	
+	# initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
 	
 	# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_idx_node_mapping, 2.5, 0.01, 10000, node_metadata_dict)
 	# for i, alignment in enumerate(alignments):
@@ -456,35 +459,38 @@ if __name__ == "__main__":
 	# 	cp.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	alignments = [cp.loadtxt('alignment_0.txt', dtype=int, delimiter=","), cp.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
-	aligned_listA_G = list(map(align, alignments, listA_G))
+	# alignments = [cp.loadtxt('alignment_0.txt', dtype=int, delimiter=","), cp.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	# aligned_listA_G = list(map(align, alignments, listA_G))
 
-	centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
-	centroid_annealer.Tmax = 4.5
-	centroid_annealer.Tmin = 0.05 
-	centroid_annealer.steps = 500
-	centroid, min_loss = centroid_annealer.anneal()
+	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
+	# centroid_annealer.Tmax = 2.5
+	# centroid_annealer.Tmin = 0.05 
+	# centroid_annealer.steps = 500
+	# centroid, min_loss = centroid_annealer.anneal()
 
-	centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
-	cp.savetxt("approx_centroid_test.txt", centroid)
-	print('Saved: approx_centroid_test.txt')
-	with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
-		json.dump(centroid_idx_node_mapping, file)
-	print('Saved: approx_centroid_idx_node_mapping_test.txt')
-	with open("approx_centroid_node_metadata_test.txt", 'w') as file:
-		json.dump(node_metadata_dict, file)
-	print('Saved: approx_centroid_node_metadata_test.txt')
-	print("Best centroid", centroid)
-	print("Best loss", min_loss)
-	sys.exit(0)
+	# centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	# cp.savetxt("approx_centroid_test.txt", centroid)
+	# print('Saved: approx_centroid_test.txt')
+	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
+	# 	json.dump(centroid_idx_node_mapping, file)
+	# print('Saved: approx_centroid_idx_node_mapping_test.txt')
+	# with open("approx_centroid_node_metadata_test.txt", 'w') as file:
+	# 	json.dump(node_metadata_dict, file)
+	# print('Saved: approx_centroid_node_metadata_test.txt')
+	# print("Best centroid", centroid)
+	# print("Best loss", min_loss)
+	# sys.exit(0)
 
-	centroid = cp.loadtxt("approx_centroid_test.txt")
+	centroid = np.loadtxt("approx_centroid_test.txt")
 	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
+	# centroid, centroid_idx_node_mapping = helpers.remove_all_dummy_nodes(centroid, centroid_idx_node_mapping)
+
 	g = helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
 	layers_G1 = build_graph.get_unsorted_layers_from_graph_by_index(G1)
 	layers_G2 = build_graph.get_unsorted_layers_from_graph_by_index(G2)
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	build_graph.visualize_p([G1, G2, g], [layers_G1, layers_G2, layers_g])
+	# build_graph.visualize([G2], [layers_G2])
+	build_graph.visualize([g], [layers_g])

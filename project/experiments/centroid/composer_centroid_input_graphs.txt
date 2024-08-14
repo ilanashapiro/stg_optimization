@@ -1,77 +1,49 @@
 {
     "beethoven": [
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/bagattelle_119_2_hessa21_(c)orlandi/bagattelle_119_2_hessa21_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/bagattelle_119_2_hessa21_(c)orlandi/bagattelle_119_2_hessa21_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_53_(c)orlandi/biamonti_53_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/funeral_march_hessa22_(c)orlandi/funeral_march_hessa22_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_66_(c)orlandi/biamonti_66_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_74_(c)orlandi/biamonti_74_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/waltz_a15_(c)orlandi/waltz_a15_(c)orlandi_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/march_hessa4_(c)orlandi/march_hessa4_(c)orlandi_augmented_graph_flat.pickle"
-    ],
-    "bach": [
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV800_(c)closkey/BWV800_(c)closkey_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/Wtcii19b/Wtcii19b_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv961_(mccloskey)/bwv961_(mccloskey)_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv872b1/bwv872b1_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv870b2/bwv870b2_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV773_(c)closkey/BWV773_(c)closkey_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v12_(c)grossmann/988-v12_(c)grossmann_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v23_(c)grossmann/988-v23_(c)grossmann_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv988-01_(c)degiusti/bwv988-01_(c)degiusti_augmented_graph_flat.pickle"
-    ],
-    "mozart": [
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_17_(nc)werths/early_pieces_17_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_7_(nc)werths/early_pieces_7_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_1_(nc)werths/early_pieces_1_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_16_(nc)werths/early_pieces_16_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/mozart-l_polonaise_f_(nc)werths/mozart-l_polonaise_f_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_12_(nc)werths/early_pieces_12_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/mozart-l_tempo_di_minuetto_f_(nc)werths/mozart-l_tempo_di_minuetto_f_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_13_(nc)werths/early_pieces_13_(nc)werths_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/mozart/kunstderfuge/mozart-l_allegro_moderato_f_(nc)werths/mozart-l_allegro_moderato_f_(nc)werths_augmented_graph_flat.pickle"
-    ],
-    "haydn": [
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/sonata_61_2_(c)iscenko/sonata_61_2_(c)iscenko_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/classical_piano_midi_db/haydn_8_3/haydn_8_3_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_3_5_(c)edwards/string_quartet_3_5_(c)edwards_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_18_3_(c)edwards/string_quartet_18_3_(c)edwards_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_9_2_(c)edwards/string_quartet_9_2_(c)edwards_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_1_4_(c)edwards/string_quartet_1_4_(c)edwards_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_14_2_(c)edwards/string_quartet_14_2_(c)edwards_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/string_quartet_1_1_(c)edwards/string_quartet_1_1_(c)edwards_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/haydn/kunstderfuge/sonata_10_2_(c)iscenko/sonata_10_2_(c)iscenko_augmented_graph_flat.pickle"
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/sketch_4_(c)orlandi/sketch_4_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_360_(c)orlandi/biamonti_360_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_460_(c)orlandi/biamonti_460_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_701h_(c)orlandi/biamonti_701h_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_459_(c)orlandi/biamonti_459_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_317_(c)orlandi/biamonti_317_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/bagattelle_hess73_(c)orlandi/bagattelle_hess73_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/sketch_3_(c)orlandi/sketch_3_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/anglaise_hess61_(c)orlandi/anglaise_hess61_(c)orlandi_augmented_graph_flat.pickle"
     ],
     "chopin": [
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/sonata_58_2_(c)finley/sonata_58_2_(c)finley_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/mazurka_17_2_(c)yogore/mazurka_17_2_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/mazurka_63_2_(c)yogore/mazurka_63_2_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/mazurka_67_2_(c)yogore/mazurka_67_2_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p4/chpn-p4_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/mazurka_24_3_(c)yogore/mazurka_24_3_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/etude_10_1_(c)unknown/etude_10_1_(c)unknown_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn_op25_e1/chpn_op25_e1_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/chopin/kunstderfuge/etude_10_6_(c)unknown/etude_10_6_(c)unknown_augmented_graph_flat.pickle"
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p23/chpn-p23_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p14/chpn-p14_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p1/chpn-p1_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p11/chpn-p11_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p5/chpn-p5_augmented_graph_flat.pickle"
     ],
     "brahms": [
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_16_(c)yogore/hungarian_dance_16_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_21_(c)yogore/hungarian_dance_21_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/waltzes_39_5_(c)yogore/waltzes_39_5_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_20_(c)yogore/hungarian_dance_20_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_13_(c)yogore/hungarian_dance_13_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_3_(c)yogore/hungarian_dance_3_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/klavierstucke_119_3_(c)lefeldt/klavierstucke_119_3_(c)lefeldt_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_11_(c)yogore/hungarian_dance_11_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/brahms/kunstderfuge/hungarian_dance_5_(c)yogore/hungarian_dance_5_(c)yogore_augmented_graph_flat.pickle"
+        "/home/ubuntu/project/datasets/brahms/kunstderfuge/waltzes_39_10_(c)yogore/waltzes_39_10_(c)yogore_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/brahms/kunstderfuge/waltzes_39_13_(c)yogore/waltzes_39_13_(c)yogore_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/brahms/kunstderfuge/waltzes_39_16_(c)yogore/waltzes_39_16_(c)yogore_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/brahms/kunstderfuge/waltzes_39_3_(c)yogore/waltzes_39_3_(c)yogore_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/brahms/kunstderfuge/waltzes_39_1_(c)yogore/waltzes_39_1_(c)yogore_augmented_graph_flat.pickle"
     ],
-    "schubert": [
-        "/home/ubuntu/project/datasets/schubert/classical_piano_midi_db/schumm-3/schumm-3_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/kunstderfuge/moments_musicaux_94_3_(c)dery/moments_musicaux_94_3_(c)dery_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/kunstderfuge/rastlose_(c)yogore/rastlose_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/kunstderfuge/childrens_march_928_(c)yogore/childrens_march_928_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/classical_piano_midi_db/schumm-5/schumm-5_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/kunstderfuge/meeresstille_(c)yogore/meeresstille_(c)yogore_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/kunstderfuge/symphony_10_3_(c)prengel/symphony_10_3_(c)prengel_augmented_graph_flat.pickle",
-        "/home/ubuntu/project/datasets/schubert/kunstderfuge/winterreise_10_(c)yogore/winterreise_10_(c)yogore_augmented_graph_flat.pickle"
+    "bach": [
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bach-jcf_schwaeisch_(nc)werths/bach-jcf_schwaeisch_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv1086_(grossman)/bwv1086_(grossman)_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/opfer1079-2c_(unknown-grossman)/opfer1079-2c_(unknown-grossman)_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/28_(nc)werths/28_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV781_(c)galimberti/BWV781_(c)galimberti_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv994 (collinelli)/bwv994 (collinelli)_augmented_graph_flat.pickle"
+    ],
+    "mozart": [
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_2_(nc)werths/early_pieces_2_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/contradance_1_(nc)werths/contradance_1_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_10_(nc)werths/early_pieces_10_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/mozart-l_menuet_2_(nc)werths/mozart-l_menuet_2_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/early_pieces_11_(nc)werths/early_pieces_11_(nc)werths_augmented_graph_flat.pickle"
+    ],
+    "haydn": [
+        "/home/ubuntu/project/datasets/haydn/kunstderfuge/contradance_in_d_1795_(c)iscenko/contradance_in_d_1795_(c)iscenko_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/haydn/kunstderfuge/contradance_in_d_1795_(c)iscenko/contradance_in_d_1795_(c)iscenko_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/haydn/classical_piano_midi_db/haydn_8_4/haydn_8_4_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/haydn/kunstderfuge/sonata_3_3_(c)iscenko/sonata_3_3_(c)iscenko_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/haydn/kunstderfuge/sonata_7_2_(c)iscenko/sonata_7_2_(c)iscenko_augmented_graph_flat.pickle"
     ]
 }

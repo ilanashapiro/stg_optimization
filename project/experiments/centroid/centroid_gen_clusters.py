@@ -16,7 +16,30 @@ import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
 
 NUM_GPUS = 8 
 
-def filter_by_duration_cluster(composer_graphs, window_len):
+def filter_by_max_duration_cluster(composer_graphs, max_duration):
+		# Flatten all values into a single list and map durations to their keys and tuples
+		value_to_keys = {}
+		for key, tuples in composer_graphs.items():
+				for tup in tuples:
+						duration = tup[1] 
+						if duration not in value_to_keys:
+								value_to_keys[duration] = []
+						value_to_keys[duration].append((key, tup))
+		
+		# Collect all values whose duration is under the specified limit
+		filtered_durations = [duration for duration in value_to_keys.keys() if duration <= max_duration]
+
+		# Create a dictionary to store the results
+		results_dict = {}
+		for duration in filtered_durations:
+				for key, tup in value_to_keys[duration]:
+						if key not in results_dict:
+								results_dict[key] = []
+						results_dict[key].append(tup)
+
+		return results_dict
+
+def filter_by_duration_window_cluster(composer_graphs, window_len):
 	# Flatten all values into a single list and sort them
 	all_values = []
 	value_to_keys = {}
@@ -66,7 +89,9 @@ def filter_by_duration_cluster(composer_graphs, window_len):
 # takes in a single list of pieces info, for a single composer from a cluster
 def partition_composer_cluster_for_centroid(composer, pieces_info_list):
 	pieces_info_list = sorted(pieces_info_list, key=lambda pieces_tuple: pieces_tuple[1]) 
-	centroid_size = min(len(pieces_info_list) // 2, 9) # don't want to try computing centroids beyond 15 pieces rn
+	centroid_size = min(len(pieces_info_list) // 2, 5) # don't want to try computing centroids beyond 9 pieces rn
+	if centroid_size < 5:
+		centroid_size = 5
 
 	step = len(pieces_info_list) // centroid_size
 	initial_centroid_list = pieces_info_list[:step*centroid_size:step] # we end up with 22 pieces for longer clusters due to slicing
@@ -109,23 +134,29 @@ def get_cluster():
 		
 		composer_graphs = st_gen_clusters.build_composers_dict(composer_graphs)
 		composer_graphs = {composer: graphs for composer, graphs in composer_graphs.items() if len(graphs['classical_piano_midi_db']) + len(graphs['kunstderfuge']) > 0}
-		selected_composers = ["bach", "mozart", "beethoven", "schubert", "chopin", "brahms", "haydn"]# "wagner", "verdi", "handel"]
+		selected_composers = ["bach", "mozart", "beethoven", "schubert", "chopin", "brahms", "haydn", "handel"]# "wagner", "verdi"]
 		composer_graphs = {composer: graphs['classical_piano_midi_db'] + graphs['kunstderfuge'] for composer, graphs in composer_graphs.items() if composer in selected_composers}
 
-		filtered_composer_graphs_cluster = filter_by_duration_cluster(composer_graphs, window_len=92)
+		# filtered_composer_graphs_cluster = filter_by_duration_window_cluster(composer_graphs, window_len=92)
 		# for composer_graphs_dict in filtered_composer_graphs_cluster:
 		# 	for composer, graphs in composer_graphs_dict.items():
 		# 		print(composer, len(graphs))
 		# 	print()
 
-		max_composer_graphs_cluster = None
-		max_graphs = 0
-		for composer_graphs_dict in filtered_composer_graphs_cluster:
-			total_graphs = sum(len(graphs) for graphs in composer_graphs_dict.values())
-			if total_graphs > max_graphs:
-				max_graphs = total_graphs
-				max_composer_graphs_cluster = composer_graphs_dict
+		# max_composer_graphs_cluster = None
+		# max_graphs = 0
+		# for composer_graphs_dict in filtered_composer_graphs_cluster:
+		# 	total_graphs = sum(len(graphs) for graphs in composer_graphs_dict.values())
+		# 	if total_graphs > max_graphs:
+		# 		max_graphs = total_graphs
+		# 		max_composer_graphs_cluster = composer_graphs_dict
 
+		max_composer_graphs_cluster = filter_by_max_duration_cluster(composer_graphs, 35)
+		# for composer, graphs in max_composer_graphs_cluster.items():
+		# 	print(composer, len(graphs))
+		# sys.exit(0)
+		max_composer_graphs_cluster = {composer: graphs for composer, graphs in max_composer_graphs_cluster.items() if len(graphs) >= 5}
+		
 		with open(composer_graphs_cluster_path, 'w') as file:
 			json.dump(max_composer_graphs_cluster, file, indent=4)
 			print("SAVED", composer_graphs_cluster_path)
@@ -216,32 +247,32 @@ def generate_centroid(composer, initial_centroid, initial_alignments, listA_G, i
 	centroid_annealer.Tmax = 2.5
 	centroid_annealer.Tmin = 0.05 
 	centroid_annealer.steps = 1000
-	final_centroid, loss = centroid_annealer.anneal()
-	final_centroid = final_centroid.cpu().numpy() # convert from tensor -> numpy
+	approx_centroid, loss = centroid_annealer.anneal()
+	approx_centroid = approx_centroid.cpu().numpy() # convert from tensor -> numpy
 	loss = loss.item() # convert from tensor -> numpy
 	
-	final_centroid, final_idx_node_mapping = simanneal_centroid_helpers.remove_unnecessary_dummy_nodes(final_centroid, idx_node_mapping, node_metadata_dict)
-	final_centroid_dir = f"{DIRECTORY}/experiments/centroid/final_centroid/{composer}"
-	if not os.path.exists(final_centroid_dir):
-		os.makedirs(final_centroid_dir)
+	approx_centroid, final_idx_node_mapping = simanneal_centroid_helpers.remove_unnecessary_dummy_nodes(approx_centroid, idx_node_mapping, node_metadata_dict)
+	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroid/{composer}"
+	if not os.path.exists(approx_centroid_dir):
+		os.makedirs(approx_centroid_dir)
 
-	final_centroid_path = os.path.join(final_centroid_dir, "centroid.txt")
-	np.savetxt(final_centroid_path, final_centroid, fmt='%d', delimiter=' ')
-	print(f'Saved: {final_centroid_path}')
+	approx_centroid_path = os.path.join(approx_centroid_dir, "centroid.txt")
+	np.savetxt(approx_centroid_path, approx_centroid, fmt='%d', delimiter=' ')
+	print(f'Saved: {approx_centroid_path}')
 
-	final_centroid_idx_node_mapping_path = os.path.join(final_centroid_dir, "idx_node_mapping.txt")
-	with open(final_centroid_idx_node_mapping_path, 'w') as file:
+	approx_centroid_idx_node_mapping_path = os.path.join(approx_centroid_dir, "idx_node_mapping.txt")
+	with open(approx_centroid_idx_node_mapping_path, 'w') as file:
 		json.dump(final_idx_node_mapping, file)
-	print(f'Saved: {final_centroid_idx_node_mapping_path}')
+	print(f'Saved: {approx_centroid_idx_node_mapping_path}')
 
-	final_centroid_node_metadata_dict_path = os.path.join(final_centroid_dir, "node_metadata_dict.txt")
-	with open(final_centroid_node_metadata_dict_path, 'w') as file:
+	approx_centroid_node_metadata_dict_path = os.path.join(approx_centroid_dir, "node_metadata_dict.txt")
+	with open(approx_centroid_node_metadata_dict_path, 'w') as file:
 		json.dump(node_metadata_dict, file)
-	print(f'Saved: {final_centroid_node_metadata_dict_path}')
+	print(f'Saved: {approx_centroid_node_metadata_dict_path}')
 	
-	final_centroid_loss_path = os.path.join(final_centroid_dir, "loss.txt")
-	np.savetxt(final_centroid_loss_path, [loss], fmt='%d')
-	print(f'Saved: {final_centroid_loss_path}')
+	approx_centroid_loss_path = os.path.join(approx_centroid_dir, "loss.txt")
+	np.savetxt(approx_centroid_loss_path, [loss], fmt='%d')
+	print(f'Saved: {approx_centroid_loss_path}')
 
 if __name__ == "__main__":
 	# def delete_dirs_with_substring(directory, substring):

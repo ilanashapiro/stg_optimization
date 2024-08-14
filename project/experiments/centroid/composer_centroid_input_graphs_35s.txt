@@ -1,0 +1,23 @@
+{
+    "beethoven": [
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_701h_(c)orlandi/biamonti_701h_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_460_(c)orlandi/biamonti_460_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_459_(c)orlandi/biamonti_459_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/bagattelle_hess73_(c)orlandi/bagattelle_hess73_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/anglaise_hess61_(c)orlandi/anglaise_hess61_(c)orlandi_augmented_graph_flat.pickle"
+    ],
+    "chopin": [
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p10/chpn-p10_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p14/chpn-p14_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p1/chpn-p1_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p11/chpn-p11_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn-p5/chpn-p5_augmented_graph_flat.pickle"
+    ],
+    "bach": [
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv1077_(grossman)/bwv1077_(grossman)_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv1086_(grossman)/bwv1086_(grossman)_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bach-jcf_schwaeisch_(nc)werths/bach-jcf_schwaeisch_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/opfer1079-2c_(unknown-grossman)/opfer1079-2c_(unknown-grossman)_augmented_graph_flat.pickle"
+    ]
+}

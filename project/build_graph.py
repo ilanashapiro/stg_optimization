@@ -224,35 +224,6 @@ def augment_graph(G):
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
-def compress_graph(G):
-	prototype_nodes = [node for node in G if node.startswith("Pr")]
-	proto_parents = defaultdict(list)
-
-	# Gather prototype parent information
-	for u, v in G.edges():
-		if u in prototype_nodes:
-			proto_parents[v].append(u)
-
-	# Remove prototype nodes and update labels
-	new_G = nx.DiGraph()
-	for node, data in G.nodes(data=True):
-		if node not in prototype_nodes:
-			new_label = data.get('label', node)
-			if node in proto_parents:
-				new_label = "+".join(sorted(proto_parents[node])) + "-" + new_label
-			print(new_label)
-			new_G.add_node(node, **data)
-	
-	# Add updated edges
-	for u, v, data in G.edges():
-		if u not in prototype_nodes and v not in prototype_nodes:
-			new_G.add_edge(u, v)
-		elif u in prototype_nodes and v not in prototype_nodes:
-			for parent in proto_parents[v]:
-				new_G.add_edge(parent, v)
-	
-	return new_G
-
 def visualize(graph_list, layers_list):
 	n = len(graph_list)
 	
@@ -268,6 +239,14 @@ def visualize(graph_list, layers_list):
 	
 	for idx, G in enumerate(graph_list):
 		layers = layers_list[idx]
+		for node in G.nodes():
+			if not node.startswith("Pr"):
+				G.nodes[node]["label"] = node[0]
+			else:
+				if "filler" in G.nodes[node]["label"]:
+					G.nodes[node]["label"] = "filler:filler"
+				else:
+					G.nodes[node]["label"] = node[2:].lower()
 		labels_dict = {node: data.get('label', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
 		pos = {}  # Positions dictionary: node -> (x, y)
 		prototype_nodes = []
@@ -285,18 +264,61 @@ def visualize(graph_list, layers_list):
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
 
+
+		ax = axes_flat[idx]
+		all_edges = set(G.edges())
+		intra_level_edges = []
+		inter_level_edges = []
+		proto_edges = []
+
+		for u, v in all_edges:
+			if u in prototype_nodes or v in prototype_nodes:
+				proto_edges.append((u, v))
+			elif get_layer_rank(u) == get_layer_rank(v):
+				intra_level_edges.append((u, v))
+			else:
+				inter_level_edges.append((u, v))
+
+		def topological_sort(nodes, edges):
+			graph = defaultdict(list)
+			in_degree = {node: 0 for node in nodes}
+			for u, v in edges:
+					graph[u].append(v)
+					in_degree[v] += 1
+			queue = deque([node for node in nodes if in_degree[node] == 0])
+			sorted_nodes = []
+			while queue:
+					node = queue.popleft()
+					sorted_nodes.append(node)
+					for neighbor in graph[node]:
+							in_degree[neighbor] -= 1
+							if in_degree[neighbor] == 0:
+									queue.append(neighbor)
+			return sorted_nodes
+
+		def get_layer_nodes_and_edges(layer, edges):
+			"""Return nodes and intra-level edges for a specific layer."""
+			layer_nodes = [node['id'] for node in layer]
+			layer_edges = [(u, v) for u, v in edges if u in layer_nodes and v in layer_nodes]
+			return layer_nodes, layer_edges
+
 		layer_height = 1.0 / (len(layers) + 1)
 		for i, layer in enumerate(layers):
-			layer = sorted(layer, key=lambda node: node['index'])
+			if nx.is_directed_acyclic_graph(G):
+				layer_nodes, layer_edges = get_layer_nodes_and_edges(layer, intra_level_edges)
+				sorted_node_ids = topological_sort(layer_nodes, layer_edges)
+				layer = [next(node for node in layer if node['id'] == node_id) for node_id in sorted_node_ids]
+			else:
+				layer = sorted(layer, key=lambda node: node['index'])
 			y = 1 - (i + 1) * layer_height
 			x_step = 1.0 / (len(layer) + 1)
 			for j, node in enumerate(layer):
-				x = (j + 1) * x_step + 0.1  # Adjust x to the right to accommodate prototypes
+				x = (j + 1) * x_step + 0.1 -0.1 # Adjust x to the right to accommodate prototypes
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]
 		
-		colors = ["#B797FF", "#fd7373", "#ffda69", "#99d060", "#99e4ff"]
+		colors = ["#B797FF", "#fd7373", "#ff9f3c", "#99d060", "#99e4ff"]
 		filler_color = '#A9A9A9'
 		for layer in layers:
 			level = vertical_sort_key(layer)
@@ -329,8 +351,8 @@ def visualize(graph_list, layers_list):
 				inter_level_edges.append((u, v))
 
 		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
-		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=10, font_weight='bold', ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
 
@@ -386,9 +408,7 @@ def process_graphs(midi_filepath):
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
-		augment_graph(G)
-		# G_c = compress_graph(G)
-		# layers_c = get_unsorted_layers_from_graph_by_index(G_c)
+		# augment_graph(G)
 		visualize([G], [layers])
 		sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
