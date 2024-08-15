@@ -220,15 +220,20 @@ def add_instance_parent_count_constraints(combined_submatrix,
 			
 			one_parent_condition = z3.And(
 				parent_condition1 == (instance_parent1(child_i_subA_var) == parent_index1_subA1_var), 
-				parent_condition1 == (instance_parent2(child_i_subA_var) == parent_index1_subA1_var),
-				rank1 == rank2
+				parent_condition1 == (instance_parent2(child_i_subA_var) == parent_index1_subA1_var)
 			)
 
 			two_parent_condition = z3.Or([
-        z3.And(
-          parent_condition1 == (instance_parent1(child_i_subA_var) == parent_index1_subA1_var),
-          combined_submatrix[combined_node_idx_submap[parent_id2]][child_idx_combined] == (instance_parent2(child_i_subA_var) == z3.Int(f"level:{parent_level}_i_subA:{parent_index2_subA1}"))
-        ) for parent_index2_subA1, parent_id2 in list(idx_node_submap1.items()) if parent_id2 != parent_id1
+				z3.Or([
+					z3.And(
+						parent_condition1 == (instance_parent1(child_i_subA_var) == parent_index1_subA1_var),
+						combined_submatrix[combined_node_idx_submap[parent_id2]][child_idx_combined] == (instance_parent2(child_i_subA_var) == z3.Int(f"level:{parent_level}_i_subA:{parent_index2_subA1}")),
+					),
+					z3.And(
+						parent_condition1 == (instance_parent2(child_i_subA_var) == parent_index1_subA1_var),
+						combined_submatrix[combined_node_idx_submap[parent_id2]][child_idx_combined] == (instance_parent1(child_i_subA_var) == z3.Int(f"level:{parent_level}_i_subA:{parent_index2_subA1}")),
+					)
+				]) for parent_index2_subA1, parent_id2 in list(idx_node_submap1.items()) if parent_id2 != parent_id1
 			])
 
 			# opt.add(one_parent_condition)
@@ -377,6 +382,7 @@ def save_proto_level_state(level_submatrix, idx_node_mapping, model):
 	return state
 
 def restore_level_state(levels_pair, level_states):
+	print("RESTORING", levels_pair)
 	for var, evaluated_var in level_states[levels_pair]:
 		opt.add(var == evaluated_var)
 
@@ -388,7 +394,7 @@ def add_soft_constraints_for_submap(submatrix, idx_node_submap):
 def run(final_centroid_filename, final_idx_node_mapping_filename):
 	level_states = {}
 	# parent_level < next_level, meaning parent_level is HIGHER in the hierarchy than next_level (i.e. parent level of next_level)
-	for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items())[:3]:
+	for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items()):
 		print(f"LEVEL PAIR FOR INSTANCE CONSTRAINTS ({parent_level}, {child_level})", time.perf_counter())
 		opt.push()  # Save the current optimizer state for potential backtracking
 
@@ -397,12 +403,19 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 		(A_submatrix1, idx_node_submap1) = A_partition_instance_submatrices_list[parent_level]
 		(A_submatrix2, idx_node_submap2) = A_partition_instance_submatrices_list[child_level]
 		
-		if parent_level == 0 and len(instance_levels_partition[parent_level]) > 1:
-			add_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
-		if parent_level > 0 and len(instance_levels_partition[parent_level - 1]) > 1:
+		if parent_level == 0:
+			if len(instance_levels_partition[parent_level]) > 1:
+				add_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
+			else:
+				add_intra_level_linear_chain_for_single_node_level(parent_level, idx_node_submap1)
+		else:
 			prev_levels_pair = (parent_level - 1, child_level - 1)
 			restore_level_state(prev_levels_pair, level_states)
-			reconstruct_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
+			if len(instance_levels_partition[parent_level]) > 1:
+				reconstruct_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
+			else:
+				add_intra_level_linear_chain_for_single_node_level(parent_level, idx_node_submap1)
+		
 		if child_level not in level_states:
 			if len(instance_levels_partition[child_level]) > 1:
 				add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2)
@@ -438,7 +451,7 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 		opt.pop()
 		print()
 
-	for level, (instance_proto_submatrix, idx_node_submap) in sorted(A_partition_instance_submatrices_list_with_proto.items())[:3]:
+	for level, (instance_proto_submatrix, idx_node_submap) in sorted(A_partition_instance_submatrices_list_with_proto.items()):
 		print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
 		opt.push()  # Save the current optimizer state for potential backtracking
 
@@ -488,7 +501,7 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 		print()
 
 	# After iterating through all levels, you can check for overall satisfiability
-	for levels_pair in sorted(list(level_states.keys()))[:3]:
+	for levels_pair in sorted(list(level_states.keys())):
 		# print("FINAL STATE AT LEVEL", level, level_states[level])
 		restore_level_state(levels_pair, level_states)
 
