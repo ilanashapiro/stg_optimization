@@ -225,16 +225,10 @@ def add_instance_parent_count_constraints(combined_submatrix,
 			)
 
 			two_parent_condition = z3.Or([
-				z3.Or([
-					z3.And(
-						parent_condition1 == (instance_parent1(child_i_subA_var) == parent_index1_subA1_var),
-						combined_submatrix[combined_node_idx_submap[parent_id2]][child_idx_combined] == (instance_parent2(child_i_subA_var) == z3.Int(f"level:{parent_level}_i_subA:{parent_index2_subA1}")),
-					),
-					z3.And(
-						parent_condition1 == (instance_parent2(child_i_subA_var) == parent_index1_subA1_var),
-						combined_submatrix[combined_node_idx_submap[parent_id2]][child_idx_combined] == (instance_parent1(child_i_subA_var) == z3.Int(f"level:{parent_level}_i_subA:{parent_index2_subA1}")),
-					)
-				]) for parent_index2_subA1, parent_id2 in list(idx_node_submap1.items()) if parent_id2 != parent_id1
+        z3.And(
+          parent_condition1 == (instance_parent1(child_i_subA_var) == parent_index1_subA1_var),
+          combined_submatrix[combined_node_idx_submap[parent_id2]][child_idx_combined] == (instance_parent2(child_i_subA_var) == z3.Int(f"level:{parent_level}_i_subA:{parent_index2_subA1}"))
+        ) for parent_index2_subA1, parent_id2 in list(idx_node_submap1.items()) if parent_id2 != parent_id1
 			])
 
 			# opt.add(one_parent_condition)
