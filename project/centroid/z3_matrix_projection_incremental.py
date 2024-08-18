@@ -537,24 +537,25 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 			print("Unable to find a satisfiable structure across all levels")
 
 if __name__ == "__main__":
-	# centroid = np.loadtxt("/Users/ilanashapiro/Documents/constraints_project/project/centroid/final_centroid_test.txt")
-	# with open("/Users/ilanashapiro/Documents/constraints_project/project/centroid/approx_centroid_node_metadata_test.txt", 'r') as file:
-	# 	node_metadata_dict = json.load(file)
-	# with open("/Users/ilanashapiro/Documents/constraints_project/project/centroid/final_centroid_idx_node_mapping_test.txt", 'r') as file:
-	# 	centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
+  # NOTE: uncomment for viewing already repaired centroids
+	centroid = np.loadtxt("/Users/ilanashapiro/Documents/constraints_project/project/centroid/test_graph_output_files/final_centroid_test.txt")
+	with open("/Users/ilanashapiro/Documents/constraints_project/project/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt", 'r') as file:
+		node_metadata_dict = json.load(file)
+	with open("/Users/ilanashapiro/Documents/constraints_project/project/centroid/test_graph_output_files/final_centroid_idx_node_mapping_test.txt", 'r') as file:
+		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
-	# g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
-	# layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	# build_graph.visualize([g], [layers_g])
-	# sys.exit(0)
+	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+	build_graph.visualize([g], [layers_g])
+	sys.exit(0)
 	
 	# NOTE: IMPORTANT -- assuming all unnecessary dummys (i.e. all instance dummys and impoossible proto dummys) have been removed ALREADY
 	approx_centroid = np.loadtxt(DIRECTORY + '/centroid/approx_centroid_test.txt')
-	with open(DIRECTORY + '/centroid/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
+	with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
 		idx_node_mapping = json.load(file)
 		idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
-	with open(DIRECTORY + '/centroid/approx_centroid_node_metadata_test.txt', 'r') as file:
+	with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt', 'r') as file:
 		node_metadata_dict = json.load(file)
 
 	initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)

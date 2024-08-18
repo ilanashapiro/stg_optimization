@@ -313,7 +313,7 @@ def visualize(graph_list, layers_list):
 			y = 1 - (i + 1) * layer_height
 			x_step = 1.0 / (len(layer) + 1)
 			for j, node in enumerate(layer):
-				x = (j + 1) * x_step + 0.1 -0.1 # Adjust x to the right to accommodate prototypes
+				x = (j + 1) * x_step + 0.1 # Adjust x to the right to accommodate prototypes
 				pos[node['id']] = (x, y)
 		
 		ax = axes_flat[idx]

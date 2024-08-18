@@ -1,3 +1,5 @@
+# THIS FILE IS TAKEN FROM https://github.com/perrygeo/simanneal AND MODIFIED
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

@@ -20,10 +20,10 @@ sys.path.append(DIRECTORY)
 import build_graph
 
 approx_centroid = np.loadtxt(DIRECTORY + '/centroid/approx_centroid_test.txt')
-with open(DIRECTORY + '/centroid/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
+with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
 	idx_node_mapping = json.load(file)
 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
-with open(DIRECTORY + '/centroid/approx_centroid_node_metadata_test.txt', 'r') as file:
+with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt', 'r') as file:
 	node_metadata_dict = json.load(file)
 
 approx_centroid, idx_node_mapping = simanneal_helpers.remove_dummy_nodes(approx_centroid, idx_node_mapping)

@@ -10,9 +10,9 @@ import multiprocessing
 import pickle
 import scipy.sparse as sp
 from collections import defaultdict
-# import cupy as cp
-# import cupyx as cpx
-# import cupy.sparse as cpsp
+import cupy as cp
+import cupyx as cpx
+import cupy.sparse as cpsp
 import torch
 
 # import simanneal_centroid_tests as tests
@@ -31,42 +31,39 @@ Simulated Annealing (SA) Combinatorial Optimization Approach
 3. Modify centroid and repeat until loss converges. Loss is sum of dist from centroid to seach graph in corpus
 '''
 
-def align(P, A_G):
+# chooose numpy, cupy, or Torch version depending on the architecture we're running this on
+def align_numpy(P, A_G): # this is actually scipy for better performance but it's compatible with numpy
 	P_sparse = sp.csr_matrix(P) # Conovert to sparse format
 	A_G_sparse = sp.csr_matrix(A_G)
 	return P_sparse.T @ A_G_sparse @ P_sparse # Perform efficient sparse matrix multiplication
 
-# def align_cupy(P, A_G):
-# 	# Convert CuPy arrays to sparse matrices
-# 	P_sparse = cpsp.csr_matrix(P)
-# 	A_G_sparse = cpsp.csr_matrix(A_G)
+def align_cupy(P, A_G):
+	P_sparse = cpsp.csr_matrix(P) # Convert CuPy arrays to sparse matrices
+	A_G_sparse = cpsp.csr_matrix(A_G)
+	result = P_sparse.T @ A_G_sparse @ P_sparse
+	return result.toarray() # Convert to dense
 
-# 	# Perform sparse matrix multiplication using CuPy
-# 	result = P_sparse.T @ A_G_sparse @ P_sparse
-
-# 	# Convert to dense
-# 	return result.toarray()
-
-# def align(P, A_G):
-# 	P_sparse = P.to_sparse()
-# 	A_G_sparse = A_G.to_sparse()
-# 	result = torch.sparse.mm(torch.sparse.mm(P_sparse.t(), A_G_sparse), P_sparse)
-# 	return result.to_dense()
+def align_torch(P, A_G):
+	P_sparse = P.to_sparse()
+	A_G_sparse = A_G.to_sparse()
+	result = torch.sparse.mm(torch.sparse.mm(P_sparse.t(), A_G_sparse), P_sparse)
+	return result.to_dense()
 
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
 # ||A_g - a^t * A_G * a|| where ||.|| is the norm (using Frobenius norm)
-def dist(A_g, A_G):
+# chooose numpy, cupy, or Torch version depending on the architecture we're running this on
+def dist_numpy(A_g, A_G):
 	return np.linalg.norm(A_g - A_G, 'fro')
 
-# def dist_cupy(A_g, A_G):
-# 	return cp.linalg.norm(A_g - A_G, 'fro')
+def dist_cupy(A_g, A_G):
+	return cp.linalg.norm(A_g - A_G, 'fro')
 
-# def dist(A_g, A_G):
-# 	return torch.norm(A_g - A_G, p='fro')
+def dist_torch(A_g, A_G):
+	return torch.norm(A_g - A_G, p='fro')
 
 class GraphAlignmentAnnealer(Annealer):
-	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict, device=None):#, client, cluster):
+	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict, device=None):
 		super(GraphAlignmentAnnealer, self).__init__(initial_alignment)
 		self.A_g = A_g
 		self.A_G = A_G
@@ -74,8 +71,6 @@ class GraphAlignmentAnnealer(Annealer):
 		self.node_metadata_dict = node_metadata_dict
 		self.node_partitions = self.get_node_partitions()
 		self.device = device
-		# self.client = client
-		# self.cluster = cluster
 		
 	# this prevents us from printing out alignment annealing updates since this gets confusing when also doing centroid annealing
 	def default_update(self, step, T, E, acceptance, improvement):
@@ -153,9 +148,8 @@ class GraphAlignmentAnnealer(Annealer):
 				j = random.randint(0, n - 1)
 		self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
 
-	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix a
-		# state_tensor = torch.tensor(self.state, device=self.device, dtype=torch.float32)
-		e = dist(self.A_g, align(self.state, self.A_G))
+	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix P
+		e = dist_numpy(self.A_g, align_numpy(self.state, self.A_G))
 		# print("ENERGY", e)
 		return e
 
@@ -249,10 +243,11 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
 	# based on the current alignments
 # this is our objective we're trying to minimize
-def loss_cupy(A_g, list_alignedA_G):
-	distances = cp.array([dist(A_g, A_G) for A_G in list_alignedA_G])
-	distance = cp.mean(distances) # unit is distance
-	std = cp.std(distances) # unit is also distance (vs unit of variance would be distance^2)
+# chooose numpy, cupy, or Torch version depending on the architecture we're running this on
+def loss_numpy(A_g, list_alignedA_G):
+	distances = np.array([dist_numpy(A_g, A_G) for A_G in list_alignedA_G])
+	distance = np.mean(distances) # unit is distance
+	std = np.std(distances) # unit is also distance (vs unit of variance would be distance^2)
 
 	# We want to square the result to moderately amplify differences between losses/energies in different states
 	# we want to amplify the larger differences, but not the smaller ones
@@ -264,10 +259,17 @@ def loss_cupy(A_g, list_alignedA_G):
 	# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
 	return (distance * (std + EPSILON)) ** 2 
 
-def loss(A_g, list_alignedA_G, device):
-	distances = torch.tensor([dist(A_g, A_G) for A_G in list_alignedA_G], device=device)
-	distance = torch.mean(distances)  # unit is distance
-	std = torch.std(distances)  # unit is also distance
+def loss_cupy(A_g, list_alignedA_G):
+	distances = cp.array([dist_cupy(A_g, A_G) for A_G in list_alignedA_G])
+	distance = cp.mean(distances) 
+	std = cp.std(distances) 
+	print("DIST", distance, "STD", std)
+	return (distance * (std + EPSILON)) ** 2 
+
+def loss_torch(A_g, list_alignedA_G, device):
+	distances = torch.tensor([dist_torch(A_g, A_G) for A_G in list_alignedA_G], device=device)
+	distance = torch.mean(distances) 
+	std = torch.std(distances)
 	print("DIST", distance, "STD", std)
 	return (distance * (std + EPSILON)) ** 2
 
@@ -389,7 +391,8 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 			batch_attempt_index = 0
 			while not valid_move_found and batch_attempt_index < len(batch_flat_indices_sorted_by_score_and_shuffled):
 				flat_index = batch_flat_indices_sorted_by_score_and_shuffled[batch_attempt_index]
-				
+  
+        # NOTE: uncomment the version (cp, torch, np) that matches the architecture we're running this on
 				# coord = cp.unravel_index(flat_index, score_matrix.shape)
 				# coord = torch.unravel_index(flat_index, score_matrix.shape)
 				coord = np.unravel_index(flat_index, score_matrix.shape) # it's ok if score_matrix.shape is of type torch.shape bc this is still a tuple of ints
@@ -430,8 +433,8 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		cost, alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
 
 		# Align the corpus to the current centroid
-		self.listA_G = list(map(align, alignments, self.listA_G))
-		l = loss(self.state, self.listA_G, self.device) 
+		self.listA_G = list(map(align_numpy, alignments, self.listA_G))
+		l = loss_numpy(self.state, self.listA_G) 
 		print("LOSS", l)
 		return l
 
@@ -455,11 +458,11 @@ if __name__ == "__main__":
 	
 	# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_idx_node_mapping, 2.5, 0.01, 10000, node_metadata_dict)
 	# for i, alignment in enumerate(alignments):
-	# 	file_name = f'alignment_{i}.txt'
+	# 	file_name = f'test_graph_output_files/alignment_{i}.txt'
 	# 	cp.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
 	# 	print(f'Saved: {file_name}')
 
-	# alignments = [cp.loadtxt('alignment_0.txt', dtype=int, delimiter=","), cp.loadtxt('alignment_1.txt', dtype=int, delimiter=",")]
+	# alignments = [cp.loadtxt('test_graph_output_files/alignment_0.txt', dtype=int, delimiter=","), cp.loadtxt('test_graph_output_files/alignment_1.txt', dtype=int, delimiter=",")]
 	# aligned_listA_G = list(map(align, alignments, listA_G))
 
 	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
@@ -469,20 +472,20 @@ if __name__ == "__main__":
 	# centroid, min_loss = centroid_annealer.anneal()
 
 	# centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
-	# cp.savetxt("approx_centroid_test.txt", centroid)
-	# print('Saved: approx_centroid_test.txt')
-	# with open("approx_centroid_idx_node_mapping_test.txt", 'w') as file:
+	# cp.savetxt("test_graph_output_files/approx_centroid_test.txt", centroid)
+	# print('Saved: test_graph_output_files/approx_centroid_test.txt')
+	# with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'w') as file:
 	# 	json.dump(centroid_idx_node_mapping, file)
-	# print('Saved: approx_centroid_idx_node_mapping_test.txt')
-	# with open("approx_centroid_node_metadata_test.txt", 'w') as file:
+	# print('Saved: test_graph_output_files/approx_centroid_idx_node_mapping_test.txt')
+	# with open("test_graph_output_files/approx_centroid_node_metadata_test.txt", 'w') as file:
 	# 	json.dump(node_metadata_dict, file)
-	# print('Saved: approx_centroid_node_metadata_test.txt')
+	# print('Saved: test_graph_output_files/approx_centroid_node_metadata_test.txt')
 	# print("Best centroid", centroid)
 	# print("Best loss", min_loss)
 	# sys.exit(0)
 
-	centroid = np.loadtxt("approx_centroid_test.txt")
-	with open("approx_centroid_idx_node_mapping_test.txt", 'r') as file:
+	centroid = np.loadtxt("test_graph_output_files/approx_centroid_test.txt")
+	with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
 	# centroid, centroid_idx_node_mapping = helpers.remove_all_dummy_nodes(centroid, centroid_idx_node_mapping)
