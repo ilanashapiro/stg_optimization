@@ -14,6 +14,35 @@ import sys, pickle
 from multiprocessing import Pool
 from collections import defaultdict, deque
 
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+
+# NOTE: does NOT work for secondary chords, we just use it for the example figure
+def get_primary_functional_chord_label_from_features(degree, quality):
+  maj_roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+  min_roman = [r.lower() for r in maj_roman]
+  quality_map = {'M':'', 'm':'', 'a':'+', 'd':'o', 'M7':'M7', 'm7':'m7', 'D7':'7', 'd7':'o7', 'h7':'ø7', 'a6':'+6', 'a7':'aug7'}
+  accidental_map = {'+':'#', '-':'b'}
+
+  def parse_degree(degree):
+    deg_num = int(degree[1]) if any(acc in degree for acc in accidental_map.keys()) else int(degree)
+    deg_acc = accidental_map[degree[0]] if any(acc in degree for acc in accidental_map.keys()) else ""
+    return (deg_num, deg_acc)
+
+  deg_num, deg_acc = parse_degree(degree)
+
+  if deg_num < 1 or deg_num > 7:
+    raise Exception("Degree not in valid range", deg_num)
+  if quality not in quality_map:
+    raise Exception("Invalid quality", quality)
+
+  if quality == "a6":
+    chord_roman = "aug6"
+  else:
+    chord_symbol = maj_roman[deg_num - 1] if quality[0].isupper() else min_roman[deg_num - 1] # 0-indexing
+    chord_roman = deg_acc + chord_symbol + quality_map[quality]
+
+  return chord_roman
+
 def get_layer_id(node):
 	for layer_id in ['S', 'P', 'K', 'C', 'M']:
 		if node.startswith(layer_id):
@@ -224,7 +253,7 @@ def augment_graph(G):
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
-def visualize(graph_list, layers_list):
+def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 	n = len(graph_list)
 	
 	# Determine grid size (rows x cols) for subplots
@@ -241,12 +270,34 @@ def visualize(graph_list, layers_list):
 		layers = layers_list[idx]
 		for node in G.nodes():
 			if not node.startswith("Pr"):
-				G.nodes[node]["label"] = node[0]
+				if compress_graph:
+					proto_parent_ids = []
+					for u, v in G.edges():
+						if u.startswith("Pr") and v == node:
+							proto_parent_ids.append(u)
+					features_info = {}
+					for proto_parent in proto_parent_ids:
+						features_info[G.nodes[proto_parent]['feature_name']] = G.nodes[proto_parent]['label'].split(":")[1]
+					match get_layer_id(node):
+						case 'S':
+							G.nodes[node]["label"] = features_info['section_num']
+						case 'P':
+							G.nodes[node]["label"] = features_info['pattern_num'] if 'pattern_num' in features_info else 'filler'
+						case 'K':
+							G.nodes[node]["label"] = f"{features_info['relative_key_num']}{features_info['quality']}"
+						case 'C':
+							G.nodes[node]["label"] = get_primary_functional_chord_label_from_features(features_info['degree2'], features_info['quality'])
+						case 'M':
+							G.nodes[node]["label"] = f"{features_info['interval_sign']}{features_info['abs_interval']}"
+						case _:
+							raise ValueError("Node", node, "has invalid id")
+				elif augmented:
+					G.nodes[node]["label"] = node[0]
 			else:
 				if "filler" in G.nodes[node]["label"]:
 					G.nodes[node]["label"] = "filler:filler"
 				else:
-					G.nodes[node]["label"] = node[2:].lower()
+					G.nodes[node]["label"] = node[2:][0].lower() + node[2:][1:]
 		labels_dict = {node: data.get('label', node) for node, data in G.nodes(data=True)} # Extract node labels from node attributes
 		pos = {}  # Positions dictionary: node -> (x, y)
 		prototype_nodes = []
@@ -263,7 +314,6 @@ def visualize(graph_list, layers_list):
 			y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
-
 
 		ax = axes_flat[idx]
 		all_edges = set(G.edges())
@@ -334,8 +384,6 @@ def visualize(graph_list, layers_list):
 						edgecolors='black',
 						linewidths=0.5
 				)		
-		
-		nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
 
 		all_edges = set(G.edges())
 		intra_level_edges = []
@@ -350,9 +398,12 @@ def visualize(graph_list, layers_list):
 			else:
 				inter_level_edges.append((u, v))
 
-		nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		if augmented and not compress_graph:
+			nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
+			nx.draw_networkx_edges(G, pos, edgelist=proto_edges, ax=ax, edge_color="red", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+			nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
+		
 		nx.draw_networkx_edges(G, pos, edgelist=inter_level_edges, ax=ax, edge_color="black", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
-		nx.draw_networkx_edges(G, pos, edgelist=intra_level_edges, ax=ax, edge_color="#09EF01", arrows=True, arrowstyle="-|>,head_length=0.7,head_width=0.5", node_size=1000)
 		nx.draw_networkx_labels(G, pos, labels=labels_dict, font_size=10, font_weight='bold', ax=ax)
 		ax.set_title(f"Graph {idx + 1}")
 
@@ -404,12 +455,12 @@ def process_graphs(midi_filepath):
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives3.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
-	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour_TEST.csv'
+	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
 	if graph_and_layers:
 		G, layers = graph_and_layers
-		# augment_graph(G)
-		visualize([G], [layers])
+		augment_graph(G)
+		visualize([G], [layers], augmented=True, compress_graph=True)
 		sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
 		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
@@ -434,12 +485,7 @@ if __name__ == "__main__":
 	# delete_files_with_substring(directory, substring)
 	# sys.exit(0)
 
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
-	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
-	# directory = directory + '/chopin/classical_piano_midi_db/chpn-p7'
-	directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	directory = f'{DIRECTORY}/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi'
 
 	tasks = []
 	for dirpath, _, _ in os.walk(directory):

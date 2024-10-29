@@ -10,16 +10,16 @@ import multiprocessing
 import pickle
 import scipy.sparse as sp
 from collections import defaultdict
-import cupy as cp
-import cupyx as cpx
-import cupy.sparse as cpsp
+# import cupy as cp
+# import cupyx as cpx
+# import cupy.sparse as cpsp
 import torch
 
 # import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
 
 EPSILON = 1e-8
-DIRECTORY = '/home/ilshapiro/project'
+# DIRECTORY = '/home/ilshapiro/project'
 DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 import build_graph
@@ -183,7 +183,7 @@ class GraphAlignmentAnnealer(Annealer):
 # layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
 # g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_idx_node_mapping)
 # layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
-# build_graph.visualize_p([g_c], [layers_g_c])
+# build_graph.visualize_p([g_c], [layers_g_c], augmented=True)
 
 # initial_state = cp.eye(cp.shape(A_G1)[0])
 # graph_aligner = GraphAlignmentAnnealer(initial_state, A_G1, A_G2, centroid_idx_node_mapping, node_metadata_dict)
@@ -492,8 +492,8 @@ if __name__ == "__main__":
 
 	g = helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
-	layers_G1 = build_graph.get_unsorted_layers_from_graph_by_index(G1)
-	layers_G2 = build_graph.get_unsorted_layers_from_graph_by_index(G2)
+	# layers_G1 = build_graph.get_unsorted_layers_from_graph_by_index(G1)
+	# layers_G2 = build_graph.get_unsorted_layers_from_graph_by_index(G2)
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	# build_graph.visualize([G2], [layers_G2])
-	build_graph.visualize([g], [layers_g])
+	# build_graph.visualize([G2], [layers_G2], augmented=True)
+	build_graph.visualize([g], [layers_g], augmented=True)

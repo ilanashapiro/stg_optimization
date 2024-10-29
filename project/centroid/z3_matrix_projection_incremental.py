@@ -69,7 +69,7 @@ def initialize_globals(approx_centroid_val, idx_node_mapping_val, node_metadata_
 	node_idx_mapping = z3_helpers.invert_dict(idx_node_mapping)
 	n_A = len(idx_node_mapping)
 	opt = z3.Optimize()
-	opt.set('timeout', 10000) # in milliseconds. 300000ms = 5mins
+	opt.set('timeout', 30000) # in milliseconds. 300000ms = 5mins
 	opt.set("enable_lns", True)
 
 	rank_to_flat_levels_mapping = z3_helpers.get_flat_levels_mapping(node_metadata_dict)
@@ -547,18 +547,18 @@ if __name__ == "__main__":
 	g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	build_graph.visualize([g], [layers_g])
+	build_graph.visualize([g], [layers_g], augmented=True, compress_graph=True)
 	sys.exit(0)
 	
 	# NOTE: IMPORTANT -- assuming all unnecessary dummys (i.e. all instance dummys and impoossible proto dummys) have been removed ALREADY
-	approx_centroid = np.loadtxt(DIRECTORY + '/centroid/approx_centroid_test.txt')
-	with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
-		idx_node_mapping = json.load(file)
-		idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
-	with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt', 'r') as file:
-		node_metadata_dict = json.load(file)
+	# approx_centroid = np.loadtxt(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_test.txt')
+	# with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
+	# 	idx_node_mapping = json.load(file)
+	# 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+	# with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt', 'r') as file:
+	# 	node_metadata_dict = json.load(file)
 
-	initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)
-	final_centroid_filename = DIRECTORY + '/centroid/final_centroid_test.txt'
-	final_idx_node_mapping_filename = "final_centroid_idx_node_mapping_test.txt"
-	run(final_centroid_filename, final_idx_node_mapping_filename)
+	# initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)
+	# final_centroid_filename = DIRECTORY + '/centroid/test_graph_output_files/final_centroid_test.txt'
+	# final_idx_node_mapping_filename = "final_centroid_idx_node_mapping_test.txt"
+	# run(final_centroid_filename, final_idx_node_mapping_filename)
