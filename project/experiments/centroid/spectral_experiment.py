@@ -129,7 +129,7 @@ def compute_laplacian(adj_matrix):
 	eigenvalues, eigenvectors = np.linalg.eigh(laplacian_matrix)
 	return eigenvalues, eigenvectors
 
-def spectral_embedding(adj_matrix, n_components=5):
+def spectral_embedding(adj_matrix, n_components=10):
 	eigenvalues, eigenvectors = compute_spectra(adj_matrix)  # Get both values and vectors
 	# Sort eigenvalues and corresponding eigenvectors
 	idx = np.argsort(eigenvalues)
@@ -140,9 +140,9 @@ def spectral_embedding(adj_matrix, n_components=5):
 	return eigenvectors[:, :n_components]
 
 def eval_embedding_similarity(embedding1, embeddings):
-    # Calculate cosine similarity between embedding1 and each embedding in embeddings
-    similarities = cosine_similarity(embedding1.reshape(1, -1), embeddings)
-    return np.mean(similarities)
+		# Calculate cosine similarity between embedding1 and each embedding in embeddings
+		similarities = cosine_similarity(embedding1.reshape(1, -1), embeddings)
+		return np.mean(similarities)
 
 def plot_spectra(composer, centroid_features, input_features, title='Spectra'):
 	plt.figure(figsize=(8, 6))
@@ -245,13 +245,16 @@ if __name__ == "__main__":
 				# Compute spectral embeddings for the centroid and input graphs
 				centroid_embedding = spectral_embedding(A_g)
 				input_embeddings = [spectral_embedding(A_G) for A_G in listA_G]
-				visualize_embeddings([centroid_embedding] + input_embeddings, labels=["centroid"] + [f"input_piece_{i}" for i in range(0, len(input_embeddings))])
+				# visualize_embeddings([centroid_embedding] + input_embeddings, labels=["centroid"] + [f"input_piece_{i}" for i in range(0, len(input_embeddings))])
 				
-				# Print and compute original centroid similarity
-				original_similarity = eval_embedding_similarity(centroid_embedding.flatten(), [embedding.flatten() for embedding in input_embeddings])
+				original_similarities = cosine_similarity(centroid_embedding.flatten().reshape(1, -1), [embedding.flatten() for embedding in input_embeddings])
+				original_mean_similarity = np.mean(original_similarities)
+				original_std_similarity = np.std(original_similarities)
+				original_score = original_mean_similarity * original_std_similarity
+				print(f"Original centroid score (mean * std): {original_score}")
 				
 				# Initialize variables to store the best centroid and its similarity score
-				best_similarity = original_similarity
+				best_score = original_score
 				best_centroid_idx = -1  # Track the index of the best centroid (default is -1, i.e., original)
 				
 				# Loop through each graph in listA_G as a test centroid
@@ -261,67 +264,72 @@ if __name__ == "__main__":
 						# Exclude the test centroid from input_embeddings for this test
 						other_embeddings = [spectral_embedding(A_G) for i, A_G in enumerate(listA_G) if i != idx]
 						
-						# Calculate mean similarity for this test centroid using cosine similarity
-						mean_similarity = eval_embedding_similarity(test_centroid_embedding.flatten(), [embedding.flatten() for embedding in other_embeddings])
+						# Calculate similarity scores, their mean, and standard deviation
+						similarities = cosine_similarity(test_centroid_embedding.flatten().reshape(1, -1), [embedding.flatten() for embedding in other_embeddings])
+						score = np.mean(similarities) * np.std(similarities)
 						
-						print(f"Mean cosine similarity for test centroid at index {idx}: {mean_similarity}")
+						print(f"Score for test centroid at index {idx} (mean * std): {score}")
 						
-						# Update the best centroid if this test centroid has a higher similarity
-						if mean_similarity > best_similarity:
-								best_similarity = mean_similarity
-								best_centroid_idx = idx  # Store the index of the best test centroid
+						# Update the best centroid if this test centroid has a higher score
+						if score > best_score:
+							best_score = score
+							best_centroid_idx = idx  # Store the index of the best test centroid
 
 				# Print the best centroid's similarity results
 				if best_centroid_idx == -1:
 						print("The original centroid is the closest to the corpus!")
 				else:
-						print(f"The graph at index {best_centroid_idx} has the highest overall similarity with an average of {best_similarity}.")
+						print(f"The graph at index {best_centroid_idx} has the highest overall similarity with an average of {best_score}.")
 	
 	def laplacian_correlation():
 		for composer, centroid in composer_centroids_dict.items():
-			training_pieces = composer_training_pieces_dict[composer]
-			
-			# Prepare adjacency matrices and separate the original centroid
-			listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
-			A_g = listA_G[0]  # the centroid graph
-			listA_G = listA_G[1:]  # separate the input graphs from the centroid
-			
-			# Calculate spectra for the original centroid and input graphs
-			centroid_features = compute_laplacian(A_g)[0] # replace with compute_spectra to examine spectral decomposition instead
-			input_features = [compute_laplacian(A_G)[0] for A_G in listA_G] # replace with compute_spectra to examine spectral decomposition instead
-			
-			# Print and plot original centroid correlation
-			original_correlation = eval_spectra_correlation(centroid_features, input_features)
-			print(f"Mean Pearson correlation for original {composer} centroid: {original_correlation}")
-			plot_spectra(composer, centroid_features, input_features, title=f'Laplacian Decomposition for Composer {composer.capitalize()}')
-			
-			# Initialize variables to store the best centroid and its correlation score
-			best_correlation = original_correlation
-			best_centroid_idx = -1  # Track the index of the best centroid (default is -1, i.e., original)
-			
-			# Loop through each graph in listA_G as a test centroid
-			for idx, test_centroid in enumerate(listA_G):
+				training_pieces = composer_training_pieces_dict[composer]
+				
+				# Prepare adjacency matrices and separate the original centroid
+				listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
+				A_g = listA_G[0]  # the centroid graph
+				listA_G = listA_G[1:]  # separate the input graphs from the centroid
+				
+				# Calculate spectra for the original centroid and input graphs
+				centroid_features = compute_laplacian(A_g)[0] # replace with compute_spectra to examine spectral decomposition instead
+				input_features = [compute_laplacian(A_G)[0] for A_G in listA_G] # replace with compute_spectra to examine spectral decomposition instead
+				
+				# Calculate mean and standard deviation of correlations for the original centroid
+				original_correlation = eval_spectra_correlation(centroid_features, input_features)
+				original_std_dev = np.std([eval_spectra_correlation(centroid_features, [f]) for f in input_features])
+				original_score = original_correlation * original_std_dev
+				
+				print(f"Original {composer} centroid: Mean correlation = {original_correlation}, Std Dev = {original_std_dev}, Score = {original_score}")
+				
+				# Initialize variables to track the best centroid based on mean * std score
+				best_score = original_score
+				best_centroid_idx = -1  # Default to original
+				
+				# Loop through each graph in listA_G as a test centroid
+				for idx, test_centroid in enumerate(listA_G):
 					test_centroid_features = compute_laplacian(test_centroid)[0] # replace with compute_spectra to examine spectral decomposition instead
-					
-					# Exclude the test centroid from input_features for this test
 					other_features = [compute_laplacian(A_G)[0] for i, A_G in enumerate(listA_G) if i != idx] # replace with compute_spectra to examine spectral decomposition instead
 					
-					# Calculate mean correlation for this test centroid
-					mean_correlation = eval_spectra_correlation(test_centroid_features, other_features)
+					# Calculate mean correlation and standard deviation for this test centroid
+					correlations = [eval_spectra_correlation(test_centroid_features, [f]) for f in other_features]
+					mean_correlation = np.mean(correlations)
+					std_dev = np.std(correlations)
 					
-					print(f"Mean Pearson correlation for test centroid at index {idx}: {mean_correlation}")
+					# Combined metric (mean * std)
+					score = mean_correlation * std_dev
+					print(f"Test centroid at index {idx}: Mean correlation = {mean_correlation}, Std Dev = {std_dev}, Score = {score}")
 					
-					# Update the best centroid if this test centroid has a higher correlation
-					if mean_correlation > best_correlation:
-							best_correlation = mean_correlation
-							best_centroid_idx = idx  # Store the index of the best test centroid
-
-			# Print and plot the best centroid's correlation results
-			if best_centroid_idx == -1:
-					print("The original centroid is the closest to the corpus!")
-			else:
-					print(f"The graph at index {best_centroid_idx} has the highest overall correlation with an average of {best_correlation}.")
-						
+					# Update the best centroid if this test centroid has a higher score
+					if score > best_score:
+						best_score = score
+						best_centroid_idx = idx
+			
+				# Print and plot the best centroid’s correlation results
+				if best_centroid_idx == -1:
+						print("The original centroid is the closest to the corpus!")
+				else:
+						print(f"The graph at index {best_centroid_idx} has the highest combined score with a mean * std value of {best_score}.")
+												
 	def spectra_correlation():
 		for composer, centroid in composer_centroids_dict.items():
 			training_pieces = composer_training_pieces_dict[composer]
@@ -335,6 +343,6 @@ if __name__ == "__main__":
 			print(f"Mean Pearson correlation for {composer}: {eval_spectra_correlation(centroid_features, input_features)}")
 			plot_spectra(composer, centroid_features, input_features, title=f'Spectral Decomposition for Composer {composer.capitalize()}')
 
-	laplacian_correlation()
-	# embedding_similarity()
+	# laplacian_correlation()
+	embedding_similarity()
 	# spectra_correlation()

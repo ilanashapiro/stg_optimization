@@ -49,27 +49,29 @@ if __name__ == "__main__":
 			grakel_graphs.append(graph)
 
 		# Initialize the Weisfeiler-Lehman kernel with a base kernel
-		wl_kernel = WeisfeilerLehman(n_iter=4, normalize=True, base_graph_kernel=NeighborhoodSubgraphPairwiseDistance)
+		wl_kernel = WeisfeilerLehman(n_iter=5, normalize=True, base_graph_kernel=WeisfeilerLehmanOptimalAssignment)
 
 		# Store average similarities for each graph when treated as the centroid
-		average_similarities = []
+		scores = []
 
 		# Iterate over each graph in the corpus, treating each as the candidate centroid
-		for i, test_graph in enumerate(listA_G):
-				# Create a new list where the test graph is duplicated as the "centroid"
-				test_grakel_graphs = [grakel_graphs[i + 1]] + grakel_graphs[1:]
-				
-				# Compute the kernel matrix
-				kernel_matrix = wl_kernel.fit_transform(test_grakel_graphs)
-				
-				# Calculate the average similarity, excluding the first graph (the "centroid" itself)
-				avg_similarity = np.mean(kernel_matrix[0, 1:])
-				average_similarities.append(avg_similarity)
+		for i in range(len(grakel_graphs) - 1):
+			# Create a new list where each candidate graph becomes the "test centroid" (first is original centroid, then duplicating the test graphs to replace original centroid)
+			test_grakel_graphs = [grakel_graphs[i]] + grakel_graphs[1:]
+			
+			# Compute the kernel matrix
+			kernel_matrix = wl_kernel.fit_transform(test_grakel_graphs)
+			
+			# Calculate the score, excluding the first graph (the "centroid" itself)
+			mean_similarity = np.mean(kernel_matrix[0, 1:])
+			std_similarity = np.std(kernel_matrix[0, 1:])
+			score = mean_similarity * std_similarity
+			scores.append(score)
 
-				# print(f"Average similarity when graph {i + 1} is treated as the centroid: {avg_similarity}")
+			print(f"Scoore when graph {i} is treated as the centroid: {score}")
 
 		# Identify which graph has the highest average similarity to the corpus
-		best_similarity = max(average_similarities)
-		best_graph_index = average_similarities.index(best_similarity)
+		best_score = max(scores)
+		best_graph_index = scores.index(best_score)
 
-		print(f"The most representative graph in the corpus is graph {best_graph_index} with an average similarity of {best_similarity}.")
+		print(f"The most representative graph in the corpus is graph {best_graph_index} with a score of {score}.")
