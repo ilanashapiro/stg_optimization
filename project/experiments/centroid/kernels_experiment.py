@@ -49,7 +49,7 @@ if __name__ == "__main__":
 			grakel_graphs.append(graph)
 
 		# Initialize the Weisfeiler-Lehman kernel with a base kernel
-		wl_kernel = WeisfeilerLehman(n_iter=5, normalize=True, base_graph_kernel=WeisfeilerLehmanOptimalAssignment)
+		wl_kernel = WeisfeilerLehman(n_iter=5, normalize=False, base_graph_kernel=VertexHistogram)
 
 		# Store average similarities for each graph when treated as the centroid
 		scores = []

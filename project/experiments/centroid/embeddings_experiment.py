@@ -1,6 +1,6 @@
 import os, sys, pickle, json, re
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import cosine_similarity, cosine_distances
 from karateclub import Graph2Vec
 import spectral_experiment
 import networkx as nx
@@ -48,28 +48,25 @@ if __name__ == "__main__":
         A_g = listA_G[0]  # The centroid graph
         listA_G = listA_G[1:]  # Separate input graphs from the centroid
 
-        # Convert graphs to embeddings using Graph2Vec
         graph2vec_model = Graph2Vec(dimensions=128, wl_iterations=5)  # Customize embedding dimensions as needed
         graph2vec_model.fit([adjacency_matrix_to_nx(A_g)] + [adjacency_matrix_to_nx(A_G) for A_G in listA_G])
         graph_embeddings = graph2vec_model.get_embedding()
 
-        # Store average cosine similarities for each graph treated as the candidate centroid
-        average_similarities = []
+        scores = []
 
         # Iterate over each graph in the corpus, treating each as the candidate centroid
         for i, test_embedding in enumerate(graph_embeddings):
-            similarities = [
-                cosine_similarity([test_embedding], [embedding])[0][0]
+            distances = [
+                cosine_distances([test_embedding], [embedding])[0][0]
                 for j, embedding in enumerate(graph_embeddings) if j > 0 # exclude the original centroid
             ]
-            avg_similarity = np.mean(similarities)
-            average_similarities.append(avg_similarity)
+            score = np.mean(distances) * np.std(distances)
+            scores.append(score)
 
-            # Print or log each average similarity if desired
-            # print(f"Average similarity when graph {i} is treated as the centroid: {avg_similarity:.4f}")
+            # print(f"Score when graph {i} is treated as the centroid: {score:.4f}")
 
-        # Identify the graph with the highest average similarity as the best centroid
-        best_similarity = max(average_similarities)
-        best_graph_index = average_similarities.index(best_similarity)
+        # Identify the graph with the highest score as the best centroid
+        best_score = min(scores)
+        best_graph_index = scores.index(best_score)
 
-        print(f"The most representative graph in the corpus is graph {best_graph_index} with an average cosine similarity of {best_similarity:.4f}.")
+        print(f"The most representative graph in the corpus is graph {best_graph_index} with an average score of {best_score:.4f}.")
