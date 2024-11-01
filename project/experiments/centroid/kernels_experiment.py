@@ -36,20 +36,16 @@ if __name__ == "__main__":
 	for composer, centroid in composer_centroids_dict.items():
 		training_pieces = composer_training_pieces_dict[composer]
 		listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
-		A_g = listA_G[0] # the centroid graph
-		listA_G = listA_G[1:] # separate the input graphs from the centroid
 		
-		# grakel_graphs = [Graph(A_g)] + [Graph(A_G) for A_G in listA_G]
 		grakel_graphs = []
-		listl = [A_g] + listA_G
-		for adjacency_matrix in listl:
+		for adjacency_matrix in listA_G:
 			labels = {i: f'node' for i in range(adjacency_matrix.shape[0])}  # Dummy labels
 			edge_labels = {(i, j): 'edge' for i in range(adjacency_matrix.shape[0]) for j in range(adjacency_matrix.shape[1]) if adjacency_matrix[i, j] > 0}  # Dummy edge labels
 			graph = Graph(adjacency_matrix, node_labels=labels, edge_labels=edge_labels)
 			grakel_graphs.append(graph)
 
 		# Initialize the Weisfeiler-Lehman kernel with a base kernel
-		wl_kernel = WeisfeilerLehman(n_iter=5, normalize=False, base_graph_kernel=VertexHistogram)
+		wl_kernel = WeisfeilerLehman(n_iter=5, normalize=True, base_graph_kernel=NeighborhoodSubgraphPairwiseDistance)
 
 		# Store average similarities for each graph when treated as the centroid
 		scores = []
@@ -61,17 +57,49 @@ if __name__ == "__main__":
 			
 			# Compute the kernel matrix
 			kernel_matrix = wl_kernel.fit_transform(test_grakel_graphs)
+			dist_matrix = 1 - kernel_matrix
 			
 			# Calculate the score, excluding the first graph (the "centroid" itself)
-			mean_similarity = np.mean(kernel_matrix[0, 1:])
-			std_similarity = np.std(kernel_matrix[0, 1:])
-			score = mean_similarity * std_similarity
+			mean_dist = np.mean(dist_matrix[0, 1:])
+			std_dist  = np.std(dist_matrix[0, 1:])
+			score = mean_dist # * std_dist 
 			scores.append(score)
 
-			print(f"Scoore when graph {i} is treated as the centroid: {score}")
+			print(f"Score when graph {i} is treated as the centroid: {score}")
 
-		# Identify which graph has the highest average similarity to the corpus
-		best_score = max(scores)
+		best_score = min(scores)
 		best_graph_index = scores.index(best_score)
 
-		print(f"The most representative graph in the corpus is graph {best_graph_index} with a score of {score}.")
+		print(f"The most representative graph in the corpus is graph {best_graph_index} with a score of {best_score}.")
+
+
+# RESULT WHEN DOING DIFFERENCE MATRIX (1-KERNEL) for WL, NORMALLIZED, 5 ITER, BASE=NeighborhoodSubgraphPairwiseDistance
+# graph 0 is the candidate centroid in each group. we want the lowest score (mean * std) of the distances
+# Score when graph 0 is treated as the centroid: 0.003151294049742592
+# Score when graph 1 is treated as the centroid: 0.1016670509498339
+# Score when graph 2 is treated as the centroid: 0.10110109626350668
+# Score when graph 3 is treated as the centroid: 0.09997122179854936
+# Score when graph 4 is treated as the centroid: 0.10041603586223657
+# Score when graph 5 is treated as the centroid: 0.0968413145911526
+# The most representative graph in the corpus is graph 0 with a score of 0.003151294049742592.
+# Score when graph 0 is treated as the centroid: 0.011726409974786163
+# Score when graph 1 is treated as the centroid: 0.09624173461271755
+# Score when graph 2 is treated as the centroid: 0.1015314478428872
+# Score when graph 3 is treated as the centroid: 0.10471013477566422
+# Score when graph 4 is treated as the centroid: 0.1018918443151187
+# Score when graph 5 is treated as the centroid: 0.10288991391863234
+# Score when graph 6 is treated as the centroid: 0.11193667171465782
+# Score when graph 7 is treated as the centroid: 0.09649614434757735
+# Score when graph 8 is treated as the centroid: 0.10147834310717792
+# The most representative graph in the corpus is graph 0 with a score of 0.011726409974786163.
+# Score when graph 0 is treated as the centroid: 0.010636458072726217
+# Score when graph 1 is treated as the centroid: 0.11153544713829874
+# Score when graph 2 is treated as the centroid: 0.1002269880461082
+# Score when graph 3 is treated as the centroid: 0.10047570988006804
+# The most representative graph in the corpus is graph 0 with a score of 0.010636458072726217.
+# Score when graph 0 is treated as the centroid: 0.0027268160194961408
+# Score when graph 1 is treated as the centroid: 0.10671758441211408
+# Score when graph 2 is treated as the centroid: 0.10506754513416786
+# Score when graph 3 is treated as the centroid: 0.10842399782420022
+# Score when graph 4 is treated as the centroid: 0.10800274235973978
+# The most representative graph in the corpus is graph 0 with a score of 0.0027268160194961408.
