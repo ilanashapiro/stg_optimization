@@ -5,16 +5,13 @@ from karateclub import Graph2Vec
 import spectral_experiment
 import networkx as nx
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ilshapiro/project"
 TIME_PARAM = '50s'
-NUM_GPUS = 8
-sys.path.append(DIRECTORY)
-sys.path.append(f"{DIRECTORY}/centroid")
-sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 
-import build_graph
-import structural_distance_gen_clusters as st_gen_clusters
-import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
+sys.path.append(f"{DIRECTORY}/centroid")
+import simanneal_centroid_helpers
 
 def load_graph(file_path):
   with open(file_path, 'rb') as f:
