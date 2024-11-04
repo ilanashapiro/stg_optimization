@@ -25,7 +25,7 @@ def create_distance_matrix(cluster, cache):
 					d = cache[cache_key_rev]
 				else:
 					graph_fp1 = re.sub(r'^.*?/project', DIRECTORY, graph_fp1)
-					graph_fp2 = re.sub(r'^.*?/project', DIRECTORY, graph_fp1)
+					graph_fp2 = re.sub(r'^.*?/project', DIRECTORY, graph_fp2)
 					with open(graph_fp1, 'rb') as f:
 						G1 = pickle.load(f)
 					with open(graph_fp2, 'rb') as f:

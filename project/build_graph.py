@@ -413,8 +413,10 @@ def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 	plt.tight_layout()
 	plt.show()
 
-def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath):
+def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_filepath, harmony_filepath, melody_filepath, ablation_levels=5):
 	try:
+		if ablation_levels < 1 or ablation_levels > 5:
+			raise Exception("Ablation levels must be between 1 and 5")
 		layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
 		# keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
 		# layers.append(keys_layer)
@@ -423,6 +425,7 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 		layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
 		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)) # contains key level and chords level
 		layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
+		layers = layers[:ablation_levels]
 		G = create_graph(piece_start_time, piece_end_time, layers)
 
 		for node in G.nodes: # hack for some graphs whose CSV files don't match MIDI for reasons i'm not sure of. they contain nodes like 'Sfiller' due to timing conversion problems
@@ -456,14 +459,17 @@ def process_graphs(midi_filepath):
 	motives_file = base_path + '_motives3.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
-	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file)
+	ablation_levels = 4
+	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file, ablation_levels=ablation_levels)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		augment_graph(G)
-		visualize([G], [layers], augmented=True, compress_graph=True)
-		sys.exit(0)
+		# G_c = compress_graph(G)
+		# layers_c = get_unsorted_layers_from_graph_by_index(G_c)
+		# visualize([G], [layers])
+		# sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
-		aug_graph_filepath = base_path + f"_augmented_graph_{hierarchical_status}.pickle"
+		aug_graph_filepath = base_path + f"_augmented_graph_ablation_{ablation_levels}level_{hierarchical_status}.pickle"
 		if not os.path.exists(aug_graph_filepath):
 			with open(aug_graph_filepath, 'wb') as f:
 				pickle.dump(G, f)
@@ -480,12 +486,17 @@ if __name__ == "__main__":
 	# 				print(f"Deleting {file_path}")
 	# 				os.remove(file_path)
 
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# substring = '_augmented_graph'
+	# directory = '/home/ilshapiro/project/datasets'
+	# substring = '_augmented_graph_ablation_1level'
 	# delete_files_with_substring(directory, substring)
 	# sys.exit(0)
 
-	directory = f'{DIRECTORY}/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi'
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
+	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
+	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
+	# directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	# directory = directory + '/chopin/classical_piano_midi_db/chpn-p7'
+	directory = '/home/ilshapiro/project/datasets'
 
 	tasks = []
 	for dirpath, _, _ in os.walk(directory):
