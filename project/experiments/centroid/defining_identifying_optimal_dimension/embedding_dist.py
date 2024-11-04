@@ -40,6 +40,7 @@ def identify_optimal_dim(embedding_dims, loss):
     opt = np.power((s/0.05),1/a)
     print('the optimal dimension at 0.05 accuracy level is {}'.format(int(math.ceil(opt))))
     print('the MSE of curve fitting is {}'.format(MSE))
+    return int(math.ceil(opt)), MSE
 
 def cal_cosine_matrices(G, walks, start_dim=2, end_dim=100, step=4, window_size=5, workers=8, iter=10):
     '''
@@ -94,7 +95,7 @@ def cal_embedding_distance(edge_list, weighted=False, directed=False, p=1, q=1, 
     dims, loss = cal_cosine_matrices(nx_G,walks,start_dim,end_dim,step,window_size,workers,iter)
     plt.plot(dims,loss)
     plt.savefig('./a.png')
-    identify_optimal_dim(dims, loss)
-    return dims, loss
+    opt_dim, mse_loss = identify_optimal_dim(dims, loss)
+    return opt_dim, mse_loss
 
 

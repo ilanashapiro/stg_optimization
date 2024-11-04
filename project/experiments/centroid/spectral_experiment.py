@@ -18,8 +18,8 @@ from sklearn.manifold import SpectralEmbedding
 import defining_identifying_optimal_dimension 
 
 # DIRECTORY = "/home/ubuntu/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
-# DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ilshapiro/project"
 TIME_PARAM = '50s'
 
 sys.path.append(f"{DIRECTORY}/centroid")
@@ -77,10 +77,14 @@ def adj_matrix_to_edgelist(adj_matrix):
 				edgelist.append((i, j, adj_matrix[i, j]))
 	return edgelist
 
+def get_opt_embedding_dim(adj_matrix):
+	opt_dim, mse_loss = embedding_dist.cal_embedding_distance(adj_matrix_to_edgelist(adj_matrix))
+	print(opt_dim, mse_loss)
+	return opt_dim
+	
 def spectral_embedding(adj_matrix, n_components=8):
 	# num components must be <= matrix dims, per the docs. and if drop_first is true (which it is for Laplacian), the library sets num_components += 1. so we must do max dims - 2 for the max components
 	max_components = adj_matrix.shape[0] - 2 
-	opt_dims, mse_loss = embedding_dist.cal_embedding_distance(adj_matrix_to_edgelist(adj_matrix))
 	embedding = SpectralEmbedding(n_components=n_components)
 	return embedding.fit_transform(adj_matrix)
 
@@ -156,19 +160,22 @@ if __name__ == "__main__":
 				best_score = math.inf
 				best_centroid_idx = -1  # Track the index of the best centroid (default is -1, i.e., original)
 				
+				# the embeddings must be the same size, so we do the max of the opt embeddings so as to not lose structural info
+				embedding_dim = int(np.median([get_opt_embedding_dim(A_G) for A_G in listA_G]))
+				print(f"EMBEDDING DIM (MEDIAN) FOR {composer}: {embedding_dim}")
+	
 				for idx, test_centroid in enumerate(listA_G):
-					test_centroid_embedding = spectral_embedding(test_centroid)
+					test_centroid_embedding = spectral_embedding(test_centroid, n_components=embedding_dim)
 			
 					# Exclude the original candidate centroid from input_embeddings for this test
-					other_embeddings = [spectral_embedding(A_G) for i, A_G in enumerate(listA_G) if i > 0]
+					other_embeddings = [spectral_embedding(A_G, n_components=embedding_dim) for i, A_G in enumerate(listA_G) if i > 0]
 
 					# plot_spectral_embeddings([test_centroid_embedding] + other_embeddings)
-					# sys.exit(0)
-					sys.exit(0)
+
 					distances = euclidean_distances(test_centroid_embedding.flatten().reshape(1, -1), [embedding.flatten() for embedding in other_embeddings])
 					score = np.mean(distances) * np.std(distances)
 					
-					# print(f"Score for test centroid at index {idx} (mean * std): {score}")
+					print(f"Score for test centroid at index {idx} (mean * std): {score}")
 					
 					if score < best_score:
 						best_score = score
@@ -219,3 +226,159 @@ if __name__ == "__main__":
 	# spectral_correlation()
 	embedding_distances()
 	# plot_spectra_wrapper()
+
+# OPTIMAL EMBEDDING DIM RESULTS:
+# graph size smaller than the default end dimension, thus has been automatically set to 92
+# the optimal dimension at 0.05 accuracy level is 32
+# the MSE of curve fitting is 2.710455981557946e-05
+# 32 2.710455981557946e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 111
+# the optimal dimension at 0.05 accuracy level is 47
+# the MSE of curve fitting is 0.00010975787397100909
+# 47 0.00010975787397100909
+# graph size smaller than the default end dimension, thus has been automatically set to 140
+# the optimal dimension at 0.05 accuracy level is 34
+# the MSE of curve fitting is 4.426486827246422e-05
+# 34 4.426486827246422e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 179
+# the optimal dimension at 0.05 accuracy level is 69
+# the MSE of curve fitting is 0.0001151441312731053
+# 69 0.0001151441312731053
+# graph size smaller than the default end dimension, thus has been automatically set to 134
+# the optimal dimension at 0.05 accuracy level is 49
+# the MSE of curve fitting is 7.562297260643182e-05
+# 49 7.562297260643182e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 346
+# the optimal dimension at 0.05 accuracy level is 143
+# the MSE of curve fitting is 4.136423205525769e-05
+# 143 4.136423205525769e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 173
+# the optimal dimension at 0.05 accuracy level is 65
+# the MSE of curve fitting is 8.723696916253633e-05
+# 65 8.723696916253633e-05
+# EMBEDDING DIM (MEDIAN) FOR bach: 49
+# Score for test centroid at index 0 (mean * std): 0.008574461422436126
+# Score for test centroid at index 1 (mean * std): 0.4565080427122601
+# Score for test centroid at index 2 (mean * std): 0.506996934425738
+# Score for test centroid at index 3 (mean * std): 0.40286174862827867
+# Score for test centroid at index 4 (mean * std): 0.5050712964613594
+# Score for test centroid at index 5 (mean * std): 0.615436108264228
+# Score for test centroid at index 6 (mean * std): 0.6136893531835792
+# The graph at index 0 has the best score of 0.008574461422436126.
+
+
+# graph size smaller than the default end dimension, thus has been automatically set to 127
+# the optimal dimension at 0.05 accuracy level is 69
+# the MSE of curve fitting is 7.945919151826464e-05
+# 69 7.945919151826464e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 200
+# the optimal dimension at 0.05 accuracy level is 110
+# the MSE of curve fitting is 5.640084314862057e-05
+# 110 5.640084314862057e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 40
+# the optimal dimension at 0.05 accuracy level is 13
+# the MSE of curve fitting is 6.993271166166618e-05
+# 13 6.993271166166618e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 48
+# the optimal dimension at 0.05 accuracy level is 11
+# the MSE of curve fitting is 4.79958710763192e-05
+# 11 4.79958710763192e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 73
+# the optimal dimension at 0.05 accuracy level is 29
+# the MSE of curve fitting is 3.45823259164068e-05
+# 29 3.45823259164068e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 55
+# the optimal dimension at 0.05 accuracy level is 15
+# the MSE of curve fitting is 3.5061761940651e-05
+# 15 3.5061761940651e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 34
+# the optimal dimension at 0.05 accuracy level is 10
+# the MSE of curve fitting is 9.515193416303498e-05
+# 10 9.515193416303498e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 63
+# the optimal dimension at 0.05 accuracy level is 17
+# the MSE of curve fitting is 2.8707516553239562e-05
+# 17 2.8707516553239562e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 104
+# the optimal dimension at 0.05 accuracy level is 31
+# the MSE of curve fitting is 5.934929548428081e-05
+# 31 5.934929548428081e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 147
+# the optimal dimension at 0.05 accuracy level is 64
+# the MSE of curve fitting is 5.9713638117520164e-05
+# 64 5.9713638117520164e-05
+# EMBEDDING DIM (MEDIAN) FOR beethoven: 23
+# Score for test centroid at index 0 (mean * std): 0.015035301886421111
+# Score for test centroid at index 1 (mean * std): 0.3745473824719996
+# Score for test centroid at index 2 (mean * std): 0.2738294381806822
+# Score for test centroid at index 3 (mean * std): 0.2698867737494362
+# Score for test centroid at index 4 (mean * std): 0.37822992759334256
+# Score for test centroid at index 5 (mean * std): 0.27670954219527955
+# Score for test centroid at index 6 (mean * std): 0.2635396609059994
+# Score for test centroid at index 7 (mean * std): 0.2727027809700001
+# Score for test centroid at index 8 (mean * std): 0.3796284282736056
+# Score for test centroid at index 9 (mean * std): 0.378488173943061
+	
+
+# The graph at index 0 has the best score of 0.015035301886421111.
+# graph size smaller than the default end dimension, thus has been automatically set to 115
+# the optimal dimension at 0.05 accuracy level is 56
+# the MSE of curve fitting is 7.038564861744082e-05
+# 56 7.038564861744082e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 102
+# the optimal dimension at 0.05 accuracy level is 29
+# the MSE of curve fitting is 7.772750260992701e-05
+# 29 7.772750260992701e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 163
+# the optimal dimension at 0.05 accuracy level is 95
+# the MSE of curve fitting is 5.146907757390221e-05
+# 95 5.146907757390221e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 182
+# the optimal dimension at 0.05 accuracy level is 103
+# the MSE of curve fitting is 8.126296724510065e-05
+# 103 8.126296724510065e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 158
+# the optimal dimension at 0.05 accuracy level is 68
+# the MSE of curve fitting is 6.993003041435008e-05
+# 68 6.993003041435008e-05
+# EMBEDDING DIM (MEDIAN) FOR haydn: 68
+# Score for test centroid at index 0 (mean * std): 0.041445182887735625
+# Score for test centroid at index 1 (mean * std): 0.8285262918412071
+# Score for test centroid at index 2 (mean * std): 1.052813759695979
+# Score for test centroid at index 3 (mean * std): 1.222437786337313
+# Score for test centroid at index 4 (mean * std): 1.4615183438743837
+# The graph at index 0 has the best score of 0.041445182887735625.
+
+
+# graph size smaller than the default end dimension, thus has been automatically set to 113
+# the optimal dimension at 0.05 accuracy level is 50
+# the MSE of curve fitting is 7.260695629526462e-05
+# 50 7.260695629526462e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 177
+# the optimal dimension at 0.05 accuracy level is 72
+# the MSE of curve fitting is 4.7238794232087796e-05
+# 72 4.7238794232087796e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 133
+# the optimal dimension at 0.05 accuracy level is 42
+# the MSE of curve fitting is 4.145676008638775e-05
+# 42 4.145676008638775e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 98
+# the optimal dimension at 0.05 accuracy level is 25
+# the MSE of curve fitting is 2.569817339641731e-05
+# 25 2.569817339641731e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 137
+# the optimal dimension at 0.05 accuracy level is 61
+# the MSE of curve fitting is 5.9920605734343336e-05
+# 61 5.9920605734343336e-05
+# graph size smaller than the default end dimension, thus has been automatically set to 150
+# the optimal dimension at 0.05 accuracy level is 54
+# the MSE of curve fitting is 5.575161178008929e-05
+# 54 5.575161178008929e-05
+# EMBEDDING DIM (MEDIAN) FOR mozart: 52
+# Score for test centroid at index 0 (mean * std): 0.014712376513727393
+# Score for test centroid at index 1 (mean * std): 1.0282015684591146
+# Score for test centroid at index 2 (mean * std): 1.0204491714930022
+# Score for test centroid at index 3 (mean * std): 0.8980017616418008
+# Score for test centroid at index 4 (mean * std): 0.8104844781196467
+# Score for test centroid at index 5 (mean * std): 0.8647802490312058
+# The graph at index 0 has the best score of 0.014712376513727393.
