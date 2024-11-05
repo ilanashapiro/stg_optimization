@@ -3,19 +3,23 @@ import pickle, json
 import numpy as np
 from multiprocessing import Pool
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
-# DIRECTORY = "/home/ishapiro/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ishapiro/project"
 sys.path.append(f"{DIRECTORY}")
 sys.path.append(f"{DIRECTORY}/centroid")
 
-import build_graph
+# import build_graph
 import z3_matrix_projection_incremental as z3_repair
 import simanneal_centroid_helpers as helpers
 
 TIME_PARAM = "50s"
+ABLATION_LEVEL = 1 # set to None if we don't want to do ablation
 
 def repair_centroid(composer):
-	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}/{composer}"
+	if ABLATION_LEVEL:
+		approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}_ablation{ABLATION_LEVEL}/{composer}"
+	else:
+		approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}/{composer}"
 
 	approx_centroid_path = os.path.join(approx_centroid_dir, "centroid.txt")
 	approx_centroid = np.loadtxt(approx_centroid_path)
@@ -34,7 +38,10 @@ def repair_centroid(composer):
 
 	z3_repair.initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)
 
-	final_centroid_dir = f'{DIRECTORY}/experiments/centroid/final_centroids/final_centroid_{TIME_PARAM}/{composer}'
+	if ABLATION_LEVEL:
+		final_centroid_dir = f'{DIRECTORY}/experiments/centroid/final_centroids/final_centroid_{TIME_PARAM}_ablation{ABLATION_LEVEL}/{composer}'
+	else:
+		final_centroid_dir = f'{DIRECTORY}/experiments/centroid/final_centroids/final_centroid_{TIME_PARAM}/{composer}'
 	if not os.path.exists(final_centroid_dir):
 		os.makedirs(final_centroid_dir)
 	final_centroid_filename = f'{final_centroid_dir}/final_centroid.txt'
@@ -43,8 +50,11 @@ def repair_centroid(composer):
 	z3_repair.run(final_centroid_filename, final_idx_node_mapping_filename)
 
 if __name__ == "__main__":
-	approx_centroids_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}"
-	approx_centroid_composers = [name for name in os.listdir(approx_centroids_dir) if os.path.isdir(os.path.join(approx_centroids_dir, name))]
+	if ABLATION_LEVEL:
+		approx_centroids_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}_ablation{ABLATION_LEVEL}"
+	else:
+		approx_centroids_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}"
+	approx_centroid_composers = [name for name in os.listdir(approx_centroids_dir) if os.path.isdir(os.path.join(approx_centroids_dir, name)) and name not in ["brahms", "chopin"]]
 
 	with Pool() as pool:
 		alignments = pool.map(repair_centroid, approx_centroid_composers)
