@@ -2,7 +2,8 @@ import os, sys, re, pickle
 import numpy as np
 
 # DIRECTORY = "/home/ilshapiro/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/baseline2_audio_similarity/audio-similarity/audio_similarity")
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 

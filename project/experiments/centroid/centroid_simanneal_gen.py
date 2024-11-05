@@ -6,15 +6,17 @@ import torch
 from multiprocessing import Pool, current_process, Queue
 
 DIRECTORY = "/home/ubuntu/project"
+TIME_PARAM = '50s'
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
-sys.path.append(f"{DIRECTORY}/experiments/structural_dist")
+sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 
 import build_graph
 import structural_distance_gen_clusters as st_gen_clusters
 import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
 
 NUM_GPUS = 8 
+ABLATION_LEVEL = 4 # set to None if we don't want to do ablation
 
 def filter_by_max_min_duration_cluster(composer_graphs, max_duration, min_duration=0):
 		# Flatten all values into a single list and map durations to their keys and tuples
@@ -121,7 +123,7 @@ def partition_composer_cluster_for_centroid(composer, pieces_info_list):
 	return best_centroid_list
 
 def get_cluster():
-	composer_graphs_cluster_path = f"{DIRECTORY}/experiments/centroid/composer_graphs_cluster.txt" # this is a SINGLE cluster
+	composer_graphs_cluster_path = f"{DIRECTORY}/experiments/centroid/clusters/composer_graphs_cluster_{TIME_PARAM}.txt" # this is a SINGLE cluster
 	if os.path.exists(composer_graphs_cluster_path):
 		with open(composer_graphs_cluster_path, 'r') as file:
 			cluster = json.load(file)
@@ -151,7 +153,7 @@ def get_cluster():
 		# 		max_graphs = total_graphs
 		# 		max_composer_graphs_cluster = composer_graphs_dict
 
-		max_composer_graphs_cluster = filter_by_max_min_duration_cluster(composer_graphs, 35)
+		max_composer_graphs_cluster = filter_by_max_min_duration_cluster(composer_graphs, TIME_PARAM)
 		# for composer, graphs in max_composer_graphs_cluster.items():
 		# 	print(composer, len(graphs))
 		# sys.exit(0)
@@ -166,7 +168,7 @@ def get_cluster():
 	return cluster 
 
 def get_composer_centroid_input_graphs(cluster):
-	composer_centroid_input_graphs_path = f"{DIRECTORY}/experiments/centroid/composer_centroid_input_graphs.txt" # this is a SINGLE cluster
+	composer_centroid_input_graphs_path = f"{DIRECTORY}/experiments/centroid/clusters/composer_centroid_input_graphs_{TIME_PARAM}.txt" # this is a SINGLE cluster
 	if os.path.exists(composer_centroid_input_graphs_path):
 		with open(composer_centroid_input_graphs_path, 'r') as file:
 			composer_centroid_input_graphs = json.load(file)
@@ -186,7 +188,7 @@ def get_composer_centroid_input_graphs(cluster):
 			print("SAVED", composer_centroid_input_graphs_path)
 	return composer_centroid_input_graphs		
 
-def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_id):
+def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_id, ablation_level=None):
 	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
 	print(f"Process {current_process().name} running on GPU {gpu_id} for centroid cluster {composer}")
 	
@@ -198,8 +200,12 @@ def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_
 	# because these are tensors originally
 	initial_centroid = min_loss_A_G.cpu().numpy() 
 	initial_alignments = [alignment.cpu().numpy() for alignment in optimal_alignments]
+	if ablation_level:
+		alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/initial_alignments_{TIME_PARAM}_ablation{ablation_level}/{composer}"
+	else:
+		alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/initial_alignments_{TIME_PARAM}/{composer}"
+	print("ALIGNMENTS DIR", alignments_dir)
 
-	alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/{composer}"
 	initial_alignment_files = []
 	for i in range(len(STG_augmented_list)):
 		piece_name = os.path.splitext(os.path.basename(STG_filepath_list[i]))[0]
@@ -220,8 +226,12 @@ def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_
 		np.savetxt(file_name, alignment, fmt='%d', delimiter=' ')
 		print(f'Saved: {file_name}')
 	
-def get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list):
-	alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/{composer}"
+def get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list, ablation_level=None):
+	if ablation_level:
+		alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/initial_alignments_{TIME_PARAM}_ablation{ablation_level}/{composer}"
+	else:
+		alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/initial_alignments_{TIME_PARAM}/{composer}"
+
 	initial_alignment_files = []
 	for file_path in STG_filepaths_list:
 		piece_name = os.path.splitext(os.path.basename(file_path))[0]
@@ -233,7 +243,7 @@ def get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list):
 	print(f'Loaded existing centroid and alignment files from {alignments_dir}')
 	return initial_centroid, alignments
 
-def generate_centroid(composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict, gpu_id):
+def generate_centroid(composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict, gpu_id, ablation_level=None):
 	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
 	print(f"Process {current_process().name} running on GPU {gpu_id} for centroid cluster {composer}")
 
@@ -252,7 +262,10 @@ def generate_centroid(composer, initial_centroid, initial_alignments, listA_G, i
 	loss = loss.item() # convert from tensor -> numpy
 	
 	approx_centroid, final_idx_node_mapping = simanneal_centroid_helpers.remove_unnecessary_dummy_nodes(approx_centroid, idx_node_mapping, node_metadata_dict)
-	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroid/{composer}"
+	if ablation_level:
+		approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}/{composer}"
+	else:
+		approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/approx_centroid_{TIME_PARAM}_ablation{ablation_level}/{composer}"
 	if not os.path.exists(approx_centroid_dir):
 		os.makedirs(approx_centroid_dir)
 
@@ -290,7 +303,10 @@ if __name__ == "__main__":
 	
 	cluster = get_cluster()
 	composer_centroid_input_graphs = get_composer_centroid_input_graphs(cluster)
-	
+	if ABLATION_LEVEL:
+		new_suffix = f"_ablation_{ABLATION_LEVEL}level_flat.pickle"
+		for composer, paths in composer_centroid_input_graphs.items():
+			composer_centroid_input_graphs[composer] = [path[:-len("_flat.pickle")] + new_suffix for path in paths]
 
 	# ------------------FOR GENERATING INITIAL ALIGNMENTS/CENTROID------------------------------------------------
 	for composer, centroid_input_pieces_list in composer_centroid_input_graphs.items():
@@ -299,7 +315,7 @@ if __name__ == "__main__":
 			with open(graph_filepath, 'rb') as f:
 				STG_filepaths_and_augmented_list.append((graph_filepath, pickle.load(f)))
 		composer_centroid_input_graphs[composer] = STG_filepaths_and_augmented_list
-	tasks = [(composer, STG_filepaths_and_augmented_list, gpu_id) 
+	tasks = [(composer, STG_filepaths_and_augmented_list, gpu_id, ABLATION_LEVEL) 
 						for gpu_id, (composer, STG_filepaths_and_augmented_list) 
 						in enumerate(composer_centroid_input_graphs.items())]
 
@@ -313,29 +329,29 @@ if __name__ == "__main__":
 	# ----------------------------------------------------------------------------------------------------------------
 
 	# ------FOR LOADING EXISTING INITIAL ALIGNMENTS/CENTROID AFTER THEY'RE GENERATED, AND THEN GENERATING CENTROIDS----
-	gen_centroid_info = []
-	for composer, centroid_input_pieces_list in list(composer_centroid_input_graphs.items()):
-		STG_augmented_list = []
-		STG_filepaths_list = []
+	# gen_centroid_info = []
+	# for composer, centroid_input_pieces_list in list(composer_centroid_input_graphs.items()):
+	# 	STG_augmented_list = []
+	# 	STG_filepaths_list = []
 		
-		for graph_filepath in centroid_input_pieces_list:
-			with open(graph_filepath, 'rb') as f:
-				STG_augmented_list.append(pickle.load(f))
-			STG_filepaths_list.append(graph_filepath)
+	# 	for graph_filepath in centroid_input_pieces_list:
+	# 		with open(graph_filepath, 'rb') as f:
+	# 			STG_augmented_list.append(pickle.load(f))
+	# 		STG_filepaths_list.append(graph_filepath)
 		
-		listA_G, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(STG_augmented_list)
-		initial_centroid, initial_alignments = get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list)
-		gen_centroid_info.append((composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict))
+	# 	listA_G, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(STG_augmented_list)
+	# 	initial_centroid, initial_alignments = get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list, ABLATION_LEVEL)
+	# 	gen_centroid_info.append((composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict))
 
-	tasks = [(composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict, gpu_id) 
-						for gpu_id, (composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict) 
-						in enumerate(gen_centroid_info)]
+	# tasks = [(composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict, gpu_id, ABLATION_LEVEL) 
+	# 					for gpu_id, (composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict) 
+	# 					in enumerate(gen_centroid_info)]
 
-	# Create a Pool with as many processes as there are GPUs
-	pool = Pool(processes=NUM_GPUS)
+	# # Create a Pool with as many processes as there are GPUs
+	# pool = Pool(processes=NUM_GPUS)
 	
-	# Distribute the work across the GPUs
-	results = pool.starmap(generate_centroid, tasks)
-	pool.close()
-	pool.join()
+	# # Distribute the work across the GPUs
+	# results = pool.starmap(generate_centroid, tasks)
+	# pool.close()
+	# pool.join()
 	# ----------------------------------------------------------------------------------------------------------------

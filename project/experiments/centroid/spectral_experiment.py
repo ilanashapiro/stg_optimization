@@ -154,19 +154,15 @@ if __name__ == "__main__":
 			composer_training_pieces_dict[composer] = [load_graph(re.sub(r'^.*?/project', DIRECTORY, file_path)) for file_path in filepaths]
 	
 		def embedding_distances():
-			composer_idx = 0
 			for composer, centroid in composer_centroids_dict.items():
 				training_pieces = composer_training_pieces_dict[composer]
 				listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
 				best_score = math.inf
 				best_centroid_idx = -1  # Track the index of the best centroid (default is -1, i.e., original)
 				
-				# the embeddings must be the same size, so we do the median of the opt embeddings 
-				# embedding_dim = int(np.median([get_opt_embedding_dim(A_G) for A_G in listA_G]))
-				# print(f"EMBEDDING DIM (MEDIAN) FOR {composer}: {embedding_dim}")
-				print(composer_idx)
-				embedding_dim = [49, 23, 68, 52][composer_idx] # BASED ON EXPERIMENTAL RESULTS OF THE ABOVE 2 LINES
-				composer_idx+=1
+				# the embeddings must be the same size, so we do the max of the opt embeddings so as to not lose structural info
+				embedding_dim = int(np.median([get_opt_embedding_dim(A_G) for A_G in listA_G]))
+				print(f"EMBEDDING DIM (MEDIAN) FOR {composer}: {embedding_dim}")
 	
 				for idx, test_centroid in enumerate(listA_G):
 					test_centroid_embedding = spectral_embedding(test_centroid, n_components=embedding_dim)
@@ -176,7 +172,7 @@ if __name__ == "__main__":
 
 					# plot_spectral_embeddings([test_centroid_embedding] + other_embeddings)
 
-					distances = cosine_distances(test_centroid_embedding.flatten().reshape(1, -1), [embedding.flatten() for embedding in other_embeddings])
+					distances = euclidean_distances(test_centroid_embedding.flatten().reshape(1, -1), [embedding.flatten() for embedding in other_embeddings])
 					score = np.mean(distances) * np.std(distances)
 					
 					print(f"Score for test centroid at index {idx} (mean * std): {score}")
@@ -231,7 +227,7 @@ if __name__ == "__main__":
 	embedding_distances()
 	# plot_spectra_wrapper()
 
-# OPTIMAL EMBEDDING DIM RESULTS -- EUCLIDEAN DIST:
+# OPTIMAL EMBEDDING DIM RESULTS:
 # graph size smaller than the default end dimension, thus has been automatically set to 92
 # the optimal dimension at 0.05 accuracy level is 32
 # the MSE of curve fitting is 2.710455981557946e-05
@@ -386,44 +382,3 @@ if __name__ == "__main__":
 # Score for test centroid at index 4 (mean * std): 0.8104844781196467
 # Score for test centroid at index 5 (mean * std): 0.8647802490312058
 # The graph at index 0 has the best score of 0.014712376513727393.
-
-
-
-
-
-# USING THE ABOVE OPTIMAL EMBEDDING DIMS: NOW WITH COSINE DISTANCE
-# Score for test centroid at index 0 (mean * std): 0.004321413257293983
-# Score for test centroid at index 1 (mean * std): 0.2755632080489813
-# Score for test centroid at index 2 (mean * std): 0.28674661971528076
-# Score for test centroid at index 3 (mean * std): 0.26693882758249504
-# Score for test centroid at index 4 (mean * std): 0.29259449619925404
-# Score for test centroid at index 5 (mean * std): 0.3079528171103815
-# Score for test centroid at index 6 (mean * std): 0.30541750647195237
-# The graph at index 0 has the best score of 0.004321413257293983.
-
-# Score for test centroid at index 0 (mean * std): 0.019594404715828788
-# Score for test centroid at index 1 (mean * std): 0.2639034395831568
-# Score for test centroid at index 2 (mean * std): 0.2724046928657948
-# Score for test centroid at index 3 (mean * std): 0.26407982138341307
-# Score for test centroid at index 4 (mean * std): 0.27044656739217343
-# Score for test centroid at index 5 (mean * std): 0.25239724468061214
-# Score for test centroid at index 6 (mean * std): 0.26928120456053817
-# Score for test centroid at index 7 (mean * std): 0.2641405401249731
-# Score for test centroid at index 8 (mean * std): 0.2707518818137991
-# Score for test centroid at index 9 (mean * std): 0.26821941983046976
-# The graph at index 0 has the best score of 0.019594404715828788.
-
-# Score for test centroid at index 0 (mean * std): 0.016321426336790536
-# Score for test centroid at index 1 (mean * std): 0.2569801991487083
-# Score for test centroid at index 2 (mean * std): 0.28653931377758696
-# Score for test centroid at index 3 (mean * std): 0.30651266076829725
-# Score for test centroid at index 4 (mean * std): 0.32195044597157746
-# The graph at index 0 has the best score of 0.016321426336790536.
-
-# Score for test centroid at index 0 (mean * std): 0.013548372054450432
-# Score for test centroid at index 1 (mean * std): 0.3172893628015976
-# Score for test centroid at index 2 (mean * std): 0.31494791270927447
-# Score for test centroid at index 3 (mean * std): 0.3112132218860421
-# Score for test centroid at index 4 (mean * std): 0.31318000993434475
-# Score for test centroid at index 5 (mean * std): 0.31907933987142784
-# The graph at index 0 has the best score of 0.013548372054450432.

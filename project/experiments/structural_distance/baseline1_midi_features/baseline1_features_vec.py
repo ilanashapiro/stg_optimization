@@ -5,8 +5,9 @@ import os, sys, pickle, re
 import joblib
 from scipy.spatial.distance import pdist, squareform
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
+DIRECTORY = "/home/ubuntu/project"
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 import structural_distance_gen_clusters as gen_clusters
 

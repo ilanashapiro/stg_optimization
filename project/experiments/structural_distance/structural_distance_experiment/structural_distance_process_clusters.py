@@ -5,9 +5,10 @@ import numpy as np
 from collections import defaultdict
 
 # DIRECTORY = '/home/ilshapiro/project'
-DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
+DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 
-def create_distance_matrix(cluster, cache):
+def create_distance_matrix(cluster, cache, ablation_level=None):
 	n = len(cluster)
 	distance_matrix = distance_matrix = np.zeros((n, n))
 	
@@ -17,6 +18,14 @@ def create_distance_matrix(cluster, cache):
 				distance_matrix[i][j] = 0
 			else:
 				graph_fp1, graph_fp2 = cluster[i], cluster[j]
+
+				if ablation_level:
+					if ablation_level < 0 or ablation_level > 4:
+						raise Exception("Ablation levels should be 1-4 (5 levels is not an ablation, it's a complete graph)")
+					new_suffix = f"_ablation_{ablation_level}level_flat.pickle"
+					graph_fp1 = graph_fp1[:-len("_flat.pickle")] + new_suffix
+					graph_fp2 = graph_fp2[:-len("_flat.pickle")] + new_suffix
+
 				cache_key = repr((graph_fp1, graph_fp2))
 				cache_key_rev = repr((graph_fp2, graph_fp1))
 				if cache_key in cache:
@@ -88,7 +97,11 @@ def reorder_cluster_to_reference(cluster):
 
 def run(clusters_path):
 	clusters = gen_clusters.load_saved_combinations(clusters_path)
-	cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess.shelve")
+	ablation_level = 4 # set to None if we don't want to do ablation
+	if ablation_level:
+		cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_ablation{ablation_level}.shelve")
+	else:
+		cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess.shelve")
 	# reordered_cluster = reorder_cluster_to_reference(list(clusters)[0])
 	# print(reordered_cluster)
 	# print(create_distance_matrix(reordered_cluster, cache))
@@ -100,7 +113,7 @@ def run(clusters_path):
 	# 	print(piece, count)
 	# print(len(pieces_count), len(clusters))
 	# sys.exit(0)
-	dist_matrics = [create_distance_matrix(reorder_cluster_to_reference(cluster), cache) for cluster in clusters]
+	dist_matrics = [create_distance_matrix(reorder_cluster_to_reference(cluster), cache, ablation_level=ablation_level) for cluster in clusters]
 	cache.close()
 
 	return np.mean(np.stack(dist_matrics), axis=0)
