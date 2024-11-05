@@ -391,8 +391,8 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 			batch_attempt_index = 0
 			while not valid_move_found and batch_attempt_index < len(batch_flat_indices_sorted_by_score_and_shuffled):
 				flat_index = batch_flat_indices_sorted_by_score_and_shuffled[batch_attempt_index]
-  
-        # NOTE: uncomment the version (cp, torch, np) that matches the architecture we're running this on
+	
+				# NOTE: uncomment the version (cp, torch, np) that matches the architecture we're running this on
 				# coord = cp.unravel_index(flat_index, score_matrix.shape)
 				# coord = torch.unravel_index(flat_index, score_matrix.shape)
 				coord = np.unravel_index(flat_index, score_matrix.shape) # it's ok if score_matrix.shape is of type torch.shape bc this is still a tuple of ints
@@ -484,9 +484,16 @@ if __name__ == "__main__":
 	# print("Best loss", min_loss)
 	# sys.exit(0)
 
-	centroid = np.loadtxt("test_graph_output_files/approx_centroid_test.txt")
-	with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
+	experiment_dir = "/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/approx_centroids/approx_centroid_50s_ablation1/beethoven/"
+	# centroid = np.loadtxt("test_graph_output_files/approx_centroid_test.txt")
+	centroid = np.loadtxt(experiment_dir + "centroid.txt")
+	
+	# with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
+	with open(experiment_dir + "idx_node_mapping.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
+	
+	with open(experiment_dir + "node_metadata_dict.txt", 'r') as file:
+		node_metadata_dict = json.load(file)
 	
 	# centroid, centroid_idx_node_mapping = helpers.remove_all_dummy_nodes(centroid, centroid_idx_node_mapping)
 

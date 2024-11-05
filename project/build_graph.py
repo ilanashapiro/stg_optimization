@@ -14,34 +14,35 @@ import sys, pickle
 from multiprocessing import Pool
 from collections import defaultdict, deque
 
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project/datasets"
+# DIRECTORY = '/home/ilshapiro/project/datasets'
 
 # NOTE: does NOT work for secondary chords, we just use it for the example figure
 def get_primary_functional_chord_label_from_features(degree, quality):
-  maj_roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
-  min_roman = [r.lower() for r in maj_roman]
-  quality_map = {'M':'', 'm':'', 'a':'+', 'd':'o', 'M7':'M7', 'm7':'m7', 'D7':'7', 'd7':'o7', 'h7':'ø7', 'a6':'+6', 'a7':'aug7'}
-  accidental_map = {'+':'#', '-':'b'}
+	maj_roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII']
+	min_roman = [r.lower() for r in maj_roman]
+	quality_map = {'M':'', 'm':'', 'a':'+', 'd':'o', 'M7':'M7', 'm7':'m7', 'D7':'7', 'd7':'o7', 'h7':'ø7', 'a6':'+6', 'a7':'aug7'}
+	accidental_map = {'+':'#', '-':'b'}
 
-  def parse_degree(degree):
-    deg_num = int(degree[1]) if any(acc in degree for acc in accidental_map.keys()) else int(degree)
-    deg_acc = accidental_map[degree[0]] if any(acc in degree for acc in accidental_map.keys()) else ""
-    return (deg_num, deg_acc)
+	def parse_degree(degree):
+		deg_num = int(degree[1]) if any(acc in degree for acc in accidental_map.keys()) else int(degree)
+		deg_acc = accidental_map[degree[0]] if any(acc in degree for acc in accidental_map.keys()) else ""
+		return (deg_num, deg_acc)
 
-  deg_num, deg_acc = parse_degree(degree)
+	deg_num, deg_acc = parse_degree(degree)
 
-  if deg_num < 1 or deg_num > 7:
-    raise Exception("Degree not in valid range", deg_num)
-  if quality not in quality_map:
-    raise Exception("Invalid quality", quality)
+	if deg_num < 1 or deg_num > 7:
+		raise Exception("Degree not in valid range", deg_num)
+	if quality not in quality_map:
+		raise Exception("Invalid quality", quality)
 
-  if quality == "a6":
-    chord_roman = "aug6"
-  else:
-    chord_symbol = maj_roman[deg_num - 1] if quality[0].isupper() else min_roman[deg_num - 1] # 0-indexing
-    chord_roman = deg_acc + chord_symbol + quality_map[quality]
+	if quality == "a6":
+		chord_roman = "aug6"
+	else:
+		chord_symbol = maj_roman[deg_num - 1] if quality[0].isupper() else min_roman[deg_num - 1] # 0-indexing
+		chord_roman = deg_acc + chord_symbol + quality_map[quality]
 
-  return chord_roman
+	return chord_roman
 
 def get_layer_id(node):
 	for layer_id in ['S', 'P', 'K', 'C', 'M']:
@@ -453,23 +454,23 @@ def process_graphs(midi_filepath):
 	mid_df['end_time'] = mid_df['onset_seconds'] + mid_df['duration_seconds']
 	piece_end_time = mid_df['end_time'].max()
 	piece_start_time = mid_df['onset_seconds'].min()
-
+	
 	# segments_file = base_path + '_scluster_scluster_segments.txt'
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives3.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
 	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
-	ablation_levels = 4
-	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file, ablation_levels=ablation_levels)
+	ablation_level = 2
+	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file, ablation_levels=ablation_level)
 	if graph_and_layers:
 		G, layers = graph_and_layers
 		augment_graph(G)
 		# G_c = compress_graph(G)
 		# layers_c = get_unsorted_layers_from_graph_by_index(G_c)
-		# visualize([G], [layers])
-		# sys.exit(0)
+		visualize([G], [layers])
+		sys.exit(0)
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
-		aug_graph_filepath = base_path + f"_augmented_graph_ablation_{ablation_levels}level_{hierarchical_status}.pickle"
+		aug_graph_filepath = base_path + f"_augmented_graph_ablation_{ablation_level}level_{hierarchical_status}.pickle"
 		if not os.path.exists(aug_graph_filepath):
 			with open(aug_graph_filepath, 'wb') as f:
 				pickle.dump(G, f)
@@ -486,17 +487,14 @@ if __name__ == "__main__":
 	# 				print(f"Deleting {file_path}")
 	# 				os.remove(file_path)
 
-	# directory = '/home/ilshapiro/project/datasets'
 	# substring = '_augmented_graph_ablation_1level'
-	# delete_files_with_substring(directory, substring)
+	# delete_files_with_substring(DIRECTORY, substring)
 	# sys.exit(0)
 
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/chopin/classical_piano_midi_db/chpn-p7'
-	# directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
-	directory = '/Users/ilanashapiro/Documents/constraints_project/project/datasets'
-	# directory = directory + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
-	# directory = directory + '/chopin/classical_piano_midi_db/chpn-p7'
-	directory = '/home/ilshapiro/project/datasets'
+	# directory = DIRECTORY + '/chopin/classical_piano_midi_db/chpn-p7'
+	# directory = DIRECTORY + '/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
+	directory = DIRECTORY + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	# directory = DIRECTORY + '/chopin/classical_piano_midi_db/chpn-p7'
 
 	tasks = []
 	for dirpath, _, _ in os.walk(directory):
@@ -513,6 +511,6 @@ if __name__ == "__main__":
 				tasks.append(midi_file)
 			else:
 				raise Exception("No midi file but motives", dirpath)
-	
+	print(tasks)
 	with Pool() as pool:
 		pool.map(process_graphs, tasks)
