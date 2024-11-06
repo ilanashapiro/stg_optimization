@@ -13,7 +13,7 @@ import z3_matrix_projection_incremental as z3_repair
 import simanneal_centroid_helpers as helpers
 
 TIME_PARAM = "50s"
-ABLATION_LEVEL = 1 # set to None if we don't want to do ablation
+ABLATION_LEVEL = 4 # set to None if we don't want to do ablation
 
 def repair_centroid(composer):
 	if ABLATION_LEVEL:

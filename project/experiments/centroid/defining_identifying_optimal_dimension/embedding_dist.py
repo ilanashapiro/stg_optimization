@@ -30,12 +30,19 @@ def read_graph(edge_list, weighted=False, directed=False):
 def fitting_func(dims,s,a,L):  
   return s/np.power(dims,a) + L
   
+def fitting_func_2var(dims, s, a):
+    return s / np.power(dims, a)
+
 def identify_optimal_dim(embedding_dims, loss):
     '''
     Identify the optimal dimension range and compute the curve fitting parameter for graph.
     '''  
-    (s,a,l),cov = optimize.curve_fit(fitting_func, embedding_dims,loss)
-    fit_values = (fitting_func(np.array(embedding_dims),s,a,l))
+    if len(embedding_dims) == 2:
+      (s,a),cov = optimize.curve_fit(fitting_func_2var, embedding_dims,loss)
+      fit_values = (fitting_func_2var(np.array(embedding_dims),s,a))
+    else:
+      (s,a,l),cov = optimize.curve_fit(fitting_func, embedding_dims,loss)
+      fit_values = (fitting_func(np.array(embedding_dims),s,a,l))
     MSE = ((np.array(loss)-np.array(fit_values))**2).mean()
     opt = np.power((s/0.05),1/a)
     print('the optimal dimension at 0.05 accuracy level is {}'.format(int(math.ceil(opt))))

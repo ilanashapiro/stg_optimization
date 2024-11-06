@@ -13,10 +13,10 @@ import time
 import pickle
 
 # DIRECTORY = "/home/ilshapiro/project"
-# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 
-# sys.path.append(DIRECTORY)
-# import build_graph
+sys.path.append(DIRECTORY)
+import build_graph
 
 # ------------------------------------ Globals ------------------------------------
 
@@ -563,19 +563,20 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 	else:
 			print("Unable to find a satisfiable structure across all levels")
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 	# NOTE: uncomment for viewing already repaired centroids
-	# centroid = np.loadtxt("/Users/ilanashapiro/Documents/constraints_project/project/centroid/test_graph_output_files/final_centroid_test.txt")
-	# with open("/Users/ilanashapiro/Documents/constraints_project/project/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt", 'r') as file:
-	# 	node_metadata_dict = json.load(file)
-	# with open("/Users/ilanashapiro/Documents/constraints_project/project/centroid/test_graph_output_files/final_centroid_idx_node_mapping_test.txt", 'r') as file:
-	# 	centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
+	experiments_final_centroids_dir = "/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/final_centroids/final_centroid_50s_ablation3/beethoven/"
+	centroid = np.loadtxt(experiments_final_centroids_dir + "final_centroid.txt")
+	with open("/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/approx_centroids/approx_centroid_50s_ablation3/beethoven/node_metadata_dict.txt", 'r') as file:
+		node_metadata_dict = json.load(file)
+	with open(experiments_final_centroids_dir + "final_idx_node_mapping.txt", 'r') as file:
+		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
-	# g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
-	# layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	# build_graph.visualize([g], [layers_g], augmented=True, compress_graph=True)
-	# sys.exit(0)
+	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+	build_graph.visualize([g], [layers_g], augmented=True)
+	sys.exit(0)
 	
 	# NOTE: IMPORTANT -- assuming all unnecessary dummys (i.e. all instance dummys and impoossible proto dummys) have been removed ALREADY
 	# approx_centroid = np.loadtxt(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_test.txt')
