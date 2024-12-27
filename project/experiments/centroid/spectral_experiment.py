@@ -8,18 +8,21 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import SpectralClustering
 import networkx as nx
 from sklearn.metrics.pairwise import euclidean_distances, cosine_distances, manhattan_distances, pairwise_kernels
+import matplotlib
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from scipy.stats import pearsonr
 from scipy.spatial.distance import cdist
 import seaborn as sns
 from scipy.spatial.distance import euclidean, cosine, cityblock, minkowski, mahalanobis
+from scipy.optimize import minimize
 from sklearn.manifold import SpectralEmbedding
 import defining_identifying_optimal_dimension 
 
+
 # DIRECTORY = "/home/ubuntu/project"
-# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
-DIRECTORY = "/home/ilshapiro/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/home/ilshapiro/project"
 TIME_PARAM = '50s'
 ABLATION_LEVEL = None
 
@@ -144,6 +147,48 @@ def plot_spectral_embeddings(embeddings):
 	plt.grid()
 	plt.show()
 
+def plot_embeddings_for_composer(composer, embeddings_dict):
+		# Get the embeddings for the selected composer
+		embeddings = embeddings_dict[composer]
+
+		candidate_centroid = embeddings[0]
+		embeddings = embeddings[1:]
+		
+		# Apply PCA to reduce dimensionality to 2D
+		pca = PCA(n_components=2, svd_solver='full')
+		reduced_embeddings = pca.fit_transform(np.array([embedding.flatten() for embedding in embeddings]))
+		
+		# Compute the initial guess (mean embedding) for this composer
+		initial_guess = np.mean(embeddings, axis=0)
+		
+		# Convert the initial guess to 2D using PCA
+		initial_guess_2d = pca.transform(np.array([initial_guess.flatten()]))  # Single point, reshape to 2D
+		candidate_centroid_2d = pca.transform(np.array([candidate_centroid.flatten()]))
+
+		# Plot the embeddings
+		plt.figure(figsize=(10, 8))
+		
+		# Plot the embeddings for the pieces
+		plt.scatter(reduced_embeddings[:, 0], reduced_embeddings[:, 1], c='blue', label=f'{composer} Pieces')
+
+		# Plot the initial guess
+		plt.scatter(initial_guess_2d[:, 0], initial_guess_2d[:, 1], c='red', marker='x', label='Initial Guess')
+		plt.scatter(candidate_centroid_2d[:, 0], candidate_centroid_2d[:, 1], c='green', marker='*', label='Candidate Centroid')
+
+		# Adding labels for each piece
+		for i, label in enumerate([f"Piece {i+1}" for i in range(len(embeddings))]):
+				plt.text(reduced_embeddings[i, 0], reduced_embeddings[i, 1], label, fontsize=8, ha='right', va='bottom')
+		
+		
+		# Add title and labels
+		plt.title(f'2D Plot of Embeddings and Initial Guess for Composer: {composer}')
+		plt.xlabel('PCA Component 1')
+		plt.ylabel('PCA Component 2')
+		plt.legend(loc='upper right')
+		plt.savefig(f'output_plot_{composer}.png')
+		plt.close()
+
+
 if __name__ == "__main__":
 	centroid_path = f"{DIRECTORY}/experiments/centroid/final_centroids/final_centroid_{TIME_PARAM}"
 	training_pieces_path = f"{DIRECTORY}/experiments/centroid/clusters/composer_centroid_input_graphs_{TIME_PARAM}.txt"
@@ -202,31 +247,68 @@ if __name__ == "__main__":
 	
 	def spectral_correlation():
 		for composer, centroid in composer_centroids_dict.items():
-				training_pieces = composer_training_pieces_dict[composer]
+			training_pieces = composer_training_pieces_dict[composer]
+			
+			# Prepare adjacency matrices and separate the original centroid
+			listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
+			best_score = math.inf # math.inf for inv_correlations, -math.inf for corrlations
+			best_centroid_idx = -1
+			
+			# Loop through each graph in listA_G as a test centroid
+			for idx, test_centroid in enumerate(listA_G):
+				test_centroid_features = compute_laplacian(test_centroid)[0] # replace with compute_spectra to examine spectral decomposition instead
+				other_features = [compute_laplacian(A_G)[0] for j, A_G in enumerate(listA_G) if j > 0] # j > 0 means we're excluding the candidate centroid. also, replace with compute_spectra to examine spectral decomposition instead
 				
-				# Prepare adjacency matrices and separate the original centroid
-				listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
-				best_score = math.inf # math.inf for inv_correlations, -math.inf for corrlations
-				best_centroid_idx = -1
+				# Calculate mean correlation and standard deviation for this test centroid
+				inv_correlations = spectra_inv_correlations(test_centroid_features, other_features)
+				# correlations = spectra_correlations(test_centroid_features, other_features)
+				score = np.mean(inv_correlations) * np.std(inv_correlations)
+				# print(f"Test centroid at index {idx}: Mean correlation = {mean_correlation}, Std Dev = {std_dev}, Score = {score}")
 				
-				# Loop through each graph in listA_G as a test centroid
-				for idx, test_centroid in enumerate(listA_G):
-					test_centroid_features = compute_laplacian(test_centroid)[0] # replace with compute_spectra to examine spectral decomposition instead
-					other_features = [compute_laplacian(A_G)[0] for j, A_G in enumerate(listA_G) if j > 0] # j > 0 means we're excluding the candidate centroid. also, replace with compute_spectra to examine spectral decomposition instead
-					
-					# Calculate mean correlation and standard deviation for this test centroid
-					inv_correlations = spectra_inv_correlations(test_centroid_features, other_features)
-					# correlations = spectra_correlations(test_centroid_features, other_features)
-					score = np.mean(inv_correlations) * np.std(inv_correlations)
-					# print(f"Test centroid at index {idx}: Mean correlation = {mean_correlation}, Std Dev = {std_dev}, Score = {score}")
-					
-					# Update the best centroid if this test centroid has a higher score
-					if score < best_score: # < for inv_correlations, > for corrlations
-						best_score = score
-						best_centroid_idx = idx
+				# Update the best centroid if this test centroid has a higher score
+				if score < best_score: # < for inv_correlations, > for corrlations
+					best_score = score
+					best_centroid_idx = idx
 
-				print(f"The graph at index {best_centroid_idx} has the best score with a value of {best_score}.")
-												
+			print(f"The graph at index {best_centroid_idx} has the best score with a value of {best_score}.")
+
+	def spectral_centroid():
+		composer_idx = 0
+		embeddings_dict = {}
+		for composer, centroid in composer_centroids_dict.items():
+			training_pieces = composer_training_pieces_dict[composer]
+			listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
+			embeddings_dict[composer] = []
+
+			# the embeddings must be the same size, so we do the max of the opt embeddings so as to not lose structural info
+			# embedding_dim = int(np.median([get_opt_embedding_dim(A_G) for A_G in listA_G]))
+			# print(f"EMBEDDING DIM (MEDIAN) FOR {composer}: {embedding_dim}")
+			embedding_dim = [51, 26, 70, 48][composer_idx] # no ablation
+			
+			def objective_function(corpus_embeddings):
+				dists = cdist([corpus_embeddings[0].flatten()], [embedding.flatten() for embedding in corpus_embeddings[1:]], metric='euclidean')
+				return np.mean(dists) * np.std(dists)
+
+			for A_G in listA_G:
+				embedding = spectral_embedding(A_G, n_components=embedding_dim)
+				embeddings_dict[composer].append(embedding)
+			
+			plot_embeddings_for_composer(composer, embeddings_dict)
+
+			# sys.exit(0)
+			# initial_guess = np.mean(embeddings_dict[composer], axis=0)
+			# print("MINIMIZING")
+			# result = minimize(objective_function, initial_guess, method='L-BFGS-B', options={'disp': True})
+
+			# optimized_centroid = result.x
+
+			# print("Optimized Centroid Embedding:", optimized_centroid)
+			# print("Optimized Function Value:", result.fun)
+
+				
+				
+
+
 	def plot_spectra_wrapper():
 		for composer, centroid in composer_centroids_dict.items():
 			training_pieces = composer_training_pieces_dict[composer]
@@ -241,8 +323,9 @@ if __name__ == "__main__":
 			# plot_spectra(composer, centroid_features, input_features, title=f'Spectral Decomposition for Composer {composer.capitalize()}')
 
 	# spectral_correlation()
-	embedding_distances()
+	# embedding_distances()
 	# plot_spectra_wrapper()
+	spectral_centroid()
 
 #--------------------------------------------------------------------------------------------------------------------------------------------
 # EUCLIDEAN DISTANCE RESULTS (full STG, no ablation):
