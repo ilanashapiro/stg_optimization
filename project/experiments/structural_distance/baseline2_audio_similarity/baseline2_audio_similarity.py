@@ -1,8 +1,8 @@
 import os, sys, re, pickle
 import numpy as np
 
-# DIRECTORY = "/home/ilshapiro/project"
-DIRECTORY = "/home/ubuntu/project"
+DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/home/ubuntu/project"
 # DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/baseline2_audio_similarity/audio-similarity/audio_similarity")
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
@@ -44,7 +44,7 @@ def load_cache(cache_filepath):
 def run(clusters_filepath):
 	clusters = list(gen_clusters.load_saved_combinations(clusters_filepath))
 
-	cache_filepath = f'{DIRECTORY}/experiments/structural_distance/baseline2/audio_similarity_cache.pkl'
+	cache_filepath = f'{DIRECTORY}/experiments/structural_distance/baseline2_audio_similarity/audio_similarity_cache.pkl'
 	load_cache(cache_filepath)
 
 	all_matrices = []

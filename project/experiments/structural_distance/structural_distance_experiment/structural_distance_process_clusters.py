@@ -4,11 +4,16 @@ import structural_distance_gen_clusters as gen_clusters
 import numpy as np
 from collections import defaultdict
 
-# DIRECTORY = '/home/ilshapiro/project'
-DIRECTORY = "/home/ubuntu/project"
+from grakel.kernels import WeisfeilerLehman, NeighborhoodSubgraphPairwiseDistance, RandomWalk, MultiscaleLaplacian, ShortestPath, PyramidMatch, SvmTheta
+from grakel import Graph, NeighborhoodHash, SubgraphMatching, VertexHistogram, WeisfeilerLehmanOptimalAssignment, GraphKernel
+
+import simanneal_centroid_helpers
+
+DIRECTORY = '/home/ilshapiro/project'
+# DIRECTORY = "/home/ubuntu/project"
 # DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 
-def create_distance_matrix(cluster, cache, ablation_level=None):
+def create_distance_matrix(cluster, cache, kernel_experiment=False, ablation_level=None):
 	n = len(cluster)
 	distance_matrix = distance_matrix = np.zeros((n, n))
 	
@@ -39,8 +44,25 @@ def create_distance_matrix(cluster, cache, ablation_level=None):
 						G1 = pickle.load(f)
 					with open(graph_fp2, 'rb') as f:
 						G2 = pickle.load(f)
-					d = float(gen_clusters.dist(G1, G2))
+
+					if kernel_experiment:
+						listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([G1, G2])
+						grakel_graphs = []
+						for adjacency_matrix in listA_G:
+							labels = {i: f'node{i}' for i in range(adjacency_matrix.shape[0])}  # Dummy labels
+							edge_labels = {(i, j): 'edge{i},{j}' for i in range(adjacency_matrix.shape[0]) for j in range(adjacency_matrix.shape[1]) if adjacency_matrix[i, j] > 0}  # Dummy edge labels
+							graph = Graph(adjacency_matrix, node_labels=labels, edge_labels=edge_labels)
+							grakel_graphs.append(graph)
+
+						wl_kernel = WeisfeilerLehman(n_iter=5, normalize=True, base_graph_kernel=NeighborhoodHash)
+						kernel_matrix = wl_kernel.fit_transform(grakel_graphs)
+						kernel_value = kernel_matrix[0, 1]  # Kernel similarity between G1 and G2
+						d = 1 - kernel_value  # Kernel distance
+					else:
+						d = float(gen_clusters.dist(G1, G2))
 					gen_clusters.update_cache(cache, cache_key, d)
+				
+
 				
 				# print(graph_fp1, graph_fp2, d)
 				distance_matrix[i][j] = d
@@ -50,7 +72,6 @@ def create_distance_matrix(cluster, cache, ablation_level=None):
 
 def reorder_cluster_to_reference(cluster):
 	ref_order = ['bach', 'mozart', 'beethoven', 'schubert', 'brahms', 'handel', 'haydn', 'chopin']
-	composers_from_paths = [gen_clusters.get_composer_from_path(path) for path in cluster]
 	order_map = {substring: index for index, substring in enumerate(ref_order)}
 	return tuple(sorted(cluster, key=lambda path: order_map[gen_clusters.get_composer_from_path(path)]))
 
@@ -95,13 +116,19 @@ def reorder_cluster_to_reference(cluster):
 #  [79.05849818 73.77669009 71.40307056 73.19836064  0.        ]]
 #    Y(1/2)        N           Y            Y           N (one off) 
 
-def run(clusters_path):
+def run(clusters_path, kernel_experiment=False):
 	clusters = gen_clusters.load_saved_combinations(clusters_path)
-	ablation_level = 4 # set to None if we don't want to do ablation
+	ablation_level = None # set to None if we don't want to do ablation
 	if ablation_level:
-		cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_ablation{ablation_level}.shelve")
+		if kernel_experiment:
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_WL_KERNEL_ablation{ablation_level}.shelve")
+		else:
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_ablation{ablation_level}.shelve")
 	else:
-		cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess.shelve")
+		if kernel_experiment:
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_WL_KERNEL.shelve")
+		else:
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess.shelve")
 	# reordered_cluster = reorder_cluster_to_reference(list(clusters)[0])
 	# print(reordered_cluster)
 	# print(create_distance_matrix(reordered_cluster, cache))
@@ -113,7 +140,7 @@ def run(clusters_path):
 	# 	print(piece, count)
 	# print(len(pieces_count), len(clusters))
 	# sys.exit(0)
-	dist_matrics = [create_distance_matrix(reorder_cluster_to_reference(cluster), cache, ablation_level=ablation_level) for cluster in clusters]
+	dist_matrics = [create_distance_matrix(reorder_cluster_to_reference(cluster), cache, kernel_experiment=kernel_experiment, ablation_level=ablation_level) for cluster in clusters]
 	cache.close()
 
 	return np.mean(np.stack(dist_matrics), axis=0)

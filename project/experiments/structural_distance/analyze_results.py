@@ -4,8 +4,8 @@ from sklearn.preprocessing import MinMaxScaler
 from skbio.stats.distance import mantel
 from skbio import DistanceMatrix
 
-# DIRECTORY = "/home/ilshapiro/project"
-DIRECTORY = "/home/ubuntu/project"
+DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/home/ubuntu/project"
 # DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/baseline1_midi_features")
@@ -41,27 +41,36 @@ if __name__ == "__main__":
 	]), scaler)
 	ground_truth_normalized_dist_matrix = ensure_hollow(1 - ground_truth_normalized_similarity_matrix)
 	
-	struct_dist_normalized_dist_matrix = ensure_hollow(normalize_upper_triangle(gen_data.run(clusters_path), scaler)) # structural distance
-	# baseline1_normalized_dist_matrix = ensure_hollow(normalize_upper_triangle(baseline1.run(clusters_path), scaler)) # cosine distance between MIDI feature vectors
-	# baseline2_normalized_dist_matrix = ensure_hollow(1 - normalize_upper_triangle(baseline2.run(clusters_path), scaler)) # audio *similarity*, not distance
+	struct_dist_normalized_dist_matrix = ensure_hollow(normalize_upper_triangle(gen_data.run(clusters_path, kernel_experiment=False), scaler)) # structural distance
+	wl_kernel_normalized_dist_matrix = ensure_hollow(normalize_upper_triangle(gen_data.run(clusters_path, kernel_experiment=True), scaler)) # WL Kernel (+NH base kernel) distance
+	baseline1_normalized_dist_matrix = ensure_hollow(normalize_upper_triangle(baseline1.run(clusters_path), scaler)) # cosine distance between MIDI feature vectors
+	baseline2_normalized_dist_matrix = ensure_hollow(1 - normalize_upper_triangle(baseline2.run(clusters_path), scaler)) # audio *similarity*, not distance
 
 	method = 'spearman' 
 	struct_dist_mantel_result = mantel(ground_truth_normalized_dist_matrix, struct_dist_normalized_dist_matrix, method)
-	# baseline1_mantel_result = mantel(ground_truth_normalized_dist_matrix, baseline1_normalized_dist_matrix, method)
-	# baseline2_mantel_result = mantel(ground_truth_normalized_dist_matrix, baseline2_normalized_dist_matrix, method)
+	wl_kernel_mantel_result = mantel(ground_truth_normalized_dist_matrix, wl_kernel_normalized_dist_matrix, method)
+	baseline1_mantel_result = mantel(ground_truth_normalized_dist_matrix, baseline1_normalized_dist_matrix, method)
+	baseline2_mantel_result = mantel(ground_truth_normalized_dist_matrix, baseline2_normalized_dist_matrix, method)
 
 	print(f"Mantel Test Result for Structural Distance Matrix with {method}:")
 	print(f"Correlation: {struct_dist_mantel_result[0]:.4f}, p-value: {struct_dist_mantel_result[1]:.4f}")
+	
+	print(f"Mantel Test Result for WL Kernel (+NeighborhoodHash) Matrix with {method}:")
+	print(f"Correlation: {wl_kernel_mantel_result[0]:.4f}, p-value: {wl_kernel_mantel_result[1]:.4f}")
 
-	# print(f"Mantel Test Result for Baseline1 (Cosine Similarity from MIDI Features Vector) Matrix with {method}:")
-	# print(f"Correlation: {baseline1_mantel_result[0]:.4f}, p-value: {baseline1_mantel_result[1]:.4f}")
+	print(f"Mantel Test Result for Baseline1 (Cosine Similarity from MIDI Features Vector) Matrix with {method}:")
+	print(f"Correlation: {baseline1_mantel_result[0]:.4f}, p-value: {baseline1_mantel_result[1]:.4f}")
 
-	# print(f"Mantel Test Result for Baseline2 (Stent-Weighted Audio Similarity) Matrix with {method}:")
-	# print(f"Correlation: {baseline2_mantel_result[0]:.4f}, p-value: {baseline2_mantel_result[1]:.4f}")
+	print(f"Mantel Test Result for Baseline2 (Stent-Weighted Audio Similarity) Matrix with {method}:")
+	print(f"Correlation: {baseline2_mantel_result[0]:.4f}, p-value: {baseline2_mantel_result[1]:.4f}")
 
 # for cluster: f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" 
 # Mantel Test Result for Structure Distance Matrix with spearman:
 # Correlation: 0.8207, p-value: 0.0140
+# Mantel Test Result for WL Kernel (+NeighborhoodHash) Matrix with spearman:
+# Correlation: -0.8389, p-value: 0.0110
+# Mantel Test Result for NeighborhoodHash Kernel Matrix with spearman:
+# Correlation: -0.8207, p-value: 0.0200
 # Mantel Test Result for Baseline1 (Cosine Similarity from MIDI Features Vector) Matrix with spearman:
 # Correlation: 0.4681, p-value: 0.3150
 # Mantel Test Result for Baseline2 (Stent-Weighted Audio Similarity) Matrix with spearman:

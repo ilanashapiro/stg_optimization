@@ -5,10 +5,10 @@ import itertools
 import json 
 import pickle, shelve
 import numpy as np
-import cupy as cp
+# import cupy as cp
 
-# DIRECTORY = "/home/ilshapiro/project"
-DIRECTORY = '/home/ubuntu/project'
+DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = '/home/ubuntu/project'
 # DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
@@ -42,7 +42,7 @@ def build_composers_dict(composer_graphs, base_dir=f"{DIRECTORY}/datasets"):
 						composer_graphs[composer_dir][source_dir].append((full_path, duration, size))
 	return composer_graphs
 
-def filter_by_duration_cluster(composer_graphs, window_len=36):
+def filter_by_duration_cluster(composer_graphs, window_len):
 	# Flatten all values into a single list and sort them
 		all_values = []
 		value_to_keys = {}
@@ -145,8 +145,8 @@ def get_composer_from_path(path):
 def dist(G1, G2):
   STG_augmented_list = [G1, G2]
   listA_G, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(STG_augmented_list)
-  A_G1, A_G2 = cp.asarray(listA_G[0]), cp.asarray(listA_G[1]) 
-  # A_G1, A_G2 = np.asarray(listA_G[0]), np.asarray(listA_G[1]) 
+  # A_G1, A_G2 = cp.asarray(listA_G[0]), cp.asarray(listA_G[1]) 
+  A_G1, A_G2 = np.asarray(listA_G[0]), np.asarray(listA_G[1]) 
   _, struct_dist = simanneal_centroid_run.align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict)
   return struct_dist
 

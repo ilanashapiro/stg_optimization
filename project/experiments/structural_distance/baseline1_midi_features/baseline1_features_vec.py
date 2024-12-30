@@ -6,8 +6,8 @@ import joblib
 from scipy.spatial.distance import pdist, squareform
 
 # DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
-# DIRECTORY = "/home/ilshapiro/project"
-DIRECTORY = "/home/ubuntu/project"
+DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/home/ubuntu/project"
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 import structural_distance_gen_clusters as gen_clusters
 
@@ -137,7 +137,7 @@ def get_midi_filepath(pickle_filepath):
 def run(clusters_filepath):
 	clusters = list(gen_clusters.load_saved_combinations(clusters_filepath))
 
-	cache_filepath = f'{DIRECTORY}/experiments/structural_distance/baseline1/feature_vector_cache.pkl'
+	cache_filepath = f'{DIRECTORY}/experiments/structural_distance/baseline1_midi_features/feature_vector_cache.pkl'
 	load_cache(cache_filepath)
 
 	all_matrices = []
