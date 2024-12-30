@@ -62,8 +62,6 @@ def create_distance_matrix(cluster, cache, kernel_experiment=False, ablation_lev
 						d = float(gen_clusters.dist(G1, G2))
 					gen_clusters.update_cache(cache, cache_key, d)
 				
-
-				
 				# print(graph_fp1, graph_fp2, d)
 				distance_matrix[i][j] = d
 				distance_matrix[j][i] = d  # Ensure symmetry
