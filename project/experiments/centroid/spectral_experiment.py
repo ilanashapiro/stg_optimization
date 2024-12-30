@@ -21,8 +21,8 @@ import defining_identifying_optimal_dimension
 
 
 # DIRECTORY = "/home/ubuntu/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
-# DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ilshapiro/project"
 TIME_PARAM = '50s'
 ABLATION_LEVEL = None
 
@@ -96,7 +96,7 @@ def get_opt_embedding_dim(adj_matrix):
 def spectral_embedding(adj_matrix, n_components=8):
 	# num components must be <= matrix dims, per the docs. and if drop_first is true (which it is for Laplacian), the library sets num_components += 1. so we must do max dims - 2 for the max components
 	max_components = adj_matrix.shape[0] - 2 
-	embedding = SpectralEmbedding(n_components=n_components)
+	embedding = SpectralEmbedding(n_components=max_components)
 	return embedding.fit_transform(adj_matrix)
 
 def plot_spectra(composer, centroid_features, input_features, title='Spectra'):
@@ -153,41 +153,36 @@ def plot_embeddings_for_composer(composer, embeddings_dict):
 
 		candidate_centroid = embeddings[0]
 		embeddings = embeddings[1:]
+		spectral_mean = np.mean(embeddings, axis=0)
 		
-		# Apply PCA to reduce dimensionality to 2D
-		pca = PCA(n_components=2, svd_solver='full')
+		pca = PCA(n_components=2, svd_solver='auto')
 		reduced_embeddings = pca.fit_transform(np.array([embedding.flatten() for embedding in embeddings]))
-		
-		# Compute the initial guess (mean embedding) for this composer
-		initial_guess = np.mean(embeddings, axis=0)
-		
-		# Convert the initial guess to 2D using PCA
-		initial_guess_2d = pca.transform(np.array([initial_guess.flatten()]))  # Single point, reshape to 2D
+		spectral_mean_2d = pca.transform(np.array([spectral_mean.flatten()]))  # Single point, reshape to 2D
 		candidate_centroid_2d = pca.transform(np.array([candidate_centroid.flatten()]))
 
-		# Plot the embeddings
-		plt.figure(figsize=(10, 8))
-		
-		# Plot the embeddings for the pieces
-		plt.scatter(reduced_embeddings[:, 0], reduced_embeddings[:, 1], c='blue', label=f'{composer} Pieces')
+		euclidean_reduced = euclidean(spectral_mean_2d[0], candidate_centroid_2d[0])
+		print(f"Euclidean distance in reduced space: {euclidean_reduced}")
+		# Euclidean distance in reduced space: 0.0011932843599851849
+		# Euclidean distance in reduced space: 0.005405783959163084
+		# Euclidean distance in reduced space: 0.0005750424531815269
+		# Euclidean distance in reduced space: 0.005223418391540512
 
-		# Plot the initial guess
-		plt.scatter(initial_guess_2d[:, 0], initial_guess_2d[:, 1], c='red', marker='x', label='Initial Guess')
-		plt.scatter(candidate_centroid_2d[:, 0], candidate_centroid_2d[:, 1], c='green', marker='*', label='Candidate Centroid')
+		plt.figure(figsize=(10, 8))
+		plt.scatter(reduced_embeddings[:, 0], reduced_embeddings[:, 1], c='green', label=f'{composer.title()} Pieces', s=300)
+		plt.scatter(spectral_mean_2d[:, 0], spectral_mean_2d[:, 1], c='blue', marker='d', label='Spectral Mean', s=300)
+		plt.scatter(candidate_centroid_2d[:, 0], candidate_centroid_2d[:, 1], c='red', marker='*', label='Candidate Centroid', s=400)
 
 		# Adding labels for each piece
-		for i, label in enumerate([f"Piece {i+1}" for i in range(len(embeddings))]):
-				plt.text(reduced_embeddings[i, 0], reduced_embeddings[i, 1], label, fontsize=8, ha='right', va='bottom')
-		
+		for i, label in enumerate([f"{i+1}" for i in range(len(embeddings))]):
+				plt.text(reduced_embeddings[i, 0]+ 0.1, reduced_embeddings[i, 1]+0.1, label, fontsize=14, ha='right', fontweight='bold', va='bottom')
 		
 		# Add title and labels
-		plt.title(f'2D Plot of Embeddings and Initial Guess for Composer: {composer}')
-		plt.xlabel('PCA Component 1')
-		plt.ylabel('PCA Component 2')
-		plt.legend(loc='upper right')
-		plt.savefig(f'output_plot_{composer}.png')
+		plt.title(f'{composer.title()} Spectral Embedddings', fontsize=14, fontweight='bold')
+		plt.xlabel('PCA Component 1', fontsize=14)
+		plt.ylabel('PCA Component 2', fontsize=14)
+		plt.legend(loc='upper right', fontsize=14, labelspacing=1)
+		plt.savefig(f'output_plot_{composer}_TEST.png')
 		plt.close()
-
 
 if __name__ == "__main__":
 	centroid_path = f"{DIRECTORY}/experiments/centroid/final_centroids/final_centroid_{TIME_PARAM}"
@@ -275,7 +270,7 @@ if __name__ == "__main__":
 	def spectral_centroid():
 		composer_idx = 0
 		embeddings_dict = {}
-		for composer, centroid in composer_centroids_dict.items():
+		for composer, centroid in list(composer_centroids_dict.items())[3:4]:
 			training_pieces = composer_training_pieces_dict[composer]
 			listA_G, idx_node_mapping, nodes_features_dict = simanneal_centroid_helpers.pad_adj_matrices([centroid] + training_pieces)
 			embeddings_dict[composer] = []
@@ -284,30 +279,12 @@ if __name__ == "__main__":
 			# embedding_dim = int(np.median([get_opt_embedding_dim(A_G) for A_G in listA_G]))
 			# print(f"EMBEDDING DIM (MEDIAN) FOR {composer}: {embedding_dim}")
 			embedding_dim = [51, 26, 70, 48][composer_idx] # no ablation
-			
-			def objective_function(corpus_embeddings):
-				dists = cdist([corpus_embeddings[0].flatten()], [embedding.flatten() for embedding in corpus_embeddings[1:]], metric='euclidean')
-				return np.mean(dists) * np.std(dists)
 
 			for A_G in listA_G:
 				embedding = spectral_embedding(A_G, n_components=embedding_dim)
 				embeddings_dict[composer].append(embedding)
 			
 			plot_embeddings_for_composer(composer, embeddings_dict)
-
-			# sys.exit(0)
-			# initial_guess = np.mean(embeddings_dict[composer], axis=0)
-			# print("MINIMIZING")
-			# result = minimize(objective_function, initial_guess, method='L-BFGS-B', options={'disp': True})
-
-			# optimized_centroid = result.x
-
-			# print("Optimized Centroid Embedding:", optimized_centroid)
-			# print("Optimized Function Value:", result.fun)
-
-				
-				
-
 
 	def plot_spectra_wrapper():
 		for composer, centroid in composer_centroids_dict.items():

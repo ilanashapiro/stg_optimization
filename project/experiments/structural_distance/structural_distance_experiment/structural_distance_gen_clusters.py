@@ -42,7 +42,7 @@ def build_composers_dict(composer_graphs, base_dir=f"{DIRECTORY}/datasets"):
 						composer_graphs[composer_dir][source_dir].append((full_path, duration, size))
 	return composer_graphs
 
-def filter_by_duration_cluster(composer_graphs, window_len):
+def filter_by_duration_cluster(composer_graphs, window_len=36):
 	# Flatten all values into a single list and sort them
 		all_values = []
 		value_to_keys = {}

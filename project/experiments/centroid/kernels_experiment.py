@@ -64,7 +64,7 @@ if __name__ == "__main__":
 		scores = []
 
 		# Iterate over each graph in the corpus, treating each as the candidate centroid
-		for i in range(len(grakel_graphs) - 1):
+		for i in [len(grakel_graphs)-1]:
 			# Create a new list where each candidate graph becomes the "test centroid" (first is original centroid, then duplicating the test graphs to replace original centroid)
 			test_grakel_graphs = [grakel_graphs[i]] + grakel_graphs[1:]
 			
@@ -96,6 +96,7 @@ if __name__ == "__main__":
 # Score when graph 3 is treated as the centroid: 0.24328109599549771
 # Score when graph 4 is treated as the centroid: 0.24218880937233003
 # Score when graph 5 is treated as the centroid: 0.246957896075718
+# Score when graph 6 is treated as the centroid: 0.24297885674826092
 # The most representative graph in the corpus is graph 0 with a score of 0.22802259602060843 and ablation None.
 
 # BEETHOVEN
@@ -108,6 +109,7 @@ if __name__ == "__main__":
 # Score when graph 6 is treated as the centroid: 0.20920196914619632
 # Score when graph 7 is treated as the centroid: 0.210070738351469
 # Score when graph 8 is treated as the centroid: 0.21120417826175442
+# Score when graph 9 is treated as the centroid: 0.21214919552963876
 # The most representative graph in the corpus is graph 0 with a score of 0.2005583406491981 and ablation None.
 
 # HAYDN
@@ -115,6 +117,7 @@ if __name__ == "__main__":
 # Score when graph 1 is treated as the centroid: 0.26390112381707
 # Score when graph 2 is treated as the centroid: 0.2661881493909181
 # Score when graph 3 is treated as the centroid: 0.26756240021479816
+# Score when graph 4 is treated as the centroid: 0.2661894043561427
 # The most representative graph in the corpus is graph 0 with a score of 0.25947540266761876 and ablation None.
 
 # MOZART
@@ -123,6 +126,7 @@ if __name__ == "__main__":
 # Score when graph 2 is treated as the centroid: 0.2568975067463745
 # Score when graph 3 is treated as the centroid: 0.2549755847604174
 # Score when graph 4 is treated as the centroid: 0.2563505287774512
+# Score when graph 5 is treated as the centroid: 0.2573692476400684
 # The most representative graph in the corpus is graph 0 with a score of 0.24459634867984967 and ablation None.
 
 #--------------------------------------------------------------------------------------------------------------------------------------------
