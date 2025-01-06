@@ -153,11 +153,10 @@ def plot_embeddings_for_composer(composer, embeddings_dict):
 
 		candidate_centroid = embeddings[0]
 		embeddings = embeddings[1:]
-		spectral_mean = np.mean(embeddings, axis=0)
 		
 		pca = PCA(n_components=2, svd_solver='auto')
 		reduced_embeddings = pca.fit_transform(np.array([embedding.flatten() for embedding in embeddings]))
-		spectral_mean_2d = pca.transform(np.array([spectral_mean.flatten()]))  # Single point, reshape to 2D
+		spectral_mean_2d = np.mean(reduced_embeddings, axis=0)
 		candidate_centroid_2d = pca.transform(np.array([candidate_centroid.flatten()]))
 
 		euclidean_reduced = euclidean(spectral_mean_2d[0], candidate_centroid_2d[0])
