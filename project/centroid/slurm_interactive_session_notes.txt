@@ -1,0 +1,2 @@
+srun --partition=debug  --pty --account=csd887 --nodes=1 --ntasks-per-node=32 \
+    --mem=8G -t 00:30:00 --wait=0 --export=ALL /bin/bash
