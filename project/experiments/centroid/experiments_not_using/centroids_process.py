@@ -12,7 +12,7 @@ sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
 
-import centroid_simanneal_gen 
+import experiments.centroid.centroid_simanneal_gen_OLD as centroid_simanneal_gen_OLD 
 import structural_distance_gen_clusters as st_gen_clusters
 import simanneal_centroid_run, simanneal_centroid_helpers
 
@@ -59,7 +59,7 @@ def get_composer_graphs_between_duration(selected_composer, min_duration, max_du
 	composer_graphs = st_gen_clusters.build_composers_dict(composer_graphs)
 	composer_graphs = {composer: graphs for composer, graphs in composer_graphs.items() if len(graphs['classical_piano_midi_db']) + len(graphs['kunstderfuge']) > 0}
 	composer_graphs = {composer: graphs['classical_piano_midi_db'] + graphs['kunstderfuge'] for composer, graphs in composer_graphs.items() if composer == selected_composer}
-	return [piece_info[0] for piece_info in centroid_simanneal_gen.filter_by_max_min_duration_cluster(composer_graphs, max_duration, min_duration=min_duration)[selected_composer]] # remove duration/STG file size info from the tuple
+	return [piece_info[0] for piece_info in centroid_simanneal_gen_OLD.filter_by_max_min_duration_cluster(composer_graphs, max_duration, min_duration=min_duration)[selected_composer]] # remove duration/STG file size info from the tuple
 
 def get_composer_test_graph_filepaths():
 	test_data_fp = f'composer_test_graph_filepaths_{TIME_PARAM}.json'
