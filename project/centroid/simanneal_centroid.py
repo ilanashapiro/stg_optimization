@@ -149,7 +149,7 @@ class GraphAlignmentAnnealer(Annealer):
 		self.state[[i, j], :] = self.state[[j, i], :]  # Swap rows i and j
 
 	def energy(self): # i.e. cost, self.state represents the permutation/alignment matrix P
-		e = dist_numpy(self.A_g, align_numpy(self.state, self.A_G))
+		e = dist_torch(self.A_g, align_torch(self.state, self.A_G))
 		# print("ENERGY", e)
 		return e
 
@@ -257,21 +257,24 @@ def loss_numpy(A_g, list_alignedA_G):
 	print("DIST", distance, "STD", std)
 	
 	# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
-	return (distance * (std + EPSILON)) ** 2 
+	return np.exp(distance * (std + EPSILON))
+  # return (distance * (std + EPSILON)) ** 2 
 
 def loss_cupy(A_g, list_alignedA_G):
 	distances = cp.array([dist_cupy(A_g, A_G) for A_G in list_alignedA_G])
 	distance = cp.mean(distances) 
 	std = cp.std(distances) 
 	print("DIST", distance, "STD", std)
-	return (distance * (std + EPSILON)) ** 2 
+	return np.exp(distance * (std + EPSILON))
+	# return (distance * (std + EPSILON)) ** 2 
 
 def loss_torch(A_g, list_alignedA_G, device):
 	distances = torch.tensor([dist_torch(A_g, A_G) for A_G in list_alignedA_G], device=device)
 	distance = torch.mean(distances) 
 	std = torch.std(distances)
 	print("DIST", distance, "STD", std)
-	return (distance * (std + EPSILON)) ** 2
+	return np.exp(distance * (std + EPSILON))
+	# return (distance * (std + EPSILON)) ** 2
 
 class CentroidAnnealer(CustomCentroidAnnealer):
 	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=None):
@@ -433,8 +436,8 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		cost, alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
 
 		# Align the corpus to the current centroid
-		self.listA_G = list(map(align_numpy, alignments, self.listA_G))
-		l = loss_numpy(self.state, self.listA_G) 
+		self.listA_G = list(map(align_torch, alignments, self.listA_G))
+		l = loss_torch(self.state, self.listA_G, self.device) 
 		print("LOSS", l)
 		return l
 

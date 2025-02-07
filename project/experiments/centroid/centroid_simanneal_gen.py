@@ -6,6 +6,7 @@ import torch
 from multiprocessing import Pool, current_process, Queue
 
 DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = "/home/ilshapiro/project"
 TIME_PARAM = '50s'
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
@@ -89,7 +90,7 @@ def filter_by_duration_window_cluster(composer_graphs, window_len):
 	return results
 
 # takes in a single list of pieces info, for a single composer from a cluster
-def partition_composer_cluster_for_centroid(composer, pieces_info_list):
+def partition_composer_cluster_for_centroid(pieces_info_list):
 	pieces_info_list = sorted(pieces_info_list, key=lambda pieces_tuple: pieces_tuple[1]) 
 	centroid_size = min(len(pieces_info_list) // 2, 5) # don't want to try computing centroids beyond 9 pieces rn
 	if centroid_size < 5:
@@ -123,7 +124,7 @@ def partition_composer_cluster_for_centroid(composer, pieces_info_list):
 	return best_centroid_list
 
 def get_cluster():
-	composer_graphs_cluster_path = f"{DIRECTORY}/experiments/centroid/clusters/composer_graphs_cluster_{TIME_PARAM}.txt" # this is a SINGLE cluster
+	composer_graphs_cluster_path = f"{DIRECTORY}/experiments/centroid/clusters/composer_graphs_cluster_NEW.txt" # this is a SINGLE cluster
 	if os.path.exists(composer_graphs_cluster_path):
 		with open(composer_graphs_cluster_path, 'r') as file:
 			cluster = json.load(file)
@@ -176,7 +177,7 @@ def get_composer_centroid_input_graphs(cluster):
 	else:
 		composer_centroid_input_graphs = {}
 		for composer, pieces_info_list in cluster.items():
-			centroid_pieces_list = partition_composer_cluster_for_centroid(composer, pieces_info_list)
+			centroid_pieces_list = partition_composer_cluster_for_centroid(pieces_info_list)
 			composer_centroid_input_graphs[composer] = centroid_pieces_list
 
 		# take out duration/graph size info so we just have paths
@@ -196,7 +197,7 @@ def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_
 	listA_G, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(STG_augmented_list)
 	listA_G_tensors = [torch.tensor(matrix, device=device, dtype=torch.float32) for matrix in listA_G]
 	min_loss_A_G, min_loss_A_G_list_index, min_loss, optimal_alignments = simanneal_centroid_run.initial_centroid_and_alignments(listA_G_tensors, idx_node_mapping, node_metadata_dict, device=device)
-	
+
 	# because these are tensors originally
 	initial_centroid = min_loss_A_G.cpu().numpy() 
 	initial_alignments = [alignment.cpu().numpy() for alignment in optimal_alignments]
@@ -331,8 +332,6 @@ if __name__ == "__main__":
 	# ------FOR LOADING EXISTING INITIAL ALIGNMENTS/CENTROID AFTER THEY'RE GENERATED, AND THEN GENERATING CENTROIDS----
 	gen_centroid_info = []
 	for composer, centroid_input_pieces_list in list(composer_centroid_input_graphs.items()):
-		if composer != "beethoven":
-			continue
 		STG_augmented_list = []
 		STG_filepaths_list = []
 		

@@ -1,7 +1,7 @@
 import os, sys, pickle, json, re
 import numpy as np
 import shelve
-import torch, math
+import math
 from multiprocessing import Pool, current_process
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from scipy.stats import pearsonr
 from scipy.spatial.distance import cdist
-import seaborn as sns
+# import seaborn as sns
 from scipy.spatial.distance import euclidean, cosine, cityblock, minkowski, mahalanobis
 from scipy.optimize import minimize
 from sklearn.manifold import SpectralEmbedding
@@ -147,17 +147,37 @@ def plot_spectral_embeddings(embeddings):
 	plt.grid()
 	plt.show()
 
+def compute_geometric_median(embeddings, tol=1e-5, max_iter=100):
+		median = np.mean(embeddings, axis=0)  # Start with the mean
+		for _ in range(max_iter):
+				distances = np.linalg.norm(embeddings - median, axis=1)
+				distances[distances == 0] = 1e-10  # Avoid division by zero
+				weights = 1 / distances
+				new_median = np.sum(embeddings * weights[:, None], axis=0) / np.sum(weights)
+				if np.linalg.norm(new_median - median) < tol:
+						return new_median
+				median = new_median
+		return median
+
 def plot_embeddings_for_composer(composer, embeddings_dict):
 		# Get the embeddings for the selected composer
-		embeddings = embeddings_dict[composer]
+		embeddings = np.array(embeddings_dict[composer])
 
-		candidate_centroid = embeddings[0]
-		embeddings = embeddings[1:]
+		candidate_centroid = embeddings[0].flatten()
+		embeddings = [e.flatten() for e in embeddings[1:]]
+		spectral_mean = np.mean(embeddings, axis=0)#compute_geometric_median(embeddings).flatten()
+		
+		print("HERE")
+		for i, embedding in enumerate(embeddings):
+			print(f"EMBEDDING {i} DISTANCE TO SPECTRAL MEAN {euclidean(embedding, spectral_mean)}")
+		print(f"CENTROID DISTANCE TO SPECTRAL MEAN {euclidean(candidate_centroid, spectral_mean)}")
+		sys.exit(0)
 		
 		pca = PCA(n_components=2, svd_solver='auto')
 		reduced_embeddings = pca.fit_transform(np.array([embedding.flatten() for embedding in embeddings]))
 		spectral_mean_2d = np.mean(reduced_embeddings, axis=0)
 		candidate_centroid_2d = pca.transform(np.array([candidate_centroid.flatten()]))
+		# PCA.fit_transform is zero meaning before calculating PCA, so reduced embeddings are after projecting onto the zero-mean ones
 
 		euclidean_reduced = euclidean(spectral_mean_2d[0], candidate_centroid_2d[0])
 		print(f"Euclidean distance in reduced space: {euclidean_reduced}")
@@ -280,7 +300,7 @@ if __name__ == "__main__":
 			embedding_dim = [51, 26, 70, 48][composer_idx] # no ablation
 
 			for A_G in listA_G:
-				embedding = spectral_embedding(A_G, n_components=embedding_dim)
+				embedding = spectral_embedding(A_G, n_components=10)#embedding_dim)
 				embeddings_dict[composer].append(embedding)
 			
 			plot_embeddings_for_composer(composer, embeddings_dict)

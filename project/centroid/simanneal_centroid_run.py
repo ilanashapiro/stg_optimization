@@ -4,11 +4,12 @@ import numpy as np
 # import cupy as cp
 import torch
 
-def align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict, Tmax = 1.75, Tmin = 0.01, steps = 2000):
+def align_graph_pair(A_G1, A_G2, idx_node_mapping, node_metadata_dict, Tmax = 1.75, Tmin = 0.01, steps = 2000, device=None):
   if A_G1.shape != A_G2.shape:
     raise ValueError("Graphs must be of the same size to align.")
-  initial_state = np.eye(np.shape(A_G1)[0]) # or A_G2
-  graph_aligner = simanneal_centroid.GraphAlignmentAnnealer(initial_state, A_G1, A_G2, idx_node_mapping, node_metadata_dict)#, client, cluster)
+  # initial_state = np.eye(np.shape(A_G1)[0]) # or A_G2
+  initial_state = torch.eye(A_G1.shape[0], dtype=torch.float64, device=device)
+  graph_aligner = simanneal_centroid.GraphAlignmentAnnealer(initial_state, A_G1, A_G2, idx_node_mapping, node_metadata_dict, device=device)#, client, cluster)
   graph_aligner.Tmax = Tmax
   graph_aligner.Tmin = Tmin 
   graph_aligner.steps = steps 

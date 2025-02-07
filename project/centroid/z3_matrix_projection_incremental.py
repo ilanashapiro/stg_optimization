@@ -13,6 +13,7 @@ import time
 import pickle
 
 # DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/home/ubuntu/project/"
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 
 sys.path.append(DIRECTORY)
@@ -53,7 +54,7 @@ rank = None
 idx_node_mapping_prototype = None
 idx_node_mapping_instance = None
 
-def initialize_globals(approx_centroid_val, idx_node_mapping_val, node_metadata_dict_val):
+def initialize_globals(approx_centroid_val, idx_node_mapping_val, node_metadata_dict_val, solver=False):
 	global approx_centroid, idx_node_mapping, node_metadata_dict
 	global node_idx_mapping, n_A, opt, rank_to_flat_levels_mapping
 	global instance_levels_partition, prototype_features_partition, A
@@ -68,9 +69,13 @@ def initialize_globals(approx_centroid_val, idx_node_mapping_val, node_metadata_
 
 	node_idx_mapping = z3_helpers.invert_dict(idx_node_mapping)
 	n_A = len(idx_node_mapping)
-	opt = z3.Optimize()
-	opt.set('timeout', 300000) # in milliseconds. 300000ms = 5mins
-	opt.set("enable_lns", True)
+
+	if solver:
+		opt = z3.Solver()
+	else:
+		opt = z3.Optimize()
+		opt.set('timeout', 300000) # in milliseconds. 300000ms = 5mins
+		opt.set("enable_lns", True)
 
 	rank_to_flat_levels_mapping = z3_helpers.get_flat_levels_mapping(node_metadata_dict)
 	instance_levels_partition = z3_helpers.partition_instance_levels(idx_node_mapping, node_metadata_dict, rank_to_flat_levels_mapping) # dict: level -> instance nodes at that level
@@ -106,7 +111,7 @@ def initialize_globals(approx_centroid_val, idx_node_mapping_val, node_metadata_
 	idx_node_mapping_prototype = {idx: node_id for idx, node_id in idx_node_mapping.items() if node_id.startswith("Pr")}
 	idx_node_mapping_instance = {idx: node_id for idx, node_id in idx_node_mapping.items() if not node_id.startswith("Pr")}
 
-	print("done initializing")
+	# print("done initializing")
 
 # Constraint: the graph can't have self loops, and set the dummys, for INSTANCES (I realize never need to check if a prototype is a dummy)
 # submatrix_with_context is the submatrix for a single instance level, with context (these are the requirements to check for dummys)
@@ -358,7 +363,7 @@ def add_objective(submatrix, idx_node_submap):
 # save state ONLY for that level's instances
 # the submatrix will often contain a pair of adjacent levels -- we're only interested in the relevant level
 def save_instance_level_state_pair(levels_pair, submatrix, idx_node_mapping, model):
-	print("SAVING INSTANCE LEVELS", levels_pair)
+	# print("SAVING INSTANCE LEVELS", levels_pair)
 	state = []
 	for i in range(len(submatrix)):
 		node_id = idx_node_mapping[i] # this will be the SOURCE NODE for subsequent edges
@@ -382,7 +387,7 @@ def save_proto_level_state(level_submatrix, idx_node_mapping, model):
 	return state
 
 def restore_level_state(levels_pair, level_states):
-	print("RESTORING", levels_pair)
+	# print("RESTORING", levels_pair)
 	for var, evaluated_var in level_states[levels_pair]:
 		opt.add(var == evaluated_var)
 
@@ -563,6 +568,139 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 	else:
 			print("Unable to find a satisfiable structure across all levels")
 
+
+def test_sat(verbose=False):
+	level_states = {}
+	
+	# parent_level < next_level, meaning parent_level is HIGHER in the hierarchy than next_level (i.e. parent level of next_level)
+	if len(A_partition_instance_submatrices_list) == 1: # THIS MEANS WE'RE DOING A SINGLE LEVEL STG, SUCH AS IN ABLATION STUDY
+		opt.push()  # Save the current optimizer state for potential backtracking
+		(A_submatrix, idx_node_submap) = A_partition_instance_submatrices_list[0]
+		if len(instance_levels_partition[0]) > 1:
+			add_intra_level_linear_chain(0, A_submatrix, idx_node_submap)
+		else:
+			add_intra_level_linear_chain_for_single_node_level(0, idx_node_submap)
+		
+		if verbose:
+			print("DONE ADDING CONSTRAINTS")
+		result = opt.check()
+		if result != z3.unsat:
+			if result != z3.sat:
+				if verbose:
+					print(f"Continuing with best-effort guess after timeout for instance level 0 of single-level STG")
+			elif verbose:
+					print(f"Level 0 of single-level STG is satisfiable", time.perf_counter())
+			model = opt.model()
+			level_states[0] = save_instance_level_state_pair(0, A_submatrix, idx_node_submap, model)
+		elif verbose:
+			print(f"Level 0 of single-level STG are not satisfiable")
+		
+		opt.pop()
+		if verbose:
+			print()
+	else:
+		for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items()):
+			if verbose:
+				print(f"LEVEL PAIR FOR INSTANCE CONSTRAINTS ({parent_level}, {child_level})", time.perf_counter())
+			opt.push()  # Save the current optimizer state for potential backtracking
+		
+			(A_submatrix1, idx_node_submap1) = A_partition_instance_submatrices_list[parent_level]
+			(A_submatrix2, idx_node_submap2) = A_partition_instance_submatrices_list[child_level]
+			
+			if parent_level == 0:
+				if len(instance_levels_partition[parent_level]) > 1:
+					add_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
+				else:
+					add_intra_level_linear_chain_for_single_node_level(parent_level, idx_node_submap1)
+			else:
+				prev_levels_pair = (parent_level - 1, child_level - 1)
+				restore_level_state(prev_levels_pair, level_states)
+				if len(instance_levels_partition[parent_level]) > 1:
+					reconstruct_intra_level_linear_chain(parent_level, A_submatrix1, idx_node_submap1)
+				else:
+					add_intra_level_linear_chain_for_single_node_level(parent_level, idx_node_submap1)
+			
+			if child_level not in level_states:
+				if len(instance_levels_partition[child_level]) > 1:
+					add_intra_level_linear_chain(child_level, A_submatrix2, idx_node_submap2)
+				else: # for all single-node *child* levels, we need to define that the node is the start and end of its linear chain
+					# this is in order for it to get the correct parents (bc the start/end of linear chain in spanning levels has first/last parents at the ends of the parent chain
+					add_intra_level_linear_chain_for_single_node_level(child_level, idx_node_submap2)
+				
+				add_instance_parent_count_constraints(A_combined_submatrix, parent_level, idx_node_submap1, child_level, idx_node_submap2, combined_idx_node_submap)
+				add_instance_parent_relationship_constraints(parent_level, child_level, idx_node_submap2) # we ONLY want to do this for the child node
+		
+			if verbose:
+				print("DONE ADDING CONSTRAINTS")
+			result = opt.check()
+			if result != z3.unsat:
+				if result != z3.sat and verbose:
+					print(f"Continuing with best-effort guess after timeout for instance levels {parent_level} and {child_level}")
+				elif verbose:
+					print(f"Consecutive levels {parent_level} and {child_level} are satisfiable", time.perf_counter())
+				model = opt.model()
+				level_states[(parent_level, child_level)] = save_instance_level_state_pair((parent_level, child_level), A_combined_submatrix, combined_idx_node_submap, model)
+			elif verbose:
+				print(f"Consecutive levels {parent_level} and {child_level} are not satisfiable")
+
+			opt.pop()
+			if verbose:
+				print()
+
+	for level, (instance_proto_submatrix, idx_node_submap) in sorted(A_partition_instance_submatrices_list_with_proto.items()):
+		if verbose:
+			print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
+		opt.push()  # Save the current optimizer state for potential backtracking
+
+		if len(A_partition_instance_submatrices_list) == 1: # THIS MEANS WE'RE DOING A SINGLE LEVEL STG, SUCH AS IN ABLATION STUDY
+			levels_pair = 0 # not a pair, just a single value this time (based on how we're caching)
+		elif level == 0: # the instance levels are stored by partition, so the keys are in pairs of the levels in that partition
+			levels_pair = (0, 1)
+		else:
+			levels_pair = (level - 1, level)
+		restore_level_state(levels_pair, level_states)
+
+		# we need the linear chain functions defined for the subsequent proto-instance constraints
+		(instance_only_submatrix, idx_node_submap_instance_only) = A_partition_instance_submatrices_list[level]
+		if len(instance_levels_partition[level]) > 1:
+			reconstruct_intra_level_linear_chain(level, instance_only_submatrix, idx_node_submap_instance_only)
+		else: 
+			add_intra_level_linear_chain_for_single_node_level(level, idx_node_submap_instance_only)
+
+		add_prototype_to_prototype_constraints(idx_node_submap)
+		add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap, node_metadata_dict)
+		
+		result = opt.check()
+		if result != z3.unsat:
+			if result != z3.sat and verbose:
+				print(f"Continuing with best-effort guess after timeout for proto level {level} ")
+			elif verbose:
+				print(f"Level {level} is satisfiable for proto constraints", time.perf_counter())
+				
+			model = opt.model()
+			proto_state = save_proto_level_state(instance_proto_submatrix, idx_node_submap, model)
+			level_states[levels_pair] += proto_state
+		elif verbose:
+			print(f"Level {level} is not satisfiable for proto constraints")
+
+		opt.pop()
+		if verbose:
+			print()
+
+	# After iterating through all levels, you can check for overall satisfiability
+	for levels_pair in sorted(list(level_states.keys())):
+		# print("FINAL STATE AT LEVEL", level, level_states[level])
+		restore_level_state(levels_pair, level_states)
+
+	result = opt.check()
+	if result == z3.sat:
+		if verbose:
+			print("Final structure across all levels is satisfiable", time.perf_counter())
+		return True
+	if verbose:
+		print("Final structure across all levels is NOT satisfiable", time.perf_counter())
+	return False
+			
 if __name__ == "__main__":
 	# NOTE: uncomment for viewing already repaired centroids
 	experiments_final_centroids_dir = "/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/final_centroids/final_centroid_50s_ablation3/beethoven/"
