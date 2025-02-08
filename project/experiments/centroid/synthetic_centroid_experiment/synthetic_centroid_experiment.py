@@ -9,8 +9,8 @@ import torch, glob
 from pulp import LpProblem, LpMinimize, LpVariable, lpSum
 import matplotlib.pyplot as plt
 
-# DIRECTORY = "/home/ubuntu/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
 TIME_PARAM = '50s'
 ABLATION_LEVEL = None
@@ -71,10 +71,10 @@ def construct_distance_matrix(corpus_graphs):
 def plot_results():
 	k_values = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 	relative_errors = [
-      0.009755985185740532,
+			0.009755985185740532,
 			0.004949172262302578,
-      0.029933014260994057,
-      0.020073253229684212,
+			0.029933014260994057,
+			0.020073253229684212,
 			0.017261706192896447,
 			0.002681773959127958,
 			0.0144659053685462,
@@ -284,7 +284,7 @@ def generate_initial_alignments(noisy_corpus_dirname, STG_augmented_list, gpu_id
 	# because these are tensors originally
 	initial_centroid = min_loss_A_G.cpu().numpy() 
 	initial_alignments = [alignment.cpu().numpy() for alignment in optimal_alignments]
-	alignments_dir = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/initial_alignments"
+	alignments_dir = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/initial_alignments"
 	print("ALIGNMENTS DIR", alignments_dir)
 
 	initial_alignment_files = []
@@ -295,7 +295,8 @@ def generate_initial_alignments(noisy_corpus_dirname, STG_augmented_list, gpu_id
 	
 	intial_centroid_piece_name = os.path.splitext(os.path.basename(pieces_fp[min_loss_A_G_list_index]))[0]
 	initial_centroid_file = os.path.join(alignments_dir, f'initial_centroid_{intial_centroid_piece_name}.txt')
-
+	print(initial_centroid_file)
+	sys.exit(0)
 	if not os.path.exists(alignments_dir):
 		os.makedirs(alignments_dir)
 	print(f"Created directory {alignments_dir}")
@@ -309,7 +310,7 @@ def generate_initial_alignments(noisy_corpus_dirname, STG_augmented_list, gpu_id
 		print(f'Saved: {file_name}')
 
 def get_saved_initial_alignments_and_centroid(noisy_corpus_dirname):
-	alignments_dir = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/initial_alignments"
+	alignments_dir = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/initial_alignments"
 
 	initial_alignment_files = []
 	pieces_fp = [f for f in os.listdir(noisy_corpus_dirname) if os.path.isfile(os.path.join(noisy_corpus_dirname, f))]
@@ -321,13 +322,13 @@ def get_saved_initial_alignments_and_centroid(noisy_corpus_dirname):
 	alignments = [np.loadtxt(f) for f in initial_alignment_files]
 	initial_centroid = np.loadtxt(initial_centroid_file)
 	print(f'Loaded existing centroid and alignment files from {alignments_dir}')
-	return initial_centroid, alignments
+	return initial_centroid, alignments, initial_centroid_file
 
 def generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=0):
 	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
 	print(f"Process {current_process().name} running on GPU {device} for centroid cluster {noisy_corpus_dirname}")
 
-	initial_centroid, initial_alignments = get_saved_initial_alignments_and_centroid(noisy_corpus_dirname)
+	initial_centroid, initial_alignments, _ = get_saved_initial_alignments_and_centroid(noisy_corpus_dirname)
 	listA_G, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(noisy_corpus_graphs)
 
 	# bc these are originally numpy and we can't convert to tensor till we get the device
@@ -351,7 +352,7 @@ def generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=0
 	loss = loss.item() # convert from tensor -> numpy
 	
 	approx_centroid, final_idx_node_mapping = simanneal_centroid_helpers.remove_unnecessary_dummy_nodes(approx_centroid, idx_node_mapping, node_metadata_dict)
-	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/approx_centroid"
+	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid"
 	if not os.path.exists(approx_centroid_dir):
 		os.makedirs(approx_centroid_dir)
 
@@ -374,7 +375,7 @@ def generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=0
 	print(f'Saved: {approx_centroid_loss_path}')
 
 def repair_centroid(noisy_corpus_dirname):
-	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/approx_centroid"
+	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid"
 
 	approx_centroid_path = os.path.join(approx_centroid_dir, "centroid.txt")
 	approx_centroid = np.loadtxt(approx_centroid_path)
@@ -393,7 +394,7 @@ def repair_centroid(noisy_corpus_dirname):
 
 	z3_repair.initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)
 
-	final_centroid_dir = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/final_centroid"
+	final_centroid_dir = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/final_centroid"
 	if not os.path.exists(final_centroid_dir):
 		os.makedirs(final_centroid_dir)
 	final_centroid_filename = f'{final_centroid_dir}/final_centroid.txt'
@@ -401,9 +402,18 @@ def repair_centroid(noisy_corpus_dirname):
 
 	z3_repair.run(final_centroid_filename, final_idx_node_mapping_filename)
 
+def get_distances_from_centroid_to_corpus(noisy_corpus_graphs, centroid, gpu_id):
+	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
+	listA_G, centroid_idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(noisy_corpus_graphs + [centroid])
+	A_g, listA_G = torch.from_numpy(listA_G[-1]).to(device), [torch.from_numpy(A_G).to(device) for A_G in listA_G[:-1]]
+	alignments = simanneal_centroid.get_alignments_to_centroid(A_g, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=device)
+	list_alignedA_G = list(map(simanneal_centroid.align_torch, alignments, listA_G)) # align to centroid A_g
+	return np.array([simanneal_centroid.dist_torch(A_g, A_G).item() for A_G in list_alignedA_G])
+
 if __name__ == "__main__":
-	plot_results()
-	sys.exit(0)
+	# plot_results()
+	# sys.exit(0)
+	
 	test_centroid_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
 	# test_centroid_path = DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle'
 	# test_centroid_path = DIRECTORY +'/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_flat.pickle'
@@ -414,7 +424,6 @@ if __name__ == "__main__":
 	# come up with error bounds for the loss
 	
 	K = list(range(3,15))
-	# K = [4]
 	gpu_id = 1
 	for k in K:
 		print("K", k)
@@ -422,7 +431,7 @@ if __name__ == "__main__":
 		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(test_centroid_path)) + f"_no_std_size{k}"
 		test_centroid = load_test_centroid(test_centroid_path)
 
-		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/{noisy_corpus_dirname}'
+		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'
 		noise = int(np.ceil(test_centroid.size()/2))
 		# generate_noisy_corpus(test_centroid, noisy_corpus_save_dir, noisy_corpus_dirname, corpus_size=k, noise=noise)
 		
@@ -435,19 +444,19 @@ if __name__ == "__main__":
 		# generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=gpu_id)
 		# repair_centroid(noisy_corpus_dirname)
 		# continue
-		derived_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/final_centroid/final_centroid.txt")
-		approx_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/approx_centroid/centroid.txt")
+		derived_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/final_centroid/final_centroid.txt")
+		approx_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/centroid.txt")
 		
-		node_metadata_dict_path = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/approx_centroid/node_metadata_dict.txt"
+		node_metadata_dict_path = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/node_metadata_dict.txt"
 		with open(node_metadata_dict_path, 'r') as file:
 			node_metadata_dict = json.load(file)
 		
-		idx_node_mapping_path = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/final_centroid/final_idx_node_mapping.txt"
+		idx_node_mapping_path = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/final_centroid/final_idx_node_mapping.txt"
 		with open(idx_node_mapping_path, 'r') as file:
 			idx_node_mapping = json.load(file)
 			idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
 
-		approx_idx_node_mapping_path = f"{DIRECTORY}/experiments/centroid/{noisy_corpus_dirname}/approx_centroid/idx_node_mapping.txt"
+		approx_idx_node_mapping_path = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/idx_node_mapping.txt"
 		with open(approx_idx_node_mapping_path, 'r') as file:
 			approx_idx_node_mapping = json.load(file)
 			approx_idx_node_mapping = {int(k): v for k, v in approx_idx_node_mapping.items()}
@@ -464,33 +473,15 @@ if __name__ == "__main__":
 		# lower_bound_value = solve_lower_bound(construct_distance_matrix(noisy_corpus_graphs))
 		# print("LOWER BOUND:", lower_bound_value)
 
-		device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
-		listA_G, centroid_idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(noisy_corpus_graphs + [derived_centroid])
-		A_g, listA_G = torch.from_numpy(listA_G[-1]).to(device), [torch.from_numpy(A_G).to(device) for A_G in listA_G[:-1]]
-		alignments = simanneal_centroid.get_alignments_to_centroid(A_g, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=device)
-		list_alignedA_G = list(map(simanneal_centroid.align_torch, alignments, listA_G)) # align to centroid A_g
-		distances = np.array([simanneal_centroid.dist_torch(A_g, A_G).item() for A_G in list_alignedA_G])
-		distance = np.mean(distances) # unit is distance
-		print("DIST SUM DERIVED", np.mean(distances))
-		print("DISTS DERIVED", distances, "LENGTH ALIGNED LIST", len(list_alignedA_G), "LENGTH ORIGINAL", len(listA_G))
-		derived_loss = np.mean(distances)
-		# std = np.std(distances) # unit is also distance (vs unit of variance would be distance^2)
-		# print("LOSS INFO FOR DERIVED", distance, std, distance * (std + EPSILON))
-		
-		# listA_G, centroid_idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(noisy_corpus_graphs + [test_centroid])
-		# A_g, listA_G = torch.from_numpy(listA_G[-1]).to(device), [torch.from_numpy(A_G).to(device) for A_G in listA_G[:-1]]
-		# alignments = simanneal_centroid.get_alignments_to_centroid(A_g, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=device)
-		# list_alignedA_G = list(map(simanneal_centroid.align_torch, alignments, listA_G)) # align to centroid A_g
-		# distances = np.array([simanneal_centroid.dist_torch(A_g, A_G).item() for A_G in list_alignedA_G])
-		# distance = np.mean(distances) # unit is distance
-		# synthetic_loss = np.sum(distances)
+		distances_derived = get_distances_from_centroid_to_corpus(noisy_corpus_graphs, derived_centroid, gpu_id)
+		derived_loss = np.mean(distances_derived) # unit is distance
+		print("DERIVED LOSS", derived_loss)
+		print("DISTS DERIVED", distances_derived)
+
 		synthetic_loss = np.sqrt(noise)
-		print("DIST SUM SYNTHETIC", synthetic_loss)
+		print("SYNTHETIC LOSS", synthetic_loss)
 		print("RELATIVE ERROR:", np.abs(synthetic_loss - derived_loss) / synthetic_loss)
 		print("ABSOLUTE ERROR:", np.abs(synthetic_loss - derived_loss))
-		
-		# std = np.std(distances) # unit is also distance (vs unit of variance would be distance^2)
-		# print("LOSS INFO FOR SYNTHETIC", distance, std, distance * (std + EPSILON))
 		
 		# for G in noisy_corpus_graphs:
 		# 	print(struct_dist(G, test_centroid, noisy_corpus_dirname, gpu_id=device))
