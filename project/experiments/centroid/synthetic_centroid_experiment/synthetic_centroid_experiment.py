@@ -12,14 +12,11 @@ import matplotlib.pyplot as plt
 DIRECTORY = "/home/ubuntu/project"
 # DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
-TIME_PARAM = '50s'
-ABLATION_LEVEL = None
-EPSILON = 1e-8
 
 sys.path.append(f"{DIRECTORY}/centroid")
 import z3_matrix_projection_incremental as z3_repair
 import simanneal_centroid_helpers, simanneal_centroid_run, simanneal_centroid
-import build_graph
+# import build_graph
 
 def solve_lower_bound(dist_matrix):
 		"""
@@ -78,7 +75,7 @@ def plot_results():
 			0.017261706192896447,
 			0.002681773959127958,
 			0.0144659053685462,
-			0.02991807085508924,
+			0.0,
 			0.0,
 			0.008451775723758695,
 			0.007012663638145545,
@@ -98,8 +95,8 @@ def plot_results():
 	# Show plot
 	plt.show()
 
-def load_test_centroid(test_centroid_path):
-	with open(test_centroid_path, 'rb') as f:
+def load_STG(stg_path):
+	with open(stg_path, 'rb') as f:
 		graph = pickle.load(f)
 	return graph
 
@@ -338,7 +335,7 @@ def generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=0
 	aligned_listA_G = list(map(simanneal_centroid.align_torch, initial_alignments, listA_G))
 
 	centroid_annealer = simanneal_centroid.CentroidAnnealer(initial_centroid, aligned_listA_G, idx_node_mapping, node_metadata_dict, device=device)
-	# centroid_annealer.Tmax = 1.5
+	# centroid_annealer.Tmax = 1.25
 	# centroid_annealer.Tmin = 0.001
 	# centroid_annealer.steps = 3000
 
@@ -420,16 +417,13 @@ if __name__ == "__main__":
 	# test_centroid_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_317_(c)orlandi/biamonti_317_(c)orlandi_augmented_graph_flat.pickle'
 	# test_centroid_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_360_(c)orlandi/biamonti_360_(c)orlandi_augmented_graph_flat.pickle'
 	
-	# make this more robust by doing different noise for each corpus?
-	# come up with error bounds for the loss
-	
 	K = list(range(3,15))
 	gpu_id = 1
 	for k in K:
 		print("K", k)
 		# TEST extension is for HP1 params
 		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(test_centroid_path)) + f"_no_std_size{k}"
-		test_centroid = load_test_centroid(test_centroid_path)
+		test_centroid = load_STG(test_centroid_path)
 
 		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'
 		noise = int(np.ceil(test_centroid.size()/2))
@@ -444,9 +438,15 @@ if __name__ == "__main__":
 		# generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=gpu_id)
 		# repair_centroid(noisy_corpus_dirname)
 		# continue
+		
 		derived_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/final_centroid/final_centroid.txt")
 		approx_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/centroid.txt")
 		
+		_, _, initial_alignments_filepath = get_saved_initial_alignments_and_centroid(noisy_corpus_dirname)
+		initial_alignments_filename = os.path.basename(initial_alignments_filepath)[:-4].replace('initial_centroid_', '')
+		naive_centroid_filepath = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/{initial_alignments_filename}.pickle"
+		naive_centroid = load_STG(naive_centroid_filepath)
+
 		node_metadata_dict_path = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/node_metadata_dict.txt"
 		with open(node_metadata_dict_path, 'r') as file:
 			node_metadata_dict = json.load(file)
@@ -473,40 +473,59 @@ if __name__ == "__main__":
 		# lower_bound_value = solve_lower_bound(construct_distance_matrix(noisy_corpus_graphs))
 		# print("LOWER BOUND:", lower_bound_value)
 
+		distances_naive = get_distances_from_centroid_to_corpus(noisy_corpus_graphs, naive_centroid, gpu_id)
+		naive_loss = np.mean(distances_naive) # unit is distance
+		# print("NAIVE LOSS", naive_loss)
+
 		distances_derived = get_distances_from_centroid_to_corpus(noisy_corpus_graphs, derived_centroid, gpu_id)
 		derived_loss = np.mean(distances_derived) # unit is distance
-		print("DERIVED LOSS", derived_loss)
-		print("DISTS DERIVED", distances_derived)
+		# print("DERIVED LOSS", derived_loss)
+		# print("DISTS DERIVED", distances_derived)
 
 		synthetic_loss = np.sqrt(noise)
-		print("SYNTHETIC LOSS", synthetic_loss)
-		print("RELATIVE ERROR:", np.abs(synthetic_loss - derived_loss) / synthetic_loss)
-		print("ABSOLUTE ERROR:", np.abs(synthetic_loss - derived_loss))
+		# print("SYNTHETIC LOSS", synthetic_loss)
+		print("RELATIVE ERROR DERIVED VS SYNTHETIC:", np.abs(synthetic_loss - derived_loss) / synthetic_loss)
+		# print("ABSOLUTE ERROR DERIVED VS SYNTHETIC:", np.abs(synthetic_loss - derived_loss))
+
+		print("RELATIVE ERROR NAIVE VS SYNTHETIC:", np.abs(synthetic_loss - naive_loss) / synthetic_loss)
+		# print("ABSOLUTE ERROR NAIVE VS SYNTHETIC:", np.abs(synthetic_loss - derived_loss))
 		
 		# for G in noisy_corpus_graphs:
 		# 	print(struct_dist(G, test_centroid, noisy_corpus_dirname, gpu_id=device))
 
 # K 3
-# RELATIVE ERROR: 0.009755985185740532
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.009755985185740532
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.11169285642178257
 # K 4
-# RELATIVE ERROR: 0.004949172262302578
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.004949172262302578
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.01816039639319403
 # K 5
-# RELATIVE ERROR: 0.029933014260994057
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.029933014260994057
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.08063778055995689
 # K 6
-# RELATIVE ERROR: 0.020073253229684212
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.020073253229684212
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.12669268411796772
 # K 7
-# RELATIVE ERROR: 0.017261706192896447
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.017261706192896447
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.13979314423458802
 # K 8
-# RELATIVE ERROR: 0.002681773959127958
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.002681773959127958
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.1454582326611979
 # K 9
-# RELATIVE ERROR: 0.0144659053685462
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.0144659053685462
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.10859480915733677
 # K 10
-# RELATIVE ERROR: 0.02991807085508924
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.0
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.1734060626852591
 # K 11
-# RELATIVE ERROR: 0.0
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.0
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.20135027442563594
 # K 12
-# RELATIVE ERROR: 0.008451775723758695
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.008451775723758695
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.20773524150868308
 # K 13
-# RELATIVE ERROR: 0.007012663638145545
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.007012663638145545
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.20947096849054983
 # K 14
-# RELATIVE ERROR: 0.008629118369398
+# RELATIVE ERROR DERIVED VS SYNTHETIC: 0.008629118369398
+# RELATIVE ERROR NAIVE VS SYNTHETIC: 0.2077036544127451
