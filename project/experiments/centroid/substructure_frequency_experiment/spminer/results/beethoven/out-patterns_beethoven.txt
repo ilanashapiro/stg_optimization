@@ -1,0 +1,181 @@
+Using dataset stg
+search strategy: mcts
+Size 2
+0 distinct seeds
+Size 3
+27 distinct seeds
+Size 4
+54 distinct seeds
+Size 5
+82 distinct seeds
+- outputting 1000.0 motifs of size 2
+- outputting 632.0 motifs of size 3
+- outputting 82.0 motifs of size 3
+- outputting 36.0 motifs of size 3
+- outputting 193.0 motifs of size 4
+- outputting 172.0 motifs of size 4
+- outputting 79.0 motifs of size 4
+- outputting 25.0 motifs of size 4
+- outputting 14.0 motifs of size 4
+- outputting 7.0 motifs of size 4
+- outputting 4.0 motifs of size 4
+- outputting 106.0 motifs of size 5
+- outputting 36.0 motifs of size 5
+- outputting 19.0 motifs of size 5
+- outputting 16.0 motifs of size 5
+- outputting 15.0 motifs of size 5
+- outputting 7.0 motifs of size 5
+- outputting 4.0 motifs of size 5
+163.9203748703003 TOTAL TIME
+2 mins 43 secs
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/2-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/3-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/3-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/3-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-6.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-6.png
+TARGETS: [<networkx.classes.graph.Graph object at 0x7f6d2b1e7390>, <networkx.classes.graph.Graph object at 0x7f6da4066f10>, <networkx.classes.graph.Graph object at 0x7f6ecefa5450>, <networkx.classes.graph.Graph object at 0x7f6da3a818d0>, <networkx.classes.graph.Graph object at 0x7f6da4046cd0>, <networkx.classes.graph.Graph object at 0x7f6da3adb590>, <networkx.classes.graph.Graph object at 0x7f6da3a5ee90>, <networkx.classes.graph.Graph object at 0x7f6d81fcc590>, <networkx.classes.graph.Graph object at 0x7f6d2ffdb010>, <networkx.classes.graph.Graph object at 0x7f6d6e4dd9d0>, <networkx.classes.graph.Graph object at 0x7f6d2fc42790>, <networkx.classes.graph.Graph object at 0x7f6d6e185490>, <networkx.classes.graph.Graph object at 0x7f6ecefa4b90>, <networkx.classes.graph.Graph object at 0x7f6da3a5f790>, <networkx.classes.graph.Graph object at 0x7f6d6e534b10>, <networkx.classes.graph.Graph object at 0x7f6d2faff590>, <networkx.classes.graph.Graph object at 0x7f6d2fc58cd0>, <networkx.classes.graph.Graph object at 0x7f6d2ffef710>]
+Analyzing group with 2 nodes (1 graphs)...
+Graph 0:
+False
+Analyzing group with 3 nodes (3 graphs)...
+Graph 0:
+False
+Graph 1:
+False
+Graph 2:
+False
+Analyzing group with 4 nodes (7 graphs)...
+Graph 0:
+False
+Graph 1:
+False
+Graph 2:
+False
+Graph 3:
+False
+Graph 4:
+False
+Graph 5:
+False
+Graph 6:
+False
+Analyzing group with 5 nodes (7 graphs)...
+Graph 0:
+False
+Graph 1:
+False
+Graph 2:
+False
+Graph 3:
+False
+Graph 4:
+False
+Graph 5:
+False
+Graph 6:
+False
+RESULT for beethoven: 0.0
+Saved subgraph set
+Using dataset stg
+search strategy: mcts
+Size 2
+0 distinct seeds
+Size 3
+27 distinct seeds
+Size 4
+54 distinct seeds
+Size 5
+83 distinct seeds
+- outputting 1000.0 motifs of size 2
+- outputting 623.0 motifs of size 3
+- outputting 107.0 motifs of size 3
+- outputting 20.0 motifs of size 3
+- outputting 208.0 motifs of size 4
+- outputting 128.0 motifs of size 4
+- outputting 59.0 motifs of size 4
+- outputting 56.0 motifs of size 4
+- outputting 21.0 motifs of size 4
+- outputting 13.0 motifs of size 4
+- outputting 7.0 motifs of size 4
+- outputting 75.0 motifs of size 5
+- outputting 29.0 motifs of size 5
+- outputting 27.0 motifs of size 5
+- outputting 22.0 motifs of size 5
+- outputting 17.0 motifs of size 5
+- outputting 11.0 motifs of size 5
+- outputting 9.0 motifs of size 5
+161.82123589515686 TOTAL TIME
+2 mins 41 secs
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/2-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/3-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/3-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/3-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/4-6.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/beethoven/plots/5-6.png
+TARGETS: [<networkx.classes.graph.Graph object at 0x7f6d245e6490>, <networkx.classes.graph.Graph object at 0x7f6d863ed0d0>, <networkx.classes.graph.Graph object at 0x7f6d2f94f450>, <networkx.classes.graph.Graph object at 0x7f6d2f913ed0>, <networkx.classes.graph.Graph object at 0x7f6d2f7a8610>, <networkx.classes.graph.Graph object at 0x7f6d2fae9b50>, <networkx.classes.graph.Graph object at 0x7f6d2f784210>, <networkx.classes.graph.Graph object at 0x7f6d2fff83d0>, <networkx.classes.graph.Graph object at 0x7f6d2f777210>, <networkx.classes.graph.Graph object at 0x7f6d87b9b990>, <networkx.classes.graph.Graph object at 0x7f6d87846810>, <networkx.classes.graph.Graph object at 0x7f6d84eec910>, <networkx.classes.graph.Graph object at 0x7f6d2f79c050>, <networkx.classes.graph.Graph object at 0x7f6d87170650>, <networkx.classes.graph.Graph object at 0x7f6d865404d0>, <networkx.classes.graph.Graph object at 0x7f6d8e0fa090>, <networkx.classes.graph.Graph object at 0x7f6d86d1b850>, <networkx.classes.graph.Graph object at 0x7f6d87313c10>]
+Analyzing group with 2 nodes (1 graphs)...
+Graph 0:
+True
+Analyzing group with 3 nodes (3 graphs)...
+Graph 0:
+False
+Graph 1:
+True
+Graph 2:
+False
+Analyzing group with 4 nodes (7 graphs)...
+Graph 0:
+True
+Graph 1:
+False
+Graph 2:
+False
+Graph 3:
+False
+Graph 4:
+False
+Graph 5:
+False
+Graph 6:
+False
+Analyzing group with 5 nodes (7 graphs)...
+Graph 0:
+False
+Graph 1:
+False
+Graph 2:
+False
+Graph 3:
+False
+Graph 4:
+False
+Graph 5:
+False
+Graph 6:
+False
+RESULT for beethoven: 0.16666666666666666

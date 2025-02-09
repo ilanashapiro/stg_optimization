@@ -257,8 +257,8 @@ def add_noise_to_graph(graph, n_edits):
 	print("done")
 	return noisy_graph
 
-def generate_noisy_corpus(test_centroid, save_dir, noisy_corpus_dirname, corpus_size, noise):
-	noisy_graphs = [add_noise_to_graph(test_centroid, noise) for _ in range(corpus_size)]
+def generate_noisy_corpus(base_graph, save_dir, noisy_corpus_dirname, corpus_size, noise):
+	noisy_graphs = [add_noise_to_graph(base_graph, noise) for _ in range(corpus_size)]
 
 	# Ensure the save directory exists
 	os.makedirs(save_dir, exist_ok=True)
@@ -434,28 +434,27 @@ if __name__ == "__main__":
 	plot_results()
 	sys.exit(0)
 	
-	test_centroid_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
-	# test_centroid_path = DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle'
-	# test_centroid_path = DIRECTORY +'/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_flat.pickle'
-	# test_centroid_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_317_(c)orlandi/biamonti_317_(c)orlandi_augmented_graph_flat.pickle'
-	# test_centroid_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_360_(c)orlandi/biamonti_360_(c)orlandi_augmented_graph_flat.pickle'
+	base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
+	# base_graph_path = DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle'
+	# base_graph_path = DIRECTORY +'/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_flat.pickle'
+	# base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_317_(c)orlandi/biamonti_317_(c)orlandi_augmented_graph_flat.pickle'
+	# base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_360_(c)orlandi/biamonti_360_(c)orlandi_augmented_graph_flat.pickle'
 	
 	K = list(range(3,15))
 	gpu_id = 1
 	for k in K:
 		print("K", k)
-		# TEST extension is for HP1 params
-		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(test_centroid_path)) + f"_no_std_size{k}"
-		test_centroid = load_STG(test_centroid_path)
+		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(base_graph_path)) + f"_no_std_size{k}"
+		base_graph = load_STG(base_graph_path)
 
 		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'
-		noise = int(np.ceil(test_centroid.size()/2))
-		# generate_noisy_corpus(test_centroid, noisy_corpus_save_dir, noisy_corpus_dirname, corpus_size=k, noise=noise)
+		noise = int(np.ceil(base_graph.size()/2))
+		# generate_noisy_corpus(base_graph, noisy_corpus_save_dir, noisy_corpus_dirname, corpus_size=k, noise=noise)
 		
 		noisy_corpus_graphs = load_noisy_corpus(noisy_corpus_save_dir)
 		print("NUM CORPUS GRAPHS", len(noisy_corpus_graphs))
 		# for G in noisy_corpus_graphs:
-		# 	print(struct_dist(test_centroid, G, noisy_corpus_dirname, gpu_id=gpu_id))
+		# 	print(struct_dist(base_graph, G, noisy_corpus_dirname, gpu_id=gpu_id))
 	
 		# generate_initial_alignments(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=gpu_id)
 		# generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=gpu_id)
@@ -487,11 +486,11 @@ if __name__ == "__main__":
 		derived_centroid = simanneal_centroid_helpers.adj_matrix_to_graph(derived_centroid_A, idx_node_mapping, node_metadata_dict)
 		approx_centroid = simanneal_centroid_helpers.adj_matrix_to_graph(approx_centroid_A, approx_idx_node_mapping, node_metadata_dict)
 
-		# layers_test_centroid = build_graph.get_unsorted_layers_from_graph_by_index(test_centroid)
+		# layers_base_graph = build_graph.get_unsorted_layers_from_graph_by_index(base_graph)
 		# layers_derived_centroid = build_graph.get_unsorted_layers_from_graph_by_index(derived_centroid)
-		# build_graph.visualize([test_centroid, derived_centroid], [layers_test_centroid, layers_derived_centroid])
+		# build_graph.visualize([base_graph, derived_centroid], [layers_base_graph, layers_derived_centroid])
 
-		# print("SYNTHETIC TO DERIVED CENTROID DIST", struct_dist(test_centroid, derived_centroid, noisy_corpus_dirname, gpu_id=device))
+		# print("SYNTHETIC TO DERIVED CENTROID DIST", struct_dist(base_graph, derived_centroid, noisy_corpus_dirname, gpu_id=device))
 
 		# lower_bound_value = solve_lower_bound(construct_distance_matrix(noisy_corpus_graphs))
 		# print("LOWER BOUND:", lower_bound_value)
@@ -514,7 +513,7 @@ if __name__ == "__main__":
 		# print("ABSOLUTE ERROR NAIVE VS SYNTHETIC:", np.abs(synthetic_loss - derived_loss))
 		
 		# for G in noisy_corpus_graphs:
-		# 	print(struct_dist(G, test_centroid, noisy_corpus_dirname, gpu_id=device))
+		# 	print(struct_dist(G, base_graph, noisy_corpus_dirname, gpu_id=device))
 
 # K 3
 # RELATIVE ERROR DERIVED VS SYNTHETIC: 0.009755985185740532

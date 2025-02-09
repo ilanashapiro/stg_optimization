@@ -1,0 +1,181 @@
+Using dataset stg
+search strategy: mcts
+Size 2
+0 distinct seeds
+Size 3
+27 distinct seeds
+Size 4
+56 distinct seeds
+Size 5
+84 distinct seeds
+- outputting 1000.0 motifs of size 2
+- outputting 651.0 motifs of size 3
+- outputting 77.0 motifs of size 3
+- outputting 22.0 motifs of size 3
+- outputting 209.0 motifs of size 4
+- outputting 191.0 motifs of size 4
+- outputting 35.0 motifs of size 4
+- outputting 29.0 motifs of size 4
+- outputting 16.0 motifs of size 4
+- outputting 10.0 motifs of size 4
+- outputting 4.0 motifs of size 4
+- outputting 99.0 motifs of size 5
+- outputting 30.0 motifs of size 5
+- outputting 23.0 motifs of size 5
+- outputting 17.0 motifs of size 5
+- outputting 15.0 motifs of size 5
+- outputting 10.0 motifs of size 5
+- outputting 9.0 motifs of size 5
+284.07555866241455 TOTAL TIME
+4 mins 44 secs
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/2-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/3-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/3-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/3-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-6.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-6.png
+TARGETS: [<networkx.classes.graph.Graph object at 0x7fdbdce90490>, <networkx.classes.graph.Graph object at 0x7fdc599cc450>, <networkx.classes.graph.Graph object at 0x7fdc599cfd50>, <networkx.classes.graph.Graph object at 0x7fdc599a9390>, <networkx.classes.graph.Graph object at 0x7fdc599a97d0>, <networkx.classes.graph.Graph object at 0x7fdc599a8dd0>, <networkx.classes.graph.Graph object at 0x7fdc599f1c50>, <networkx.classes.graph.Graph object at 0x7fdc59e96610>, <networkx.classes.graph.Graph object at 0x7fdbef277210>, <networkx.classes.graph.Graph object at 0x7fdbee5e7590>, <networkx.classes.graph.Graph object at 0x7fdbeea5ea10>, <networkx.classes.graph.Graph object at 0x7fdbeedb4e90>, <networkx.classes.graph.Graph object at 0x7fdc599a8a90>, <networkx.classes.graph.Graph object at 0x7fdbee5c84d0>, <networkx.classes.graph.Graph object at 0x7fdbeeae70d0>, <networkx.classes.graph.Graph object at 0x7fdbeed9d1d0>, <networkx.classes.graph.Graph object at 0x7fdbeec16d10>, <networkx.classes.graph.Graph object at 0x7fdbee758910>]
+Analyzing group with 2 nodes (1 graphs)...
+Graph 0:
+True
+Analyzing group with 3 nodes (3 graphs)...
+Graph 0:
+True
+Graph 1:
+True
+Graph 2:
+True
+Analyzing group with 4 nodes (7 graphs)...
+Graph 0:
+True
+Graph 1:
+False
+Graph 2:
+False
+Graph 3:
+False
+Graph 4:
+True
+Graph 5:
+False
+Graph 6:
+False
+Analyzing group with 5 nodes (7 graphs)...
+Graph 0:
+False
+Graph 1:
+False
+Graph 2:
+False
+Graph 3:
+True
+Graph 4:
+False
+Graph 5:
+True
+Graph 6:
+False
+RESULT for alkan: 0.4444444444444444
+Saved subgraph set
+Using dataset stg
+search strategy: mcts
+Size 2
+0 distinct seeds
+Size 3
+27 distinct seeds
+Size 4
+52 distinct seeds
+Size 5
+81 distinct seeds
+- outputting 1000.0 motifs of size 2
+- outputting 693.0 motifs of size 3
+- outputting 45.0 motifs of size 3
+- outputting 12.0 motifs of size 3
+- outputting 226.0 motifs of size 4
+- outputting 175.0 motifs of size 4
+- outputting 37.0 motifs of size 4
+- outputting 26.0 motifs of size 4
+- outputting 14.0 motifs of size 4
+- outputting 12.0 motifs of size 4
+- outputting 5.0 motifs of size 4
+- outputting 83.0 motifs of size 5
+- outputting 32.0 motifs of size 5
+- outputting 25.0 motifs of size 5
+- outputting 24.0 motifs of size 5
+- outputting 15.0 motifs of size 5
+- outputting 13.0 motifs of size 5
+- outputting 10.0 motifs of size 5
+306.8007981777191 TOTAL TIME
+5 mins 6 secs
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/2-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/3-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/3-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/3-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/4-6.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-0.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-1.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-2.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-3.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-4.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-5.png
+Saving plots: /home/ubuntu/project/experiments/centroid/substructure_frequency_experiment/spminer/results/alkan/plots/5-6.png
+TARGETS: [<networkx.classes.graph.Graph object at 0x7fdbe1e72e10>, <networkx.classes.graph.Graph object at 0x7fdbdc8984d0>, <networkx.classes.graph.Graph object at 0x7fdbeec6cc10>, <networkx.classes.graph.Graph object at 0x7fdbee40fa50>, <networkx.classes.graph.Graph object at 0x7fdbee25b1d0>, <networkx.classes.graph.Graph object at 0x7fdbe1ff1050>, <networkx.classes.graph.Graph object at 0x7fdbe1e94450>, <networkx.classes.graph.Graph object at 0x7fdbef593f50>, <networkx.classes.graph.Graph object at 0x7fdbee5c8490>, <networkx.classes.graph.Graph object at 0x7fdc45607990>, <networkx.classes.graph.Graph object at 0x7fdc4529df90>, <networkx.classes.graph.Graph object at 0x7fdbee5c93d0>, <networkx.classes.graph.Graph object at 0x7fdc44beb950>, <networkx.classes.graph.Graph object at 0x7fdc45292e50>, <networkx.classes.graph.Graph object at 0x7fdc452f6d90>, <networkx.classes.graph.Graph object at 0x7fdc4510ebd0>, <networkx.classes.graph.Graph object at 0x7fdc45439150>, <networkx.classes.graph.Graph object at 0x7fdc448407d0>]
+Analyzing group with 2 nodes (1 graphs)...
+Graph 0:
+True
+Analyzing group with 3 nodes (3 graphs)...
+Graph 0:
+True
+Graph 1:
+True
+Graph 2:
+False
+Analyzing group with 4 nodes (7 graphs)...
+Graph 0:
+False
+Graph 1:
+True
+Graph 2:
+False
+Graph 3:
+False
+Graph 4:
+True
+Graph 5:
+False
+Graph 6:
+True
+Analyzing group with 5 nodes (7 graphs)...
+Graph 0:
+True
+Graph 1:
+True
+Graph 2:
+True
+Graph 3:
+True
+Graph 4:
+False
+Graph 5:
+True
+Graph 6:
+False
+RESULT for alkan: 0.6111111111111112
