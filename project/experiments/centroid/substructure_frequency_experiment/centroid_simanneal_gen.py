@@ -5,8 +5,8 @@ import torch
 # import cupy as cp
 from multiprocessing import Pool, current_process, Queue
 
-DIRECTORY = "/home/ubuntu/project"
-# DIRECTORY = "/home/ilshapiro/project"
+# DIRECTORY = "/home/ubuntu/project"
+DIRECTORY = "/home/ilshapiro/project"
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")

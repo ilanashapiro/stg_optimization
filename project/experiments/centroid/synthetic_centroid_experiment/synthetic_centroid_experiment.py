@@ -107,14 +107,14 @@ def plot_results():
   plt.figure(figsize=(10, 6))
   
   # Plot the two sets of bars side by side
-  plt.bar(x - width/2, relative_errors_derived, width=width, color='salmon', edgecolor='black', label='Derived vs Ground Truth')
+  plt.bar(x - width/2, relative_errors_derived, width=width, color='r', edgecolor='black', label='Derived vs Ground Truth')
   plt.bar(x + width/2, relative_errors_naive, width=width, color='skyblue', edgecolor='black', label='Naive vs Ground Truth')
 
-  plt.xlabel('Corpus Size $k$', fontsize=20)
-  plt.ylabel('Relative Error in Loss', fontsize=20)
+  plt.xlabel('Corpus Size $k$', fontsize=15)
+  plt.ylabel('Relative Error in Loss', fontsize=15)
   plt.xticks(x, k_values)  # Ensure all k values are shown on the x-axis
-  plt.tick_params(axis='both', which='major', labelsize=15)
-  plt.legend(fontsize=15)
+  plt.tick_params(axis='both', which='major', labelsize=12)
+  plt.legend(fontsize=12)
 
   plt.show()
 
@@ -228,7 +228,7 @@ def add_noise_to_graph(graph, n_edits):
 		noise_level += 1
 
 		# Check validity every 5 edits OR when at final noise level
-		if noise_level % 5 == 0 or noise_level == n_edits:
+		if noise_level % 20 == 0 or noise_level == n_edits:
 			if not is_formally_valid_graph(noisy_graph, verbose=False):
 				rollback_count = min(len(batch_changes), noise_level)  # Handle last few edits case
 				print(f"Invalid batch detected. Rolling back last {rollback_count} operations. Noise level was {noise_level}.")
@@ -315,8 +315,7 @@ def generate_initial_alignments(noisy_corpus_dirname, STG_augmented_list, gpu_id
 	
 	intial_centroid_piece_name = os.path.splitext(os.path.basename(pieces_fp[min_loss_A_G_list_index]))[0]
 	initial_centroid_file = os.path.join(alignments_dir, f'initial_centroid_{intial_centroid_piece_name}.txt')
-	print(initial_centroid_file)
-	sys.exit(0)
+
 	if not os.path.exists(alignments_dir):
 		os.makedirs(alignments_dir)
 	print(f"Created directory {alignments_dir}")
@@ -337,12 +336,12 @@ def get_saved_initial_alignments_and_centroid(noisy_corpus_dirname):
 	for file_path in pieces_fp:
 		piece_name = os.path.splitext(os.path.basename(file_path))[0]
 		initial_alignment_files.append(os.path.join(alignments_dir, f'initial_alignment_{piece_name}.txt'))
-	initial_centroid_file = glob.glob(os.path.join(alignments_dir, '*initial_centroid*'))[0]
+	initial_centroid_filepath = glob.glob(os.path.join(alignments_dir, '*initial_centroid*'))[0]
 	
 	alignments = [np.loadtxt(f) for f in initial_alignment_files]
-	initial_centroid = np.loadtxt(initial_centroid_file)
+	initial_centroid = np.loadtxt(initial_centroid_filepath)
 	print(f'Loaded existing centroid and alignment files from {alignments_dir}')
-	return initial_centroid, alignments, initial_centroid_file
+	return initial_centroid, alignments, initial_centroid_filepath
 
 def generate_approx_centroid(noisy_corpus_dirname, noisy_corpus_graphs, gpu_id=0):
 	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
@@ -440,15 +439,15 @@ if __name__ == "__main__":
 	# base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_317_(c)orlandi/biamonti_317_(c)orlandi_augmented_graph_flat.pickle'
 	# base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_360_(c)orlandi/biamonti_360_(c)orlandi_augmented_graph_flat.pickle'
 	
-	K = list(range(3,15))
-	gpu_id = 1
+	K = list(range(6,15))
+	gpu_id = 3
 	for k in K:
 		print("K", k)
 		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(base_graph_path)) + f"_no_std_size{k}"
 		base_graph = load_STG(base_graph_path)
 
 		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'
-		noise = int(np.ceil(base_graph.size()/2))
+		noise = int(np.ceil(base_graph.size()*2)) # 200%
 		# generate_noisy_corpus(base_graph, noisy_corpus_save_dir, noisy_corpus_dirname, corpus_size=k, noise=noise)
 		
 		noisy_corpus_graphs = load_noisy_corpus(noisy_corpus_save_dir)
@@ -464,9 +463,9 @@ if __name__ == "__main__":
 		derived_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/final_centroid/final_centroid.txt")
 		approx_centroid_A = np.loadtxt(f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/centroid.txt")
 		
-		_, _, initial_alignments_filepath = get_saved_initial_alignments_and_centroid(noisy_corpus_dirname)
-		initial_alignments_filename = os.path.basename(initial_alignments_filepath)[:-4].replace('initial_centroid_', '')
-		naive_centroid_filepath = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/{initial_alignments_filename}.pickle"
+		_, _, initial_centroid_filepath = get_saved_initial_alignments_and_centroid(noisy_corpus_dirname)
+		initial_centroid_filename = os.path.basename(initial_centroid_filepath)[:-4].replace('initial_centroid_', '')
+		naive_centroid_filepath = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/{initial_centroid_filename}.pickle"
 		naive_centroid = load_STG(naive_centroid_filepath)
 
 		node_metadata_dict_path = f"{DIRECTORY}/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}/approx_centroid/node_metadata_dict.txt"
