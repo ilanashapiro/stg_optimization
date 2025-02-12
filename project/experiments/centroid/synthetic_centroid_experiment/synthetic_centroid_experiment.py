@@ -66,57 +66,57 @@ def construct_distance_matrix(corpus_graphs):
 		return D
 
 def plot_results():
-  k_values = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
-  relative_errors_derived = np.array([
-      0.009755985185740532, 0.004949172262302578, 0.029933014260994057, 
-      0.020073253229684212, 0.017261706192896447, 0.002681773959127958, 
-      0.0144659053685462, 0.0, 0.0, 0.008451775723758695, 
-      0.007012663638145545, 0.008629118369398
-  ])
-  relative_errors_naive = np.array([
-      0.11169285642178257, 0.01816039639319403, 0.08063778055995689, 
-      0.12669268411796772, 0.13979314423458802, 0.1454582326611979, 
-      0.10859480915733677, 0.1734060626852591, 0.20135027442563594, 
-      0.20773524150868308, 0.20947096849054983, 0.2077036544127451
-  ])
+	k_values = np.array([3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
+	relative_errors_derived = np.array([
+			0.009755985185740532, 0.004949172262302578, 0.029933014260994057, 
+			0.020073253229684212, 0.017261706192896447, 0.002681773959127958, 
+			0.0144659053685462, 0.0, 0.0, 0.008451775723758695, 
+			0.007012663638145545, 0.008629118369398
+	])
+	relative_errors_naive = np.array([
+			0.11169285642178257, 0.01816039639319403, 0.08063778055995689, 
+			0.12669268411796772, 0.13979314423458802, 0.1454582326611979, 
+			0.10859480915733677, 0.1734060626852591, 0.20135027442563594, 
+			0.20773524150868308, 0.20947096849054983, 0.2077036544127451
+	])
 
-  proportions = np.where(relative_errors_derived != 0, relative_errors_naive / relative_errors_derived, np.inf)
+	proportions = np.where(relative_errors_derived != 0, relative_errors_naive / relative_errors_derived, np.inf)
 
-  finite_proportions = proportions[np.isfinite(proportions)]
-  average_proportion = np.mean(finite_proportions)
-  min_proportion = np.min(finite_proportions)
-  max_proportion = np.max(finite_proportions)
+	finite_proportions = proportions[np.isfinite(proportions)]
+	average_proportion = np.mean(finite_proportions)
+	min_proportion = np.min(finite_proportions)
+	max_proportion = np.max(finite_proportions)
 
-  # Find indices of min and max proportions
-  min_index = np.argmin(finite_proportions)
-  max_index = np.argmax(finite_proportions)
+	# Find indices of min and max proportions
+	min_index = np.argmin(finite_proportions)
+	max_index = np.argmax(finite_proportions)
 
-  # Get the original indices in the array
-  finite_indices = np.where(np.isfinite(proportions))[0]
-  min_index_original = finite_indices[min_index]
-  max_index_original = finite_indices[max_index]
+	# Get the original indices in the array
+	finite_indices = np.where(np.isfinite(proportions))[0]
+	min_index_original = finite_indices[min_index]
+	max_index_original = finite_indices[max_index]
 
-  k_start = 3
-  print(f"Average proportion: {average_proportion}")
-  print(f"Minimum proportion: {min_proportion} (K: {k_start + min_index_original})")
-  print(f"Maximum proportion: {max_proportion} (K: {k_start + max_index_original})")
+	k_start = 3
+	print(f"Average proportion: {average_proportion}")
+	print(f"Minimum proportion: {min_proportion} (K: {k_start + min_index_original})")
+	print(f"Maximum proportion: {max_proportion} (K: {k_start + max_index_original})")
 
-  width = 0.3  # Width of the bars
-  x = np.arange(len(k_values))  # X locations for the groups
+	width = 0.3  # Width of the bars
+	x = np.arange(len(k_values))  # X locations for the groups
 
-  plt.figure(figsize=(10, 6))
-  
-  # Plot the two sets of bars side by side
-  plt.bar(x - width/2, relative_errors_derived, width=width, color='r', edgecolor='black', label='Derived vs Ground Truth')
-  plt.bar(x + width/2, relative_errors_naive, width=width, color='skyblue', edgecolor='black', label='Naive vs Ground Truth')
+	plt.figure(figsize=(10, 6))
+	
+	# Plot the two sets of bars side by side
+	plt.bar(x - width/2, relative_errors_derived, width=width, color='r', edgecolor='black', label='Derived vs Ground Truth')
+	plt.bar(x + width/2, relative_errors_naive, width=width, color='skyblue', edgecolor='black', label='Naive vs Ground Truth')
 
-  plt.xlabel('Corpus Size $k$', fontsize=15)
-  plt.ylabel('Relative Error in Loss', fontsize=15)
-  plt.xticks(x, k_values)  # Ensure all k values are shown on the x-axis
-  plt.tick_params(axis='both', which='major', labelsize=12)
-  plt.legend(fontsize=12)
+	plt.xlabel('Corpus Size $k$', fontsize=15)
+	plt.ylabel('Relative Error in Loss', fontsize=15)
+	plt.xticks(x, k_values)  # Ensure all k values are shown on the x-axis
+	plt.tick_params(axis='both', which='major', labelsize=12)
+	plt.legend(fontsize=12)
 
-  plt.show()
+	plt.show()
 
 def load_STG(stg_path):
 	with open(stg_path, 'rb') as f:
@@ -439,11 +439,11 @@ if __name__ == "__main__":
 	# base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_317_(c)orlandi/biamonti_317_(c)orlandi_augmented_graph_flat.pickle'
 	# base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_360_(c)orlandi/biamonti_360_(c)orlandi_augmented_graph_flat.pickle'
 	
-	K = list(range(6,15))
+	K = list(range(3,15))
 	gpu_id = 3
 	for k in K:
 		print("K", k)
-		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(base_graph_path)) + f"_no_std_size{k}"
+		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(base_graph_path)) + f"_size{k}"
 		base_graph = load_STG(base_graph_path)
 
 		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'

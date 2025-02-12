@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name="centroid_z3_50s_ablation4"
-#SBATCH --output=centroid_z3_out_50s_ablation4
-#SBATCH --error=centroid_z3_err_50s_ablation4
+#SBATCH --job-name="centroid_z3"
+#SBATCH --output=centroid_z3_out
+#SBATCH --error=centroid_z3_err
 #SBATCH --partition=shared
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=96
