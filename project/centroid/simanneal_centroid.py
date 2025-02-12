@@ -18,7 +18,6 @@ import torch
 # import simanneal_centroid_tests as tests
 import simanneal_centroid_helpers as helpers
 
-EPSILON = 1e-8
 # DIRECTORY = '/home/ilshapiro/project'
 DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 sys.path.append(DIRECTORY)
@@ -209,7 +208,7 @@ def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dic
 	alignments = []
 	for i, A_G in enumerate(listA_G): # for each graph in the corpus, find its best alignment with current centroid
 		# initial_state = cp.eye(cp.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
-		initial_state = torch.eye(A_G.shape[0], dtype=torch.float32, device=device)
+		initial_state = torch.eye(A_G.shape[0], dtype=torch.float64, device=device)
 
 		graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, idx_node_mapping, node_metadata_dict, device=device)
 		graph_aligner.Tmax = Tmax
@@ -217,9 +216,10 @@ def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dic
 		graph_aligner.steps = steps
 		# each time we make the new alignment annealer at each step of the centroid annealer, we want to UPDATE THE TEMPERATURE PARAM (decrement it at each step)
 		# and can try decreasing number of iterations each time as well
-		alignment, cost = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
+		alignment, _ = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
 		alignments.append(alignment)
-	return cost, alignments
+
+	return alignments
 
 def align_single_graph(args):
 	A_g, A_G, idx_node_mapping, Tmax, Tmin, steps, node_metadata_dict = args
@@ -244,37 +244,19 @@ def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, 
 	# based on the current alignments
 # this is our objective we're trying to minimize
 # chooose numpy, cupy, or Torch version depending on the architecture we're running this on
+# A large energy positive difference means very low acceptance probability (i.e. we don't want to accept a very bad state)
+# vs small positive energy difference has higher acceptance probability
 def loss_numpy(A_g, list_alignedA_G):
 	distances = np.array([dist_numpy(A_g, A_G) for A_G in list_alignedA_G])
-	distance = np.mean(distances) # unit is distance
-	std = np.std(distances) # unit is also distance (vs unit of variance would be distance^2)
-
-	# We want to square the result to moderately amplify differences between losses/energies in different states
-	# we want to amplify the larger differences, but not the smaller ones
-	# A large energy positive difference means very low acceptance probability (i.e. we don't want to accept a very bad state)
-	# vs small positive energy difference has higher acceptance probability
-	# so make sure this distinction is possible via the scale of the loss function
-	print("DIST", distance, "STD", std)
-	
-	# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
-	return np.exp(distance * (std + EPSILON))
-  # return (distance * (std + EPSILON)) ** 2 
+	return np.mean(distances) 
 
 def loss_cupy(A_g, list_alignedA_G):
 	distances = cp.array([dist_cupy(A_g, A_G) for A_G in list_alignedA_G])
-	distance = cp.mean(distances) 
-	std = cp.std(distances) 
-	print("DIST", distance, "STD", std)
-	return np.exp(distance * (std + EPSILON))
-	# return (distance * (std + EPSILON)) ** 2 
+	return cp.mean(distances) 
 
 def loss_torch(A_g, list_alignedA_G, device):
 	distances = torch.tensor([dist_torch(A_g, A_G) for A_G in list_alignedA_G], device=device)
-	distance = torch.mean(distances) 
-	std = torch.std(distances)
-	print("DIST", distance, "STD", std)
-	return np.exp(distance * (std + EPSILON))
-	# return (distance * (std + EPSILON)) ** 2
+	return torch.mean(distances)
 
 class CentroidAnnealer(CustomCentroidAnnealer):
 	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=None):
@@ -283,7 +265,7 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		self.centroid_idx_node_mapping = centroid_idx_node_mapping
 		self.node_metadata_dict = node_metadata_dict
 		self.step = 0
-		self.rejected_moves_since_last_accept = []
+		self.k_rejected_moves_since_last_accept = []
 		self.last_accepted_move = None
 		self.prev_move = None
 		self.device = device
@@ -342,44 +324,40 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		return False
 	
 	def move(self):
-		# diff_matrices = cp.abs(cp.array([self.state - A_G for A_G in self.listA_G]))
-		# difference_matrix = cp.mean(diff_matrices, axis=0)
-		# std_matrix = cp.std(diff_matrices, axis=0) 
 		diff_matrices = torch.abs(torch.stack([self.state - A_G for A_G in self.listA_G]))
-		difference_matrix = torch.mean(diff_matrices, dim=0)
-		std_matrix = torch.std(diff_matrices, dim=0)
-		# we add epsilon so that if std is zero (i.e. similarity is perfect), we can still be sensitive to changes in the distance
-		score_matrix = difference_matrix * (std_matrix + EPSILON) # don't need to square as we do in loss because this won't change the score ordering, it just would scale it, not necessary
+		score_matrix = torch.sum(diff_matrices, dim=0)
 
-		# Flatten the score matrix to sort scores highest->lowest
+		# Flatten the score matrix. this is UNSORTED
 		flat_scores = score_matrix.flatten()
 		
 		# flat_indices_sorted_by_score = cp.argsort(flat_scores)[::-1]
 		flat_indices_sorted_by_score = torch.argsort(flat_scores, descending=True)
 
 		valid_move_found = False
-		score_batch_size = 1 # the number of scores we want to include in score_index_mapping from flat_indices_sorted_by_score, in each batch
-		next_score_start_index = 0 # index in flat_indices_sorted_by_score
+		batch_size = 100
+		next_batch_start_index = 0 # index in flat_indices_sorted_by_score
 		current_score = None
 		# go through flat_indices_sorted_by_score in batches (batch num is num of unique scores)
 		# since flat_indices_sorted_by_score is VERY VERY LARGE and takes way too long to go through all of it
-		while not valid_move_found and next_score_start_index < len(flat_indices_sorted_by_score):
-			# Create a dictionary to group indices in the score matrix by score
-			score_index_mapping = defaultdict(list)
-			batch = flat_indices_sorted_by_score[next_score_start_index:]
+		# while not valid_move_found and next_batch_start_index < len(flat_indices_sorted_by_score):
+		while not valid_move_found and next_batch_start_index < len(flat_indices_sorted_by_score):
+			print("next_batch_start_index", next_batch_start_index, "len(flat_indices_sorted_by_score)", len(flat_indices_sorted_by_score))
+			batch_start_idx, batch_end_idx = next_batch_start_index, min(next_batch_start_index + batch_size, len(flat_indices_sorted_by_score))
+			next_batch_start_index = batch_end_idx
+
+			batch = flat_indices_sorted_by_score[batch_start_idx:batch_end_idx]
 			batch = batch.cpu().numpy() # convert from tensor to CPU numpy so we can iterate through it
-			
+
+			# dict to group score matrix indices in the current batch by score
+			score_index_mapping = defaultdict(list)
 			for flat_index in batch:
 				score = flat_scores[flat_index]
 				score = score.item() # when score is a tensor we need to extract the value
 				# print("FLAT INDEX", flat_index, "NEW  SCORE", score, "CURR SCORE", current_score, "NUM SCORES", len(score_index_mapping), "SCORES EQUAL", score == current_score)
 				if score != current_score:
 					current_score = score
-					next_score_start_index += 1
-					if len(score_index_mapping) >= score_batch_size:
-						break 
 				score_index_mapping[score].append(flat_index)
-			# print("SCORES", score_index_mapping.keys())
+			# print("BATCH SCORES", score_index_mapping.items())
 
 			unique_scores_descending = sorted(score_index_mapping.keys(), reverse=True) # highest -> lowest score
 			# randomly shuffle the indices for each score partition, so we're trying a more variable set of moves that equally/most contribute to the loss
@@ -390,31 +368,32 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 				random.shuffle(indices) # Shuffle indices in the current score partition
 				batch_flat_indices_sorted_by_score_and_shuffled.extend(indices)
 
-			# valid_move_found = False
-			batch_attempt_index = 0
-			while not valid_move_found and batch_attempt_index < len(batch_flat_indices_sorted_by_score_and_shuffled):
-				flat_index = batch_flat_indices_sorted_by_score_and_shuffled[batch_attempt_index]
+			index_within_batch = 0
+			while not valid_move_found and index_within_batch < len(batch_flat_indices_sorted_by_score_and_shuffled):
+				flat_index = batch_flat_indices_sorted_by_score_and_shuffled[index_within_batch]
 	
 				# NOTE: uncomment the version (cp, torch, np) that matches the architecture we're running this on
 				# coord = cp.unravel_index(flat_index, score_matrix.shape)
 				# coord = torch.unravel_index(flat_index, score_matrix.shape)
 				coord = np.unravel_index(flat_index, score_matrix.shape) # it's ok if score_matrix.shape is of type torch.shape bc this is still a tuple of ints
-				
+				# print("SCORE", flat_scores[flat_index])
 				source_idx, sink_idx = coord
-				# source_idx, sink_idx = source_idx.item(), sink_idx.item() # for when source_idx, sink_idx are tensors, we need to unpack
+				source_idx, sink_idx = source_idx.item(), sink_idx.item() # for when source_idx, sink_idx are tensors, we need to unpack
 				
 				move_not_globally_invalid = not self.is_globlly_invalid_move(source_idx, sink_idx, self.centroid_idx_node_mapping)
-				have_not_already_tried_move = coord not in self.rejected_moves_since_last_accept
+				have_not_already_tried_move = coord not in self.k_rejected_moves_since_last_accept
 				is_not_undoing_last_accept = coord != self.last_accepted_move
+				
 				if is_not_undoing_last_accept and have_not_already_tried_move and move_not_globally_invalid:
 					valid_move_found = True
 				else:
-					batch_attempt_index += 1
+					index_within_batch += 1
+			# print("BATCH ATTEMPT INDEX", index_within_batch)
 
 		if valid_move_found:
 			print("Flat index", flat_index)
 			print("Coord", coord, "State at coord", self.state[source_idx, sink_idx])
-			print("Rejected moves since last accept", self.rejected_moves_since_last_accept)
+			print("Most recent k=5 rejected moves since last accept", self.k_rejected_moves_since_last_accept)
 			print("Last accepted move", self.last_accepted_move)
 			self.state[source_idx, sink_idx] = 1 - self.state[source_idx, sink_idx] 
 			self.prev_move = coord
@@ -433,7 +412,7 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		# They get narrower as we get an increasingly more accurate centroid that's easier to align
 		alignment_Tmax = initial_Tmax * current_temp_ratio + final_Tmax * (1 - current_temp_ratio)
 		alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio)) 
-		cost, alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
+		alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
 
 		# Align the corpus to the current centroid
 		self.listA_G = list(map(align_torch, alignments, self.listA_G))
