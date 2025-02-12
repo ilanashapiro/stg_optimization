@@ -1,7 +1,8 @@
 import pickle
 import os, sys
 import networkx as nx
-import ast
+import ast, math
+import pandas as pd
 
 # DIRECTORY = '/home/ilshapiro/project'
 DIRECTORY = '/home/ubuntu/project'
@@ -9,47 +10,64 @@ DIRECTORY = '/home/ubuntu/project'
 sys.path.append(DIRECTORY)
 import build_graph
 
-def find_two_smallest_pickles(directory='/home/ilshapiro/project/datasets'):
-	smallest_file = None
-	smallest_size = float('inf')
-	second_smallest_file = None
-	second_smallest_size = float('inf')
-	
-	for root, _, files in os.walk(directory):
-		for file in files:
-			if file.endswith('_augmented_graph_hier.pickle'):
-				file_path = os.path.join(root, file)
-				file_size = os.path.getsize(file_path)
-				
-				if file_size < smallest_size:
-					second_smallest_size = smallest_size
-					second_smallest_file = smallest_file
-					
-					smallest_size = file_size
-					smallest_file = file_path
-				elif file_size < second_smallest_size:
-					second_smallest_size = file_size
-					second_smallest_file = file_path
+def get_approx_end_time(csv_path):
+	df = pd.read_csv(csv_path)
+	if 'onset_seconds' in df.columns:
+		return df['onset_seconds'].max()
+	else:
+		raise ValueError(f"'onset_seconds' column not found in {csv_path}")
 		
-	return (smallest_file, smallest_size), (second_smallest_file, second_smallest_size)
+def find_n_smallest_pickles(n=2):
+	files_with_sizes = []
+	for root, _, files in os.walk(DIRECTORY + "/datasets"):
+			for file in files:
+				if file.endswith('_augmented_graph_flat.pickle'):
+					file_path = os.path.join(root, file)
+					file_size = os.path.getsize(file_path)
+					csv_path = file_path.replace("_augmented_graph_flat.pickle", ".csv")
+					duration = get_approx_end_time(csv_path)
+					files_with_sizes.append((file_path, file_size, duration))
+	
+	# Sort the list by file size (ascending)
+	files_with_sizes.sort(key=lambda x: x[1])
+	return files_with_sizes[:n]
 
 fp1 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
 fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_flat.pickle'
-
-# smallest, second_smallest = find_two_smallest_pickles()
-# print(smallest, second_smallest)
-# sys.exit(0)
 
 with open(fp1, 'rb') as f:
 	G1 = pickle.load(f)
 with open(fp2, 'rb') as f:
 	G2 = pickle.load(f)
 
-# for node in G1.nodes(data=True):
-#   print(node)
-# print()
-# for edge in G1.edges():
-#   print(edge)
+def find_n_pickles_within_size_by_composer(min_n=4, max_n=14, max_file_size=math.inf):
+	composer_files = {}
+	for root, _, files in os.walk(DIRECTORY):
+		for file in files:
+			if file.endswith('_augmented_graph_flat.pickle'):
+				path_parts = root.split(os.sep)
+				composer = path_parts[-3]  # assuming the structure is: /home/ubuntu/project/datasets/{COMPOSER}/...
+				
+				file_path = os.path.join(root, file)
+				file_size = os.path.getsize(file_path)
+				csv_path = file_path.replace("_augmented_graph_flat.pickle", ".csv")
+				duration = get_approx_end_time(csv_path)
+				
+				if composer not in composer_files:
+					composer_files[composer] = []
+				
+				if file_size <= max_file_size:
+					composer_files[composer].append((file_path, file_size, duration))
+	
+	# For each composer, sort the files by size and select the n smallest
+	smallest_files_by_composer = {}
+	for composer, files in composer_files.items():
+		if len(files) >= min_n:
+			files.sort(key=lambda x: x[1])
+			smallest_files_by_composer[composer] = files[:max_n]
+	
+	return smallest_files_by_composer
+
 
 G1_nodes = '''
 ('S0L1N1', {'label': 'S0L1', 'index': 1, 'features_dict': {'section_num': 0}, 'layer_rank': (0, 1)})
@@ -166,6 +184,17 @@ for edge in G1_edges_to_add:
 		G2_test.add_edge(*edge)
 
 if __name__ == "__main__":
+	smallest_files = find_n_smallest_pickles(n=15)
+	for file in smallest_files:
+		print(file)
+
+	smallest_files_dict = find_n_pickles_within_size_by_composer(min_n=7, max_n=14, max_file_size=50000)
+	for composer, files in smallest_files_dict.items():
+		print(f"Composer: {composer.upper()}. Corpus size: {len(files)}")
+		for file in files:
+				print(f" File: {file[0]}, Size: {file[1]} bytes, Duration: {file[2]} sec")
+	sys.exit(0)
+
 	layers_G1_test = build_graph.get_unsorted_layers_from_graph_by_index(G1_test)
 	layers_G2_test = build_graph.get_unsorted_layers_from_graph_by_index(G2_test)
 	build_graph.visualize_p([G1_test, G2_test], [layers_G1_test, layers_G2_test])

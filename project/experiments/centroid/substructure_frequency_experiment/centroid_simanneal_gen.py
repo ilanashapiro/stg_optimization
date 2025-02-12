@@ -17,39 +17,40 @@ import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
 NUM_GPUS = 8 
 
 def get_approx_end_time(csv_path):
-		df = pd.read_csv(csv_path)
-		if 'onset_seconds' in df.columns:
-			return df['onset_seconds'].max()
-		else:
-			raise ValueError(f"'onset_seconds' column not found in {csv_path}")
-		
+  df = pd.read_csv(csv_path)
+  if 'onset_seconds' in df.columns:
+    return df['onset_seconds'].max()
+  else:
+    raise ValueError(f"'onset_seconds' column not found in {csv_path}")
+
+# from project/centroid/simanneal_centroid_tests.py
 def find_n_pickles_within_size_by_composer(min_n=4, max_n=14, max_file_size=math.inf):
-		composer_files = {}
-		for root, _, files in os.walk(DIRECTORY):
-				for file in files:
-						if file.endswith('_augmented_graph_flat.pickle'):
-								path_parts = root.split(os.sep)
-								composer = path_parts[-3]  # assuming the structure is: /home/ubuntu/project/datasets/{COMPOSER}/...
-								
-								file_path = os.path.join(root, file)
-								file_size = os.path.getsize(file_path)
-								csv_path = file_path.replace("_augmented_graph_flat.pickle", ".csv")
-								duration = get_approx_end_time(csv_path)
-								
-								if composer not in composer_files:
-										composer_files[composer] = []
-								
-								if file_size <= max_file_size:
-									composer_files[composer].append((file_path, file_size, duration))
-		
-		# For each composer, sort the files by size and select the n smallest
-		smallest_files_by_composer = {}
-		for composer, files in composer_files.items():
-				if len(files) >= min_n:
-					files.sort(key=lambda x: x[1])
-					smallest_files_by_composer[composer] = files[:max_n]
-		
-		return smallest_files_by_composer
+	composer_files = {}
+	for root, _, files in os.walk(DIRECTORY):
+		for file in files:
+			if file.endswith('_augmented_graph_flat.pickle'):
+				path_parts = root.split(os.sep)
+				composer = path_parts[-3]  # assuming the structure is: /home/ubuntu/project/datasets/{COMPOSER}/...
+				
+				file_path = os.path.join(root, file)
+				file_size = os.path.getsize(file_path)
+				csv_path = file_path.replace("_augmented_graph_flat.pickle", ".csv")
+				duration = get_approx_end_time(csv_path)
+				
+				if composer not in composer_files:
+					composer_files[composer] = []
+				
+				if file_size <= max_file_size:
+					composer_files[composer].append((file_path, file_size, duration))
+	
+	# For each composer, sort the files by size and select the n smallest
+	smallest_files_by_composer = {}
+	for composer, files in composer_files.items():
+		if len(files) >= min_n:
+			files.sort(key=lambda x: x[1])
+			smallest_files_by_composer[composer] = files[:max_n]
+	
+	return smallest_files_by_composer
 
 def get_composer_centroid_input_graphs():
 	composer_centroid_input_graphs_dir = f"{DIRECTORY}/experiments/centroid/corpora"
@@ -63,7 +64,7 @@ def get_composer_centroid_input_graphs():
 		if not os.path.exists(composer_centroid_input_graphs_dir):
 			os.makedirs(composer_centroid_input_graphs_dir)
 		composer_centroid_input_graphs = {}
-		corpora_composers_dict = find_n_pickles_within_size_by_composer(min_n=7, max_n=14, max_file_size=50000)
+		corpora_composers_dict = simanneal_centroid_tests.find_n_pickles_within_size_by_composer(min_n=7, max_n=14, max_file_size=50000)
 		
 		# PRINTING INFO
 		for composer, files in corpora_composers_dict.items():
