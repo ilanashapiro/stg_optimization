@@ -6,7 +6,8 @@ import torch
 from multiprocessing import Pool, current_process, Queue
 
 # DIRECTORY = "/home/ubuntu/project"
-DIRECTORY = "/home/ilshapiro/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/home/ilshapiro/project"
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
 sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
@@ -17,11 +18,11 @@ import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
 NUM_GPUS = 8 
 
 def get_approx_end_time(csv_path):
-  df = pd.read_csv(csv_path)
-  if 'onset_seconds' in df.columns:
-    return df['onset_seconds'].max()
-  else:
-    raise ValueError(f"'onset_seconds' column not found in {csv_path}")
+	df = pd.read_csv(csv_path)
+	if 'onset_seconds' in df.columns:
+		return df['onset_seconds'].max()
+	else:
+		raise ValueError(f"'onset_seconds' column not found in {csv_path}")
 
 # from project/centroid/simanneal_centroid_tests.py
 def find_n_pickles_within_size_by_composer(min_n=4, max_n=14, max_file_size=math.inf):
@@ -42,18 +43,17 @@ def find_n_pickles_within_size_by_composer(min_n=4, max_n=14, max_file_size=math
 				
 				if file_size <= max_file_size:
 					composer_files[composer].append((file_path, file_size, duration))
-	
-	# For each composer, sort the files by size and select the n smallest
+
 	smallest_files_by_composer = {}
-	for composer, files in composer_files.items():
-		if len(files) >= min_n:
-			files.sort(key=lambda x: x[1])
-			smallest_files_by_composer[composer] = files[:max_n]
+	for composer, file_info in composer_files.items():
+		if len(file_info) >= min_n:
+			file_info.sort(key=lambda x: x[1])
+			smallest_files_by_composer[composer] = file_info[:max_n]
 	
 	return smallest_files_by_composer
 
 def get_composer_centroid_input_graphs():
-	composer_centroid_input_graphs_dir = f"{DIRECTORY}/experiments/centroid/corpora"
+	composer_centroid_input_graphs_dir = f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/corpora"
 	composer_centroid_input_graphs_path = composer_centroid_input_graphs_dir + "/composer_centroid_input_graphs.txt"
 	
 	if os.path.exists(composer_centroid_input_graphs_path):
@@ -64,9 +64,8 @@ def get_composer_centroid_input_graphs():
 		if not os.path.exists(composer_centroid_input_graphs_dir):
 			os.makedirs(composer_centroid_input_graphs_dir)
 		composer_centroid_input_graphs = {}
-		corpora_composers_dict = simanneal_centroid_tests.find_n_pickles_within_size_by_composer(min_n=7, max_n=14, max_file_size=50000)
-		
-		# PRINTING INFO
+		corpora_composers_dict = find_n_pickles_within_size_by_composer(min_n=7, max_n=14, max_file_size=50000)
+
 		for composer, files in corpora_composers_dict.items():
 			print(f"Composer: {composer.upper()}. Corpus size: {len(files)}")
 			for file in files:
@@ -95,7 +94,7 @@ def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_
 	# because these are tensors originally
 	initial_centroid = min_loss_A_G.cpu().numpy() 
 	initial_alignments = [alignment.cpu().numpy() for alignment in optimal_alignments]
-	alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/{composer}"
+	alignments_dir = f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/initial_alignments/{composer}"
 	print("ALIGNMENTS DIR", alignments_dir)
 
 	initial_alignment_files = []
@@ -119,7 +118,7 @@ def generate_initial_alignments(composer, STG_filepaths_and_augmented_list, gpu_
 		print(f'Saved: {file_name}')
 	
 def get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list):
-	alignments_dir = f"{DIRECTORY}/experiments/centroid/initial_alignments/{composer}"
+	alignments_dir = f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/initial_alignments/{composer}"
 
 	initial_alignment_files = []
 	for file_path in STG_filepaths_list:
@@ -151,7 +150,7 @@ def generate_centroid(composer, initial_centroid, initial_alignments, listA_G, i
 	loss = loss.item() # convert from tensor -> numpy
 	
 	approx_centroid, final_idx_node_mapping = simanneal_centroid_helpers.remove_unnecessary_dummy_nodes(approx_centroid, idx_node_mapping, node_metadata_dict)
-	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/{composer}"
+	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/approx_centroids/{composer}"
 	if not os.path.exists(approx_centroid_dir):
 		os.makedirs(approx_centroid_dir)
 

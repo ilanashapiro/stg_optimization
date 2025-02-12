@@ -1,0 +1,52 @@
+Composer: ALKAN. Corpus size: 11
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_4_(c)yogore/alkan_esquisses_63_4_(c)yogore_augmented_graph_flat.pickle, Size: 16148 bytes, Duration: 21.778 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_42_(c)yogore/alkan_esquisses_63_42_(c)yogore_augmented_graph_flat.pickle, Size: 26893 bytes, Duration: 65.783 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_22_(c)yogore/alkan_esquisses_63_22_(c)yogore_augmented_graph_flat.pickle, Size: 32848 bytes, Duration: 76.0 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_les_mois_74_4_(c)yogore/alkan_les_mois_74_4_(c)yogore_augmented_graph_flat.pickle, Size: 34828 bytes, Duration: 97.5 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_48_(c)yogore/alkan_esquisses_63_48_(c)yogore_augmented_graph_flat.pickle, Size: 38397 bytes, Duration: 55.823 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_18_(c)yogore/alkan_esquisses_63_18_(c)yogore_augmented_graph_flat.pickle, Size: 39872 bytes, Duration: 47.468 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_preludes_31_14_(c)yogore/alkan_preludes_31_14_(c)yogore_augmented_graph_flat.pickle, Size: 40326 bytes, Duration: 80.611 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_preludes_31_20_(c)yogore/alkan_preludes_31_20_(c)yogore_augmented_graph_flat.pickle, Size: 44294 bytes, Duration: 50.029 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_40_(c)yogore/alkan_esquisses_63_40_(c)yogore_augmented_graph_flat.pickle, Size: 45317 bytes, Duration: 34.565 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_esquisses_63_17_(c)yogore/alkan_esquisses_63_17_(c)yogore_augmented_graph_flat.pickle, Size: 46660 bytes, Duration: 38.34 sec
+ File: code_and_data_appendix/datasets/alkan/kunstderfuge/alkan_preludes_31_04_(c)yogore/alkan_preludes_31_04_(c)yogore_augmented_graph_flat.pickle, Size: 47970 bytes, Duration: 100.8 sec
+
+Composer: HAYDN. Corpus size: 12
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/contradance_in_d_1795_(c)iscenko/contradance_in_d_1795_(c)iscenko_augmented_graph_flat.pickle, Size: 20764 bytes, Duration: 25.333 sec
+ File: code_and_data_appendix/datasets/haydn/classical_piano_midi_db/haydn_9_3/haydn_9_3_augmented_graph_flat.pickle, Size: 30728 bytes, Duration: 50.238 sec
+ File: code_and_data_appendix/datasets/haydn/classical_piano_midi_db/haydn_8_4/haydn_8_4_augmented_graph_flat.pickle, Size: 32388 bytes, Duration: 40.304 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/sonata_7_2_(c)iscenko/sonata_7_2_(c)iscenko_augmented_graph_flat.pickle, Size: 34373 bytes, Duration: 44.308 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/sonata_1_3_(c)iscenko/sonata_1_3_(c)iscenko_augmented_graph_flat.pickle, Size: 35039 bytes, Duration: 69.231 sec
+ File: code_and_data_appendix/datasets/haydn/classical_piano_midi_db/haydn_7_1/haydn_7_1_augmented_graph_flat.pickle, Size: 35342 bytes, Duration: 62.487 sec
+ File: code_and_data_appendix/datasets/haydn/classical_piano_midi_db/haydn_8_3/haydn_8_3_augmented_graph_flat.pickle, Size: 36196 bytes, Duration: 88.42 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/sonata_3_3_(c)iscenko/sonata_3_3_(c)iscenko_augmented_graph_flat.pickle, Size: 36682 bytes, Duration: 41.143 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/sonata_1_4_(c)iscenko/sonata_1_4_(c)iscenko_augmented_graph_flat.pickle, Size: 43237 bytes, Duration: 33.0 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/march_1_in_eb_1795_(c)iscenko/march_1_in_eb_1795_(c)iscenko_augmented_graph_flat.pickle, Size: 47152 bytes, Duration: 83.438 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/march_2_in_c_autograph_1795_(c)iscenko/march_2_in_c_autograph_1795_(c)iscenko_augmented_graph_flat.pickle, Size: 49308 bytes, Duration: 90.938 sec
+ File: code_and_data_appendix/datasets/haydn/kunstderfuge/sonata_2_1_(c)iscenko/sonata_2_1_(c)iscenko_augmented_graph_flat.pickle, Size: 49410 bytes, Duration: 56.939 sec
+
+Composer: MOZART. Corpus size: 14
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_10_(nc)werths/early_pieces_10_(nc)werths_augmented_graph_flat.pickle, Size: 19881 bytes, Duration: 39.687 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/mozart-l_menuet_1_(nc)werths/mozart-l_menuet_1_(nc)werths_augmented_graph_flat.pickle, Size: 26716 bytes, Duration: 53.801 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/contradance_1_(nc)werths/contradance_1_(nc)werths_augmented_graph_flat.pickle, Size: 27701 bytes, Duration: 34.364 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/mozart-l_menuet_2_(nc)werths/mozart-l_menuet_2_(nc)werths_augmented_graph_flat.pickle, Size: 29264 bytes, Duration: 43.913 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_18_(nc)werths/early_pieces_18_(nc)werths_augmented_graph_flat.pickle, Size: 30346 bytes, Duration: 63.794 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_3_(nc)werths/early_pieces_3_(nc)werths_augmented_graph_flat.pickle, Size: 30511 bytes, Duration: 32.87 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_11_(nc)werths/early_pieces_11_(nc)werths_augmented_graph_flat.pickle, Size: 32613 bytes, Duration: 45.143 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_5_(nc)werths/early_pieces_5_(nc)werths_augmented_graph_flat.pickle, Size: 36756 bytes, Duration: 58.615 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/contradance_2_(nc)werths/contradance_2_(nc)werths_augmented_graph_flat.pickle, Size: 37888 bytes, Duration: 58.179 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_2_(nc)werths/early_pieces_2_(nc)werths_augmented_graph_flat.pickle, Size: 38443 bytes, Duration: 46.703 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths/mozart-l_menuet_6_(nc)werths_augmented_graph_flat.pickle, Size: 39507 bytes, Duration: 51.651 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/mozart-l_menuet_4_(nc)werths/mozart-l_menuet_4_(nc)werths_augmented_graph_flat.pickle, Size: 40276 bytes, Duration: 53.848 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/early_pieces_7_(nc)werths/early_pieces_7_(nc)werths_augmented_graph_flat.pickle, Size: 40353 bytes, Duration: 66.0 sec
+ File: code_and_data_appendix/datasets/mozart/kunstderfuge/mozart-l_menuet_5_(nc)werths/mozart-l_menuet_5_(nc)werths_augmented_graph_flat.pickle, Size: 41438 bytes, Duration: 49.016 sec
+
+Composer: CHOPIN. Corpus size: 8
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p11/chpn-p11_augmented_graph_flat.pickle, Size: 15863 bytes, Duration: 28.192 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p10/chpn-p10_augmented_graph_flat.pickle, Size: 25555 bytes, Duration: 22.073 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p1/chpn-p1_augmented_graph_flat.pickle, Size: 27607 bytes, Duration: 27.491 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p23/chpn-p23_augmented_graph_flat.pickle, Size: 38180 bytes, Duration: 48.47 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p5/chpn-p5_augmented_graph_flat.pickle, Size: 44996 bytes, Duration: 29.545 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p9/chpn-p9_augmented_graph_flat.pickle, Size: 46084 bytes, Duration: 83.588 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p6/chpn-p6_augmented_graph_flat.pickle, Size: 48844 bytes, Duration: 90.448 sec
+ File: code_and_data_appendix/datasets/chopin/classical_piano_midi_db/chpn-p18/chpn-p18_augmented_graph_flat.pickle, Size: 49622 bytes, Duration: 42.464 sec
