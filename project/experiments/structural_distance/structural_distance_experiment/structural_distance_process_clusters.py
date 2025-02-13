@@ -119,32 +119,22 @@ def run(clusters_path, kernel_experiment=False):
 	ablation_level = None # set to None if we don't want to do ablation
 	if ablation_level:
 		if kernel_experiment:
-			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_WL_KERNEL_ablation{ablation_level}.shelve")
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/cache_postprocess_WL_KERNEL_ablation{ablation_level}.shelve")
 		else:
-			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_ablation{ablation_level}.shelve")
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/cache_postprocess_ablation{ablation_level}.shelve")
 	else:
 		if kernel_experiment:
-			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess_WL_KERNEL.shelve")
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/cache_postprocess_WL_KERNEL.shelve")
 		else:
-			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_postprocess.shelve")
-	# reordered_cluster = reorder_cluster_to_reference(list(clusters)[0])
-	# print(reordered_cluster)
-	# print(create_distance_matrix(reordered_cluster, cache))
-	# pieces_count = defaultdict(lambda:0)
-	# for cluster in clusters:
-	# 	for piece in cluster:
-	# 		pieces_count[piece] += 1
-	# for piece, count in pieces_count.items():
-	# 	print(piece, count)
-	# print(len(pieces_count), len(clusters))
-	# sys.exit(0)
+			cache = shelve.open(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/cache_postprocess.shelve")
 	dist_matrics = [create_distance_matrix(reorder_cluster_to_reference(cluster), cache, kernel_experiment=kernel_experiment, ablation_level=ablation_level) for cluster in clusters]
 	cache.close()
 
 	return np.mean(np.stack(dist_matrics), axis=0)
 
 if __name__ == "__main__":
-	clusters_path = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" 
+	# renamed from f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" 
+	clusters_path = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/composers_cluster.pkl" 
 	print(run(clusters_path))
 
 	

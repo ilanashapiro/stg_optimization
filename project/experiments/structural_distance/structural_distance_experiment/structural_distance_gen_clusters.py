@@ -320,7 +320,7 @@ def find_valid_combination(clusters):
 			# updated_composers_dict['handel'] = ['/home/ubuntu/project/datasets/handel/kunstderfuge/gigue_e_minor_(nc)werths/gigue_e_minor_(nc)werths_augmented_graph_flat.pickle']
 		clusters[i] = updated_composers_dict
 		
-	cache = shelve.open("cache.shelve")
+	cache = shelve.open("cache_files/cache.shelve")
 	
 	# composers sorted alphabetically in each tuple of pieces
 	all_combinations = set()
@@ -330,8 +330,8 @@ def find_valid_combination(clusters):
 		all_combinations.update([item for item in list(itertools.product(*(composers_dict[k] for k in sorted(composers_dict.keys()))))])
 	
 	# these are sets of tuples of strings
-	failures_file = "failures.pkl"
-	successes_file = "successes.pkl"
+	failures_file = "cache_files/failures.pkl"
+	successes_file = "cache_files/successes.pkl"
 	saved_failures = load_saved_combinations(failures_file)
 	saved_successes = load_saved_combinations(successes_file)
 	

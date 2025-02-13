@@ -150,30 +150,47 @@ def parse_node_name(node_name):
 			"name": node_name
 		}
 
-def is_approx_valid_move(source_node_name, sink_node_name):
-		source_info = parse_node_name(source_node_name)
-		sink_info = parse_node_name(sink_node_name)
+def load_STG(stg_path):
+	with open(stg_path, 'rb') as f:
+		graph = pickle.load(f)
+	return graph
 
-		# The edge is from an instance to a prototype 
-		if source_info['type'] == 'instance' and sink_info['type'] == 'prototype':
+# modified from simanneal_centroid.py
+def is_approx_valid_move(G, source_node_id, sink_node_id):
+	def is_proto(node_id):
+		return node_id.startswith('Pr')
+	def is_instance(node_id):
+		return not is_proto(node_id)
+	
+	# The edge is between two prototypes
+	if is_proto(source_node_id) and is_proto(sink_node_id):
+		return False
+	
+	# The edge is between a prototype to an instance level whose nodes don't have that prototype feature (i.e. PrAbs_interval -> segmentation)
+	if is_proto(source_node_id) and is_instance(sink_node_id):
+		features = nx.get_node_attributes(G, "feature_name") 
+		source_proto_feature = features[source_node_id][0]
+		sink_inst_features = features[sink_node_id]
+		if source_proto_feature not in sink_inst_features:
 			return False
+	
+	# Source/sink are both instance
+	if is_instance(source_node_id) and is_instance(sink_node_id):
+		def rank_difference(rank1, rank2):
+			primary_rank1, secondary_rank1 = rank1
+			primary_rank2, secondary_rank2 = rank2
+			if primary_rank1 == primary_rank2:
+				return secondary_rank1 - secondary_rank2
+			return primary_rank1 - primary_rank2
 		
-		# The edge is between two prototypes
-		if source_info['type'] == 'prototype' and sink_info['type'] == 'prototype':
+		# levels are NOT adjacent (i.e. 1 rank lower or higher, since this is the undirected version), or levels are NOT the same level (for intra level chain edge)
+		layer_ranks = nx.get_node_attributes(G, "layer_rank") 
+		source_rank = layer_ranks[source_node_id]
+		sink_rank = layer_ranks[source_node_id]
+		if np.abs(rank_difference(source_rank, sink_rank)) not in [0, 1]:
 			return False
-		
-		# The edge is from the wrong prototype to an instance (i.e. PrP{n} to S{n1}L{n2}N{n3} or PrS{n} to P{n1}O{n2}N{n3})
-		if source_info['type'] == 'prototype' and sink_info['type'] == 'instance' and source_info['kind'] != sink_info['kind']:
-			return False
-		
-		# The edge is from a lower level to a higher level instance node (so either from P{n1}O{n2}N{n3} to S{n1}L{n2}N{n3}, or from S{n1}L{n2}N{n3} to S{n1'}L{n2'}N{n3'} where n2 > n2')
-		if source_info['type'] == 'instance' and sink_info['type'] == 'instance':
-			if source_info['kind'] == 'P' and sink_info['kind'] == 'S':
-				return False
-			if source_info['kind'] == 'S' and sink_info['kind'] == 'S' and source_info['n2'] > sink_info['n2']:
-				return False
-
-		return True
+	
+	return True
 
 def is_formally_valid_graph(new_STG, verbose=False):
 	adj_matrix, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices([new_STG])
@@ -443,7 +460,7 @@ if __name__ == "__main__":
 	gpu_id = 3
 	for k in K:
 		print("K", k)
-		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(base_graph_path)) + f"_size{k}"
+		noisy_corpus_dirname = "noisy_corpus_" + os.path.basename(os.path.dirname(base_graph_path)) + f"_size{k}_TESTT"
 		base_graph = load_STG(base_graph_path)
 
 		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'
