@@ -1,16 +1,13 @@
 import os, sys, pickle, json, re, random
-
-from networkx import cost_of_flow
-import test
 import numpy as np
-from multiprocessing import Pool, current_process
 import networkx as nx
 import torch, glob
-from pulp import LpProblem, LpMinimize, LpVariable, lpSum
 import matplotlib.pyplot as plt
+from pulp import LpProblem, LpMinimize, LpVariable, lpSum
+from multiprocessing import Pool, current_process
 
-# DIRECTORY = "/home/ubuntu/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
 
 sys.path.append(f"{DIRECTORY}/centroid")
@@ -123,38 +120,6 @@ def load_STG(stg_path):
 		graph = pickle.load(f)
 	return graph
 
-def parse_node_name(node_name):
-		# Prototype nodes of the form "PrS{n}" or "PrP{n}"
-		proto_match = re.match(r"Pr([SP])(\d+)", node_name)
-		if proto_match:
-			return {
-				"type": "prototype",
-				"kind": proto_match.group(1),
-				"n": int(proto_match.group(2)),
-			}
-		
-		# Instance nodes of the form "S{n1}L{n2}N{n3}" or "P{n1}O{n2}N{n3}"
-		instance_match = re.match(r"([SP])(\d+)L?O?(\d+)N(\d+)", node_name)
-		if instance_match:
-			return {
-				"type": "instance",
-				"kind": instance_match.group(1),
-				"n1": int(instance_match.group(2)),
-				"n2": int(instance_match.group(3)),
-				"n3": int(instance_match.group(4)),
-			}
-		
-		# If the node name does not match any known format
-		return {
-			"type": "unknown",
-			"name": node_name
-		}
-
-def load_STG(stg_path):
-	with open(stg_path, 'rb') as f:
-		graph = pickle.load(f)
-	return graph
-
 # modified from simanneal_centroid.py
 def is_approx_valid_move(G, source_node_id, sink_node_id):
 	def is_proto(node_id):
@@ -166,12 +131,11 @@ def is_approx_valid_move(G, source_node_id, sink_node_id):
 	if is_proto(source_node_id) and is_proto(sink_node_id):
 		return False
 	
-	# The edge is between a prototype to an instance level whose nodes don't have that prototype feature (i.e. PrAbs_interval -> segmentation)
-	if is_proto(source_node_id) and is_instance(sink_node_id):
-		features = nx.get_node_attributes(G, "feature_name") 
-		source_proto_feature = features[source_node_id][0]
-		sink_inst_features = features[sink_node_id]
-		if source_proto_feature not in sink_inst_features:
+	# The edge is between a prototype and instance level whose nodes don't have that prototype feature (i.e. PrAbs_interval -> segmentation)
+	if is_proto(source_node_id) and is_instance(sink_node_id) or is_proto(sink_node_id) and is_instance(source_node_id):
+		proto_feature_name = nx.get_node_attributes(G, "feature_name")[source_node_id if is_proto(source_node_id) else sink_node_id]
+		inst_features = nx.get_node_attributes(G, "features_dict")[source_node_id if is_instance(source_node_id) else sink_node_id].keys()
+		if proto_feature_name not in inst_features:
 			return False
 	
 	# Source/sink are both instance
@@ -219,7 +183,7 @@ def add_noise_to_graph(graph, n_edits):
 			if (u,v) not in removed_edges\
 					and u != v \
 					and not noisy_graph.has_edge(u, v) \
-					and is_approx_valid_move(u,v):
+					and is_approx_valid_move(noisy_graph, u,v):
 				noisy_graph.add_edge(u, v)
 				added_edges.add((u, v))
 				batch_changes.append(("add", u, v))
@@ -447,8 +411,8 @@ def get_distances_from_centroid_to_corpus(noisy_corpus_graphs, centroid, gpu_id)
 	return np.array([simanneal_centroid.dist_torch(A_g, A_G).item() for A_G in list_alignedA_G])
 
 if __name__ == "__main__":
-	plot_results()
-	sys.exit(0)
+	# plot_results()
+	# sys.exit(0)
 	
 	base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
 	# base_graph_path = DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle'
@@ -464,9 +428,8 @@ if __name__ == "__main__":
 		base_graph = load_STG(base_graph_path)
 
 		noisy_corpus_save_dir = DIRECTORY + f'/experiments/centroid/synthetic_centroid_experiment/{noisy_corpus_dirname}'
-		noise = int(np.ceil(base_graph.size()*2)) # 200%
-		# generate_noisy_corpus(base_graph, noisy_corpus_save_dir, noisy_corpus_dirname, corpus_size=k, noise=noise)
-		
+		noise = int(np.ceil(base_graph.size()/2))
+
 		noisy_corpus_graphs = load_noisy_corpus(noisy_corpus_save_dir)
 		print("NUM CORPUS GRAPHS", len(noisy_corpus_graphs))
 		# for G in noisy_corpus_graphs:

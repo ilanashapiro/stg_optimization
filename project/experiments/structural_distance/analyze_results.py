@@ -30,7 +30,7 @@ def ensure_hollow(matrix):
 
 if __name__ == "__main__":
 	scaler = MinMaxScaler()
-	clusters_path = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" 
+	clusters_path = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/composers_cluster.pkl" 
 
 	ground_truth_normalized_similarity_matrix = normalize_upper_triangle(np.array([
 			[ 0.  ,  2.58,  2.58,  0.59,  0.61],
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 	print(f"Mantel Test Result for Baseline3 (WL Kernel + NeighborhoodHash base kernel) Matrix with {method}:")
 	print(f"Correlation: {baseline3_mantel_result[0]:.4f}, p-value: {baseline3_mantel_result[1]:.4f}")
 
-# for cluster: f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" 
+# for cluster: f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/composers_cluster.pkl" 
 # Mantel Test Result for Structure Distance Matrix with spearman:
 # Correlation: 0.8207, p-value: 0.0140
 # Mantel Test Result for Baseline1 (Cosine Similarity from MIDI Features Vector) Matrix with spearman:
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 # Mantel Test Result for NeighborhoodHash Kernel Matrix with spearman:
 # Correlation: -0.8207, p-value: 0.0200
 
-# ABLATION EXPERIMENTS for cluster: f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" :
+# ABLATION EXPERIMENTS for cluster: f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/composers_cluster.pkl" :
 # 1 level:
 # Mantel Test Result for Structural Distance Matrix with spearman:
 # Correlation: -0.4377, p-value: 0.2810

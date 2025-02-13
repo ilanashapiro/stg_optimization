@@ -1,22 +1,16 @@
-import os, sys, pickle, json, re, random
-
-from networkx import cost_of_flow
-import test
+import os, sys, pickle, re, random
 import numpy as np
-from multiprocessing import Pool, current_process
 import networkx as nx
-import torch, glob
-from pulp import LpProblem, LpMinimize, LpVariable, lpSum
+import torch
 import matplotlib.pyplot as plt
 
-# DIRECTORY = "/home/ubuntu/project"
-DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+DIRECTORY = "/home/ubuntu/project"
+# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
 
 sys.path.append(f"{DIRECTORY}/centroid")
 import z3_matrix_projection_incremental as z3_repair
 import simanneal_centroid_helpers, simanneal_centroid_run
-# import build_graph
 
 import matplotlib.pyplot as plt
 
@@ -89,63 +83,46 @@ def plot_results():
 
 plot_results()
 
-
 def load_STG(stg_path):
 	with open(stg_path, 'rb') as f:
 		graph = pickle.load(f)
 	return graph
 
-def parse_node_name(node_name):
-		# Prototype nodes of the form "PrS{n}" or "PrP{n}"
-		proto_match = re.match(r"Pr([SP])(\d+)", node_name)
-		if proto_match:
-			return {
-				"type": "prototype",
-				"kind": proto_match.group(1),
-				"n": int(proto_match.group(2)),
-			}
-		
-		# Instance nodes of the form "S{n1}L{n2}N{n3}" or "P{n1}O{n2}N{n3}"
-		instance_match = re.match(r"([SP])(\d+)L?O?(\d+)N(\d+)", node_name)
-		if instance_match:
-			return {
-				"type": "instance",
-				"kind": instance_match.group(1),
-				"n1": int(instance_match.group(2)),
-				"n2": int(instance_match.group(3)),
-				"n3": int(instance_match.group(4)),
-			}
-		
-		# If the node name does not match any known format
-		return {
-			"type": "unknown",
-			"name": node_name
-		}
-
-def is_approx_valid_move(source_node_name, sink_node_name):
-		source_info = parse_node_name(source_node_name)
-		sink_info = parse_node_name(sink_node_name)
-
-		# The edge is from an instance to a prototype 
-		if source_info['type'] == 'instance' and sink_info['type'] == 'prototype':
+# modified from simanneal_centroid.py
+def is_approx_valid_move(G, source_node_id, sink_node_id):
+	def is_proto(node_id):
+		return node_id.startswith('Pr')
+	def is_instance(node_id):
+		return not is_proto(node_id)
+	
+	# The edge is between two prototypes
+	if is_proto(source_node_id) and is_proto(sink_node_id):
+		return False
+	
+	# The edge is between a prototype and instance level whose nodes don't have that prototype feature (i.e. PrAbs_interval -> segmentation)
+	if is_proto(source_node_id) and is_instance(sink_node_id) or is_proto(sink_node_id) and is_instance(source_node_id):
+		proto_feature_name = nx.get_node_attributes(G, "feature_name")[source_node_id if is_proto(source_node_id) else sink_node_id]
+		inst_features = nx.get_node_attributes(G, "features_dict")[source_node_id if is_instance(source_node_id) else sink_node_id].keys()
+		if proto_feature_name not in inst_features:
 			return False
+	
+	# Source/sink are both instance
+	if is_instance(source_node_id) and is_instance(sink_node_id):
+		def rank_difference(rank1, rank2):
+			primary_rank1, secondary_rank1 = rank1
+			primary_rank2, secondary_rank2 = rank2
+			if primary_rank1 == primary_rank2:
+				return secondary_rank1 - secondary_rank2
+			return primary_rank1 - primary_rank2
 		
-		# The edge is between two prototypes
-		if source_info['type'] == 'prototype' and sink_info['type'] == 'prototype':
+		# levels are NOT adjacent (i.e. 1 rank lower or higher, since this is the undirected version), or levels are NOT the same level (for intra level chain edge)
+		layer_ranks = nx.get_node_attributes(G, "layer_rank") 
+		source_rank = layer_ranks[source_node_id]
+		sink_rank = layer_ranks[source_node_id]
+		if np.abs(rank_difference(source_rank, sink_rank)) not in [0, 1]:
 			return False
-		
-		# The edge is from the wrong prototype to an instance (i.e. PrP{n} to S{n1}L{n2}N{n3} or PrS{n} to P{n1}O{n2}N{n3})
-		if source_info['type'] == 'prototype' and sink_info['type'] == 'instance' and source_info['kind'] != sink_info['kind']:
-			return False
-		
-		# The edge is from a lower level to a higher level instance node (so either from P{n1}O{n2}N{n3} to S{n1}L{n2}N{n3}, or from S{n1}L{n2}N{n3} to S{n1'}L{n2'}N{n3'} where n2 > n2')
-		if source_info['type'] == 'instance' and sink_info['type'] == 'instance':
-			if source_info['kind'] == 'P' and sink_info['kind'] == 'S':
-				return False
-			if source_info['kind'] == 'S' and sink_info['kind'] == 'S' and source_info['n2'] > sink_info['n2']:
-				return False
-
-		return True
+	
+	return True
 
 def is_formally_valid_graph(new_STG, verbose=False):
 	adj_matrix, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices([new_STG])
@@ -174,7 +151,7 @@ def add_noise_to_graph(graph, n_edits):
 			if (u,v) not in removed_edges\
 					and u != v \
 					and not noisy_graph.has_edge(u, v) \
-					and is_approx_valid_move(u,v):
+					and is_approx_valid_move(noisy_graph, u, v):
 				noisy_graph.add_edge(u, v)
 				added_edges.add((u, v))
 				batch_changes.append(("add", u, v))
@@ -269,8 +246,8 @@ def generate_noisy_STGs(base_graph, percent_noise_max, percent_noise_increment, 
 	print(f"Saved graphs with noise up to {percent_noise_max*100}% percent in increments of {percent_noise_increment*100}% to {noisy_STGs_save_dir}")
 
 if __name__ == "__main__":
-	plot_results()
-	sys.exit(0)
+	# plot_results()
+	# sys.exit(0)
 	
 	base_graph_paths = [
 		DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle',
@@ -284,7 +261,7 @@ if __name__ == "__main__":
 		print("BASE GRAPH", base_graph_path)
 		base_graph = load_STG(base_graph_path)
 		print("|E| =", base_graph.size())
-		continue
+		
 		percent_noise_max = 3 # this is 300%
 		percent_noise_increment = 0.1 # 10% increments in noise 
 		gpu_id = 7

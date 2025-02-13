@@ -133,7 +133,7 @@ def run(clusters_path, kernel_experiment=False):
 	return np.mean(np.stack(dist_matrics), axis=0)
 
 if __name__ == "__main__":
-	# renamed from f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/clusters_totalnobrahmsnohaydn_mindisttol2.pkl" 
+	# renamed from f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/cache_files/composers_cluster.pkl" 
 	clusters_path = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/composers_cluster.pkl" 
 	print(run(clusters_path))
 
