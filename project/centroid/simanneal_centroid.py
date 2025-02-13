@@ -221,24 +221,6 @@ def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dic
 
 	return alignments
 
-def align_single_graph(args):
-	A_g, A_G, idx_node_mapping, Tmax, Tmin, steps, node_metadata_dict = args
-	initial_state = cp.eye(cp.shape(A_G)[0])  # Identity matrix as initial state
-	if cp.array_equal(A_g, A_G):
-		return initial_state
-	graph_aligner = GraphAlignmentAnnealer(initial_state, A_g, A_G, idx_node_mapping, node_metadata_dict)
-	graph_aligner.Tmax = Tmax
-	graph_aligner.Tmin = Tmin
-	graph_aligner.steps = steps
-	alignment, _ = graph_aligner.anneal()
-	return alignment
-
-def get_alignments_to_centroid_parallel(A_g, listA_G, node_mapping, Tmax, Tmin, steps, node_metadata_dict):
-	args = [(A_g, A_G, node_mapping, Tmax, Tmin, steps, node_metadata_dict) for A_G in listA_G]
-	with multiprocessing.Pool() as pool:
-		alignments = pool.map(align_single_graph, args)
-	return alignments
-
 # current centroid g, list of alignments list_a to the graphs in the corpus list_G
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
 	# based on the current alignments

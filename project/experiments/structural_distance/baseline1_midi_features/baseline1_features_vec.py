@@ -155,6 +155,6 @@ def run(clusters_filepath):
 	return np.mean(np.array(all_matrices), axis=0)
 
 if __name__ == "__main__":
-	clusters_filepath = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/clusters_totalnobrahmsnohaydn_mindisttol2_totalordertol2.pkl"
+	clusters_filepath = f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment/composers_cluster_totalordertol2.pkl"
 	print(run(clusters_filepath))
 	
