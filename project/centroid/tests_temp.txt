@@ -1,9 +1,0 @@
-Difference -1.0156047397409083, Best cost2 46.75467891024384: (1, 0)
-Difference -0.33882102021677696, Best cost2 47.05316142407437: (0, 1)
-Difference 0.0, Best cost2 46.776062254106, (0, 0)
-Difference 0.0, Best cost2 47.286361670147556, (1, 1)
-
-Difference -0.23436178119586515, Best cost2 46.8187996428785: (1, 0)
-Difference 0.0, Best cost2 46.34652090502587: (0, 1)
-
-0 is for features partition, 1 is for merged features into single layer partition

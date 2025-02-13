@@ -448,15 +448,14 @@ if __name__ == "__main__":
 	# print("Best loss", min_loss)
 	# sys.exit(0)
 
-	experiment_dir = "/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/approx_centroids/approx_centroid_50s_ablation1/beethoven/"
-	# centroid = np.loadtxt("test_graph_output_files/approx_centroid_test.txt")
-	centroid = np.loadtxt(experiment_dir + "centroid.txt")
+	experiment_dir = "test_graph_output_files"
+	centroid = np.loadtxt(experiment_dir + "/final_centroid_test.txt")
 	
 	# with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
-	with open(experiment_dir + "idx_node_mapping.txt", 'r') as file:
+	with open(experiment_dir + "/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
-	with open(experiment_dir + "node_metadata_dict.txt", 'r') as file:
+	with open(experiment_dir + "/approx_centroid_node_metadata_test.txt", 'r') as file:
 		node_metadata_dict = json.load(file)
 	
 	# centroid, centroid_idx_node_mapping = helpers.remove_all_dummy_nodes(centroid, centroid_idx_node_mapping)
