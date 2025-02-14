@@ -14,10 +14,12 @@ DIRECTORY = '/home/ilshapiro/project'
 # DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 
 '''
-This file run the Graph Alignment Annealer on the STG sets generated in structural_distance_gen_clusters 
+This file runs the Graph Alignment Annealer on the STG sets generated in structural_distance_gen_clusters 
 to get results for the structural distance music evaluation experiment in Section 6.1 of the paper
 The Graph Alignment annealer is implemented in project/centroid/simanneal_centroid.py
 Number of annealer steps is 2000, max temp 2, min temp 0.01
+
+Or, if we're doing the WL Kernels basline, the distance metric on the STG sets is the WL Kernel with Neighborhood Hash as base kernel
 '''
 def create_distance_matrix(cluster, cache, kernel_experiment=False, ablation_level=None):
 	n = len(cluster)
