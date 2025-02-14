@@ -10,7 +10,7 @@ TIME_PARAM = '50s'
 NUM_GPUS = 8 
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
-sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
+sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_music")
 
 import experiments.centroid.centroid_simanneal_gen_OLD as centroid_simanneal_gen_OLD 
 import structural_distance_gen_clusters as st_gen_clusters

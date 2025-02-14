@@ -10,7 +10,7 @@ DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
-sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
+sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_music")
 
 import build_graph
 import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid

@@ -10,7 +10,7 @@ DIRECTORY = "/home/ubuntu/project"
 TIME_PARAM = '50s'
 sys.path.append(DIRECTORY)
 sys.path.append(f"{DIRECTORY}/centroid")
-sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_experiment")
+sys.path.append(f"{DIRECTORY}/experiments/structural_distance/structural_distance_music")
 
 import build_graph
 import structural_distance_gen_clusters as st_gen_clusters
