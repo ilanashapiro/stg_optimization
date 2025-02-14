@@ -15,6 +15,12 @@ sys.path.append(f"{DIRECTORY}/centroid")
 sys.path.append(f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/spminer/subgraph_mining")
 import simanneal_centroid_helpers
 
+'''
+This file runs the Section 6.2 experiment in the paper about examining the 5-node subgraphs common to all the STGs in each composer corpus
+that we precisely enumerate with rustworkx
+Then it evaluates how many of these common 5-node subgraphs appear in the centroid (i.e. making it "musically representative")
+'''
+
 def load_corpora():
 	corpora_path = f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/corpora/composer_centroid_input_graphs.txt"
 	with open(corpora_path, 'r') as file:

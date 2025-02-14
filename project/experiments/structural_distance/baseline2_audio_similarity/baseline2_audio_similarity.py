@@ -12,6 +12,10 @@ from audio_similarity import AudioSimilarity
 
 audio_similarity_cache = {}
 
+'''
+This file contains the code for the Audio Similarity SWAS Baseline 2 for the structural distance music evaluation experiment in Section 6.1 of the paper
+'''
+
 def get_audio_similarity(mp3_filepath1, mp3_filepath2):
 	cache_key = repr((mp3_filepath1, mp3_filepath2))
 	cache_key_rev = repr((mp3_filepath2, mp3_filepath1))

@@ -215,6 +215,9 @@ def get_unsorted_layers_from_graph_by_index(G):
 
 	return sorted(layers, key=vertical_sort_key)
 
+'''
+This is the augmentation procedure from Section 4.1 in the paper
+'''
 # augment with prototype nodes and intra-level layers
 def augment_graph(G):
 	layers = get_unsorted_layers_from_graph_by_index(G)

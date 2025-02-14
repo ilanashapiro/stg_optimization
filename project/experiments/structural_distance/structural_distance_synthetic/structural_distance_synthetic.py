@@ -14,6 +14,11 @@ import simanneal_centroid_helpers, simanneal_centroid_run
 
 import matplotlib.pyplot as plt
 
+'''
+This file runs the Section 6.1 mathematical eval experiment about adding n edit operations to a base STG, for a variety of n,
+and comparing how close the computed structural is to the ground truth sqrt{graph edit distance} between each of these graph pairs
+'''
+
 def plot_results():
 		# Data for Bach
 		noise_vals = [

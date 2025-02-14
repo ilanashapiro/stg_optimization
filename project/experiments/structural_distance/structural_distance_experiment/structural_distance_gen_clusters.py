@@ -15,6 +15,10 @@ sys.path.append(f"{DIRECTORY}/centroid")
 
 import simanneal_centroid_run, simanneal_centroid_helpers
 
+'''
+This file searches for valid sets of STGs (i.e. within the desired duration timeframes) for which to conduct
+the structural distance music evaluation experiment in Section 6.1 of the paper. We build the 210 sets of piece combinations (clusters) here.
+'''
 def get_approx_end_time(csv_path):
 		df = pd.read_csv(csv_path)
 		if 'onset_seconds' in df.columns:

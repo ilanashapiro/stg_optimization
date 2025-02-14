@@ -13,6 +13,12 @@ DIRECTORY = '/home/ilshapiro/project'
 # DIRECTORY = "/home/ubuntu/project"
 # DIRECTORY = '/Users/ilanashapiro/Documents/constraints_project/project'
 
+'''
+This file run the Graph Alignment Annealer on the STG sets generated in structural_distance_gen_clusters 
+to get results for the structural distance music evaluation experiment in Section 6.1 of the paper
+The Graph Alignment annealer is implemented in project/centroid/simanneal_centroid.py
+Number of annealer steps is 2000, max temp 2, min temp 0.01
+'''
 def create_distance_matrix(cluster, cache, kernel_experiment=False, ablation_level=None):
 	n = len(cluster)
 	distance_matrix = distance_matrix = np.zeros((n, n))

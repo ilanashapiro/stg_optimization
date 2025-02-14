@@ -48,6 +48,10 @@ def align_torch(P, A_G):
 	result = torch.sparse.mm(torch.sparse.mm(P_sparse.t(), A_G_sparse), P_sparse)
 	return result.to_dense()
 
+
+'''
+Equation 1 in the paper
+'''
 # dist between g and G given alignment a
 # i.e. reorder nodes of G according to alignment (i.e. permutation matrix) a
 # ||A_g - a^t * A_G * a|| where ||.|| is the norm (using Frobenius norm)
@@ -61,6 +65,10 @@ def dist_cupy(A_g, A_G):
 def dist_torch(A_g, A_G):
 	return torch.norm(A_g - A_G, p='fro')
 
+'''
+This class contains the code for the simulated annealing procedure to compute the graph edit distance, from Section 4.2 of the paper
+The output is the optimal alignment between 2 graphs, which allows us to directly compute the structural distance (which is square root edit distance under optimal alignment)
+'''
 class GraphAlignmentAnnealer(Annealer):
 	def __init__(self, initial_alignment, A_g, A_G, centroid_idx_node_mapping, node_metadata_dict, device=None):
 		super(GraphAlignmentAnnealer, self).__init__(initial_alignment)
@@ -204,6 +212,9 @@ class GraphAlignmentAnnealer(Annealer):
 # sys.exit(0)
 # ---------------------------------------- :TEST CODE --------------------------------------------------------------------------------
 
+'''
+For running the nested Graph Alignment Annealer at each step of the Centroid Annealing
+'''
 def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dict, device=None, Tmax=2, Tmin=0.01, steps=2000):
 	alignments = []
 	for i, A_G in enumerate(listA_G): # for each graph in the corpus, find its best alignment with current centroid
@@ -221,6 +232,9 @@ def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dic
 
 	return alignments
 
+'''
+The loss function for the centroid annealer (Equation 4a in paper) 
+'''
 # current centroid g, list of alignments list_a to the graphs in the corpus list_G
 # loss is the sum of the distances between current centroid g and each graph in corpus G,
 	# based on the current alignments
@@ -240,6 +254,9 @@ def loss_torch(A_g, list_alignedA_G, device):
 	distances = torch.tensor([dist_torch(A_g, A_G) for A_G in list_alignedA_G], device=device)
 	return torch.mean(distances)
 
+'''
+This class contains the code for the bi-level simulated annealing (SA) procedure from Section 5.1 of the paper
+'''
 class CentroidAnnealer(CustomCentroidAnnealer):
 	def __init__(self, initial_centroid, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=None):
 		super(CentroidAnnealer, self).__init__(initial_centroid) # i.e. set initial self.state = initial_centroid
@@ -256,6 +273,9 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 	# def default_update(self, step, T, E, acceptance, improvement):
 	# 	return 
 	
+	'''
+	Global constraints from Table 1 in the paper
+	'''
 	# i.e. the move always makes the score worse, it's not an intermediate invalid state that could lead to a better valid state
 	def is_globlly_invalid_move(self, source_idx, sink_idx, node_mapping):
 		# No self-loops (there would be a self-loop if we flip this coordinate)
@@ -305,6 +325,10 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		
 		return False
 	
+	'''
+	This function contains the logic for the move at each step of the simulated annealing, as explicated in detail in Section 5.1 (particularly, in Algorithm 2) in the paper
+	We make 1 change to the centroid (i.e. self.state) at each step of the move
+	'''
 	def move(self):
 		diff_matrices = torch.abs(torch.stack([self.state - A_G for A_G in self.listA_G]))
 		score_matrix = torch.sum(diff_matrices, dim=0)
@@ -383,6 +407,11 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		else:
 			print("No valid move found.")
 
+	'''
+	This is the energy of the Centroid Annealer (Equation 5 in paper)
+	We use the Graph Alignment Annealer to find the optimal alignments between current centroid and each STG in corpus (this is the nested simulated annealing step)
+	Once we have the optimal alignments, we can compute the loss
+	'''
 	def energy(self): # i.e. cost, self.state represents the current centroid g
 		current_temp_ratio = (self.T - self.Tmin) / (self.Tmax - self.Tmin)
 		initial_Tmax = 1
@@ -394,6 +423,8 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		# They get narrower as we get an increasingly more accurate centroid that's easier to align
 		alignment_Tmax = initial_Tmax * current_temp_ratio + final_Tmax * (1 - current_temp_ratio)
 		alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio)) 
+		
+		# run the nested alignment annealer
 		alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
 
 		# Align the corpus to the current centroid

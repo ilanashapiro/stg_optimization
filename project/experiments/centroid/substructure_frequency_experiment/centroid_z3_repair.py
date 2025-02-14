@@ -8,10 +8,14 @@ DIRECTORY = "/home/ishapiro/project"
 sys.path.append(f"{DIRECTORY}")
 sys.path.append(f"{DIRECTORY}/centroid")
 
-# import build_graph
+import build_graph
 import z3_matrix_projection_incremental as z3_repair
 import simanneal_centroid_helpers as helpers
 
+'''
+This file repairs the approximate centroids from centroid_simanneal_gen.py to become structurally sound centroids 
+using the SMT solver procedure implemented in project/centroid/z3_matrix_projection_incremental.py
+'''
 def repair_centroid(composer):
 	approx_centroid_dir = f"{DIRECTORY}/experiments/centroid/approx_centroids/{composer}"
 

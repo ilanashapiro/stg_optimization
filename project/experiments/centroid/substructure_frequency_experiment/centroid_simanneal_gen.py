@@ -17,6 +17,14 @@ import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
 
 NUM_GPUS = 8 
 
+'''
+This file generates the approximate centroids for each composer corpus for the Musical Eval experiment in Section 6.2 of the paper (Alkan, Chopin, Haydn, Mozart) using the
+bi-level simulated annealing procedure for the Centroid Annealer in project/centroid/simanneal_centroid.py
+First we generate initial alignments for the Centroid Annealer with the Graph Alignment Annealer (2000 steps, max temp 2, min temp 0.01)
+Then we run the Centroid Annealer (1000 steps, max temp 2.5, min temp 0.05).
+At each iteration of the centroid annealer, we run the Graph Alignment Annealer, starting at 500 steps, max temp 1, min temp 0.01, 
+and ending at 5 steps, max temp 0.05, min temp 0.01 as the Centroid Annealer's loss converges
+'''
 def get_approx_end_time(csv_path):
 	df = pd.read_csv(csv_path)
 	if 'onset_seconds' in df.columns:

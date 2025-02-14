@@ -15,6 +15,12 @@ import structural_distance_process_clusters as gen_data
 import baseline1_features_vec as baseline1
 import baseline2_audio_similarity as baseline2
 
+'''
+This file analyzes the results from Section 6.1, Structural Distance Music Evaluation Experiment, in the paper,
+and the 3 baselines (MIDI features, SWAS audio similarity, and finally WL Kernel between STGs). 
+Analysis is the Mantel test + Spearman rank correlation for the pairwise distance matrices
+'''
+
 def normalize_upper_triangle(matrix, scaler):
 	upper_tri_indices = np.triu_indices_from(matrix, k=1)
 	upper_tri_values = matrix[upper_tri_indices]

@@ -19,6 +19,12 @@ DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 sys.path.append(DIRECTORY)
 import build_graph
 
+'''
+This file contains the code for the SMT solver graph repair, i.e. projecting the approximate centroid
+from the bi-level simulated annealing to its nearest structurally valid form
+This is achieved by encoding the structure of the STG as first order quantifier free logic formulae, and solving with Z3
+Section 5.2 in the paper discusses this code in more detail
+'''
 # ------------------------------------ Globals ------------------------------------
 
 # inputs to the program -- MUST BE DEFINED
@@ -349,7 +355,9 @@ def add_instance_parent_relationship_constraints(parent_level, child_level, idx_
 		opt.add(z3.Implies(child_i_subA_var == start(child_level_var), instance_parent1(child_i_subA_var) == start(parent_level_var))) # the first node must have the prev level's first node as a parent
 		opt.add(z3.Implies(child_i_subA_var == end(child_level_var), instance_parent2(child_i_subA_var) == end(parent_level_var))) # the final node must have the prev level's last node as a parent
 
-# for solver loop version
+'''
+This is the objective function from Equation 6 in the paper
+'''
 def get_objective(submatrix, idx_node_submap):
 	return z3.Sum([z3.If(submatrix[i][j] != bool(approx_centroid[node_idx_mapping[node_id1]][node_idx_mapping[node_id2]]), 1, 0) 
 										 for (i, node_id1) in idx_node_submap.items()
@@ -424,6 +432,9 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 		opt.pop()
 		print()
 	else:
+		'''
+		This loop incrementally implements the global and instance constraints in Tables 1 and 2 of the paper for partitions of paired instance node levels
+		'''
 		for (parent_level, child_level), (A_combined_submatrix, combined_idx_node_submap) in sorted(A_adjacent_instance_submatrices_list.items()):
 			print(f"LEVEL PAIR FOR INSTANCE CONSTRAINTS ({parent_level}, {child_level})", time.perf_counter())
 			opt.push()  # Save the current optimizer state for potential backtracking
@@ -481,6 +492,9 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 			opt.pop()
 			print()
 
+	'''
+	This loop incrementally implements the global and constraints in Tables 1 and 3 of the paper for the prototype nodes at each level
+	'''
 	for level, (instance_proto_submatrix, idx_node_submap) in sorted(A_partition_instance_submatrices_list_with_proto.items()):
 		print(f"LEVEL FOR PROTO CONSTRAINTS {level}", time.perf_counter())
 		opt.push()  # Save the current optimizer state for potential backtracking
@@ -566,9 +580,14 @@ def run(final_centroid_filename, final_idx_node_mapping_filename):
 
 		# build_graph.visualize([G, g], [layers_G, layers_g])
 	else:
-			print("Unable to find a satisfiable structure across all levels")
+		print("Unable to find a satisfiable structure across all levels")
 
 
+'''
+This is the same thing as the run function except it just checks if the graph is sat and doesn't try to repair it
+We use this to build the noisy corpora for the Section 6.1 mathetical verification/synthetic structural distance experiment
+and the Section 6.2 mathetical verification/synthetic centroid experiment
+'''
 def test_sat(verbose=False):
 	level_states = {}
 	

@@ -175,7 +175,6 @@ def add_noise_to_graph(graph, n_edits):
 
 	while noise_level < n_edits:
 		operation = random.choice(["add", "remove"])
-		noisy_graph_original = noisy_graph.copy()
 		
 		if operation == "add":
 			u, v = random.sample(nodes, 2)

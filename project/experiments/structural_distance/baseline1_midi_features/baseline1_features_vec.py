@@ -18,6 +18,10 @@ MAX_SECTIONS = 10
 
 feature_vector_cache = {}
 
+'''
+This file contains the code for the MIDI features Baseline 1 in the structural distance music evaluation experiment in Section 6.1 of the paper
+'''
+
 def save_cache(cache_filepath):
 		with open(cache_filepath, 'wb') as f:
 				pickle.dump(feature_vector_cache, f)
