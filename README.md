@@ -11,7 +11,7 @@ The file build_graph.py in the top level of the project folder contains the runn
 
 The folder project/centroid contains the code from Sections 4 and 5 in the paper. simanneal_centroid.py contains the implementation of both annealers (single-level graph alignment annealing and bi-level centroid annealing) from Sections 4.1 and 5.1. Approximate centroids are generated using simanneal_centroid.py. z3_matrix_projection_incremental.py contains the Z3 solver code for repairing the approximate centroids from Section 5.2: the final, repaired, structurally sound centroids are generated using this file.
 
-Details about the 32 pieces used for the Structural Experiment (Section 6.1) can be found in the file project/experiments/structural_distance/structural_distance_experiment/input_pieces.txt. The 210 set combinations of these pieces used in the experiment can be found in project/experiments/structural_distance/structural_distance_experiment/set_combinations.txt
+Details about the 32 pieces used for the Structural Experiment (Section 6.1) can be found in the file project/experiments/structural_distance/structural_distance_music/input_pieces.txt. The 210 set combinations of these pieces used in the experiment can be found in project/experiments/structural_distance/structural_distance_music/set_combinations.txt
 
 Details about the pieces used for the Centroid Experiment (Section 6.2) can be found in the file project/experiments/centroid/corpora/info.txt.
 
