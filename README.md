@@ -9,18 +9,16 @@ All pre-processing of data (code converting MIDI-CSV and MIDI-MP3, and code for 
 
 The file `build_graph.py` in the top level of the project folder contains the runner code from Section 3 of the paper: creating the STGs from music pieces and adding to our dataset, and augmenting, compressing, and visualizing STGs. `parse_analyses.py` contains helper functions for `build_graph.py` that build the STGs according to the analyses in the beginning of Section 6 experiments.
 
-The folder `project/centroid` contains the code from Sections 4 and 5 in the paper. `simanneal_centroid.py` contains the implementation of both annealers (single-level graph alignment annealing and bi-level centroid annealing) from Sections 4.1 and 5.1. Approximate centroids are generated using `simanneal_centroid.py`. `z3_matrix_projection_incremental.py` contains the Z3 solver code for repairing the approximate centroids from Section 5.2: the final, repaired, structurally sound centroids are generated using this file.
+The folder `project/centroid` contains the code from Sections 4 and 5 in the paper. `simanneal_centroid.py` contains the implementation of both annealers (single-level graph alignment annealing and bi-level centroid annealing) from Sections 4.1 and 5.1. Approximate centroids are generated using this file. `z3_matrix_projection_incremental.py` contains the Z3 solver code for repairing the approximate centroids from Section 5.2: the final, repaired, structurally sound centroids are generated using this file.
 
-Details about the 32 pieces used for the Structural Experiment (Section 6.1) can be found in the file `project/experiments/structural_distance/structural_distance_music/input_pieces.txt`. The 210 set combinations of these pieces used in the experiment can be found in `project/experiments/structural_distance/structural_distance_music/set_combinations.txt`
+The folders `project/experiments/structural_distance` and `project/experiments/centroid` respectively contain the code for the Section 6.1 (structural distance) and Section 6.2 (centroid) experiments (both mathematical and musical evaluations).
 
-Details about the pieces used for the Centroid Experiment (Section 6.2) can be found in the file `project/experiments/centroid/corpora/info.txt`.
-
-Individual files also contain docstrings relating the code to the relevant parts of the paper
+Individual files also contain docstrings relating the code to the relevant parts of the paper.
 
 ## Information about the experiments
-In the Structural Distance experiment from Section 6.1, we do the mathematical evaluation in `project/experiments/structural_distance/structural_distance_synthetic` (run the file structural_distance_synthetic.py in this folder), and the musical evaluation in `project/experiments/structural_distance/structural_distance_music` (run the file `analyze_results.py` in this folder).
+In the Structural Distance experiment from Section 6.1, we do the mathematical evaluation in `project/experiments/structural_distance/structural_distance_synthetic` (run the file structural_distance_synthetic.py in this folder), and the musical evaluation in `project/experiments/structural_distance/structural_distance_music` (run the file `analyze_results.py` in this folder). Details about the 32 pieces used for the Structural Distance Music Evaluation Experiment (Section 6.1) can be found in the file `project/experiments/structural_distance/structural_distance_music/input_pieces.txt`. The 210 set combinations of these pieces used in the experiment can be found in `project/experiments/structural_distance/structural_distance_music/set_combinations.txt`.
 
-In the Centroids Experiment from Section 6.2, we do the mathematical evaluation in project/experiments/centroid/synthetic_centroid_experiment (run the file `synthetic_centroid_experiment.py` in this folder), and the musical evaluation in `project/experiments/centroid/substructure_frequency_experiment` (run the file `substructure_frequency_experiment.py` in this folder). 
+In the Centroids Experiment from Section 6.2, we do the mathematical evaluation in project/experiments/centroid/synthetic_centroid_experiment (run the file `synthetic_centroid_experiment.py` in this folder), and the musical evaluation in `project/experiments/centroid/substructure_frequency_experiment` (run the file `substructure_frequency_experiment.py` in this folder). Details about the pieces used for the Centroid Music Evaluation Experiment (Section 6.2) can be found in the file `project/experiments/centroid/corpora/info.txt`.
 
 All the relevant material, including the generated/synthetic synthetic STGs used to get the results in the paper, are in these folders.
 
