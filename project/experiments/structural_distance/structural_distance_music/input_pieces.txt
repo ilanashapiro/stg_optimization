@@ -1,0 +1,44 @@
+{
+    "bach": [
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v11_(c)grossmann/988-v11_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v12_(c)grossmann/988-v12_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v14_(c)grossmann/988-v14_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v17_(c)grossmann/988-v17_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v20_(c)grossmann/988-v20_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v23_(c)grossmann/988-v23_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/988-v28_(c)grossmann/988-v28_(c)grossmann_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV679_(c)mccloskey/BWV679_(c)mccloskey_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV788_(c)closkey/BWV788_(c)closkey_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV800_(c)closkey/BWV800_(c)closkey_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/BWV808_3_(c)siu/BWV808_3_(c)siu_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/Wtcii11b/Wtcii11b_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/Wtcii12b/Wtcii12b_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/Wtcii23a/Wtcii23a_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/Wtcii24a/Wtcii24a_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv798/bwv798_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv806_a_(c)degiusti/bwv806_a_(c)degiusti_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv806_c_(c)degiusti/bwv806_c_(c)degiusti_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv807_c_(c)degiusti/bwv807_c_(c)degiusti_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv988-14_(c)degiusti/bwv988-14_(c)degiusti_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/bach/kunstderfuge/bwv988-20_(c)degiusti/bwv988-20_(c)degiusti_augmented_graph_flat.pickle"
+    ],
+    "beethoven": [
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/bagattelle_woo56_(c)orlandi/bagattelle_woo56_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_66_(c)orlandi/biamonti_66_(c)orlandi_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/beethoven/kunstderfuge/biamonti_74_(c)orlandi/biamonti_74_(c)orlandi_augmented_graph_flat.pickle"
+    ],
+    "chopin": [
+        "/home/ubuntu/project/datasets/chopin/classical_piano_midi_db/chpn_op10_e01/chpn_op10_e01_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/kunstderfuge/etude_10_10_(c)unknown/etude_10_10_(c)unknown_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/kunstderfuge/etude_10_1_(c)unknown/etude_10_1_(c)unknown_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/chopin/kunstderfuge/mazurka_7_1_(c)yogore/mazurka_7_1_(c)yogore_augmented_graph_flat.pickle"
+    ],
+    "mozart": [
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/mozart-l_scherzo_(nc)werths/mozart-l_scherzo_(nc)werths_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/mozart/kunstderfuge/piano_sonata_545_3_(nc)werths/piano_sonata_545_3_(nc)werths_augmented_graph_flat.pickle"
+    ],
+    "schubert": [
+        "/home/ubuntu/project/datasets/schubert/kunstderfuge/childrens_march_928_(c)yogore/childrens_march_928_(c)yogore_augmented_graph_flat.pickle",
+        "/home/ubuntu/project/datasets/schubert/kunstderfuge/moments_musicaux_94_3_(c)hisamori/moments_musicaux_94_3_(c)hisamori_augmented_graph_flat.pickle"
+    ]
+}
