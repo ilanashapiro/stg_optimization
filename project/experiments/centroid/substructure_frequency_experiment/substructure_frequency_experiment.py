@@ -1,5 +1,6 @@
 import os, sys, pickle, json, re
 import numpy as np
+import torch
 import networkx as nx
 import rustworkx as rx
 from rustworkx.visualization import mpl_draw
@@ -14,6 +15,8 @@ DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 sys.path.append(f"{DIRECTORY}/centroid")
 sys.path.append(f"{DIRECTORY}/experiments/centroid/substructure_frequency_experiment/spminer/subgraph_mining")
 import simanneal_centroid_helpers
+
+ANALYZE_DERIVED_CENTROID = False
 
 '''
 This file runs the Section 6.2 experiment in the paper about examining the 5-node subgraphs common to all the STGs in each composer corpus
@@ -214,6 +217,16 @@ if __name__ == "__main__":
 
 	args = []
 	for i, composer in enumerate(composer_centroids_dict.keys()):
+		if ANALYZE_DERIVED_CENTROID:
+			device = torch.device(f'cuda:{i}' if torch.cuda.is_available() else 'cpu')
+			STG_augmented_list = [composer_centroids_dict[composer]] + composer_corpora_dict[composer]
+			listA_G, idx_node_mapping, node_metadata_dict = simanneal_centroid_helpers.pad_adj_matrices(STG_augmented_list)
+			listA_G_tensors = [torch.tensor(matrix, device=device, dtype=torch.float64) for matrix in listA_G]
+			final_centroid, listA_G_tensors = listA_G_tensors[0], listA_G_tensors[1:]
+			alignments, loss = simanneal_centroid.get_alignments_to_centroid(final_centroid, listA_G_tensors, idx_node_mapping, node_metadata_dict, device)
+			print(f"FINAL CENTROID LOSS FOR COMPOSER CORPUS {composer}: {loss}")
+			continue
+
 		k = 5
 		support = 1.0
 		save_dir = f'{composer}_{k}-subgraphs'

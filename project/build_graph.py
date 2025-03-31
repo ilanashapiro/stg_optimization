@@ -50,7 +50,7 @@ def get_layer_id(node):
 			return layer_id
 	raise Exception("Invalid node", node)
 
-def create_graph(piece_start_time, piece_end_time, layers):
+def create_graph(piece_start_time, piece_end_time, layers, ablation_level=None):
 	G = nx.DiGraph()
 	
 	for layer in layers:
@@ -116,23 +116,44 @@ def create_graph(piece_start_time, piece_end_time, layers):
 			G.add_node(filler_node_id, **filler_node)
 			layer.append(filler_node)
 
-		# if the layer node in the layer starts after the piece end time, we have a gap at the end
+		# if the layer node in the layer ends before the piece end time, we have a gap at the end
 		last_node = sorted_nodes[-1]
-		if last_node['end'] < piece_end_time:
-			filler_node_index = last_node['index'] + 0.5
-			filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
-			filler_feature_name = filler_node_id.split('N')[0]
-			filler_node = {
-				'id': filler_node_id, 
-				'start': last_node['end'], 
-				'end': piece_end_time, 
-				'label': "filler", 
-				'index': filler_node_index, 
-				'features_dict': {filler_feature_name: filler_feature_name}, 
-				'layer_rank': get_layer_rank(last_node['id'])
-			}
-			G.add_node(filler_node_id, **filler_node)
-			layer.append(filler_node)
+		generate_example_stg = False
+		if generate_example_stg: # this is for generating the example STGs for the slideshow figures, without fillers
+			if last_node['end'] < piece_end_time and get_layer_id(last_node['id']) == 'P':
+				filler_node_index = last_node['index'] + 1
+				filler_node_id = f"P1O1N{filler_node_index}"
+
+				filler_feature_name = filler_node_id.split('N')[0]
+				filler_node = {
+					'id': filler_node_id, 
+					'start': last_node['end'], 
+					'end': piece_end_time, 
+					'label': 1,
+					'index': filler_node_index, 
+					'features_dict': {'pattern_num':1},
+					'layer_rank': get_layer_rank(last_node['id'])
+				}
+				print("ADDED", filler_node_id, filler_node)
+				G.add_node(filler_node_id, **filler_node)
+				layer.append(filler_node)
+		else: # this is for generating real STGs for actual purposes
+			if last_node['end'] < piece_end_time:
+				filler_node_index = last_node['index'] + 0.5
+				filler_node_id = f"{get_layer_id(last_node['id'])}fillerN{filler_node_index}"
+				filler_feature_name = filler_node_id.split('N')[0]
+				filler_node = {
+					'id': filler_node_id, 
+					'start': last_node['end'], 
+					'end': piece_end_time, 
+					'label': "filler", 
+					'index': filler_node_index, 
+					'features_dict': {filler_feature_name: filler_feature_name}, 
+					'layer_rank': get_layer_rank(last_node['id'])
+				}
+				G.add_node(filler_node_id, **filler_node)
+				layer.append(filler_node)
+		
 		layer.sort(key=lambda x: x['start'])
 			
 	for i in range(len(layers) - 1):
@@ -146,7 +167,13 @@ def create_graph(piece_start_time, piece_end_time, layers):
 
 	# Remove unused filler nodes
 	unused_filler_nodes = [node for node in G.nodes() if "filler" in node and G.out_degree(node) == 0]
-	G.remove_nodes_from(unused_filler_nodes)
+	G.remove_nodes_from(unused_filler_nodes) # THIS IS CORRECT FOR GENERAL CASE
+
+	# just for now for making figures for slides, ignore otherwise
+	# for n in unused_filler_nodes:
+	#   if n != 'PfillerN4.5':
+	#     G.remove_nodes_from([n])
+
 	return G
 
 def vertical_sort_key(layer):
@@ -167,6 +194,7 @@ def get_layer_rank(node):
 		return (4, 0)
 	raise Exception("Invalid node encountered in sort", node)
 
+# this partitions INSANCE NODES ONLY
 def get_unsorted_layers_from_graph_by_index(G):
 	partition_segments = []
 	partition_motives = []
@@ -257,7 +285,7 @@ def augment_graph(G):
 			if not G.has_edge(current_node_id, next_node_id):
 				G.add_edge(current_node_id, next_node_id)
 
-def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
+def visualize(graph_list, layers_list, augmented=True, compress_graph=False, ablation_level=5):
 	n = len(graph_list)
 	
 	# Determine grid size (rows x cols) for subplots
@@ -271,7 +299,16 @@ def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 	axes_flat = axes.flatten() if n > 1 else [axes]
 	
 	for idx, G in enumerate(graph_list):
-		layers = layers_list[idx]
+		layers = layers_list[idx][:ablation_level]
+		ablation_nodes = {node['id'] for layer in layers for node in layer} 
+		proto_nodes = {node for node in G.nodes if 'pr' in node.lower()}
+		nodes_to_remove = set(G.nodes) - (ablation_nodes | proto_nodes)  
+		G.remove_nodes_from(nodes_to_remove) # remove the nodes not in the ablation layers
+		
+		# remove the remaining protos from layers not in the ablation
+		zero_arity_nodes = {node for node, degree in G.degree() if degree == 0}
+		G.remove_nodes_from(zero_arity_nodes)
+
 		for node in G.nodes():
 			if not node.startswith("Pr"):
 				if compress_graph:
@@ -315,23 +352,16 @@ def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 		# Spacing out prototype nodes vertically
 		proto_y_step = 1.0 / (len(prototype_list_sorted) + 1)
 		for index, prototype in enumerate(prototype_list_sorted):
-			y = 1 - (index + 1) * proto_y_step  # Adjust y-coordinate
+			y = 1 - (index + 1) * proto_y_step # Adjust y-coordinate
 			pos[prototype] = (0.05, y)  # Slightly to the right to avoid touching the plot border
 			prototype_nodes.append(prototype)
 
 		ax = axes_flat[idx]
-		all_edges = set(G.edges())
-		intra_level_edges = []
-		inter_level_edges = []
-		proto_edges = []
-
-		for u, v in all_edges:
-			if u in prototype_nodes or v in prototype_nodes:
-				proto_edges.append((u, v))
-			elif get_layer_rank(u) == get_layer_rank(v):
-				intra_level_edges.append((u, v))
-			else:
-				inter_level_edges.append((u, v))
+		
+		# Hide axes border and ticks
+		ax.set_xticks([])
+		ax.set_yticks([])
+		ax.set_frame_on(False)
 
 		def topological_sort(nodes, edges):
 			graph = defaultdict(list)
@@ -356,6 +386,19 @@ def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 			layer_edges = [(u, v) for u, v in edges if u in layer_nodes and v in layer_nodes]
 			return layer_nodes, layer_edges
 
+		all_edges = set(G.edges())
+		intra_level_edges = []
+		inter_level_edges = []
+		proto_edges = []
+
+		for u, v in all_edges:
+			if u in prototype_nodes or v in prototype_nodes:
+				proto_edges.append((u, v))
+			elif get_layer_rank(u) == get_layer_rank(v):
+				intra_level_edges.append((u, v))
+			else:
+				inter_level_edges.append((u, v))
+
 		layer_height = 1.0 / (len(layers) + 1)
 		for i, layer in enumerate(layers):
 			if nx.is_directed_acyclic_graph(G):
@@ -372,8 +415,8 @@ def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 		
 		ax = axes_flat[idx]
 		
-		colors = ["#B797FF", "#fd7373", "#ff9f3c", "#99d060", "#99e4ff"]
-		filler_color = '#A9A9A9'
+		colors = ["#b285f7", "#eb3223", "#f19737", "#a0ce63", "#4cafea"]
+		filler_color = '#bfbfbf'
 		for layer in layers:
 			level = vertical_sort_key(layer)
 			color = colors[level[0] % len(colors)]
@@ -388,19 +431,6 @@ def visualize(graph_list, layers_list, augmented=False, compress_graph=False):
 						edgecolors='black',
 						linewidths=0.5
 				)		
-
-		all_edges = set(G.edges())
-		intra_level_edges = []
-		inter_level_edges = []
-		proto_edges = []
-
-		for u, v in all_edges:
-			if u in prototype_nodes or v in prototype_nodes:
-				proto_edges.append((u, v))
-			elif get_layer_rank(u) == get_layer_rank(v):
-				intra_level_edges.append((u, v))
-			else:
-				inter_level_edges.append((u, v))
 
 		if augmented and not compress_graph:
 			nx.draw_networkx_nodes(G, pos, nodelist=prototype_nodes, node_color="#F8FF7D", node_size=1000, ax=ax, edgecolors='black', linewidths=0.5)
@@ -422,10 +452,6 @@ def generate_graph(piece_start_time, piece_end_time, segments_filepath, motives_
 		if ablation_levels < 1 or ablation_levels > 5:
 			raise Exception("Ablation levels must be between 1 and 5")
 		layers = parse_analyses.parse_segments_file(segments_filepath, piece_start_time, piece_end_time)
-		# keys_layer, chords_layer = parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)
-		# layers.append(keys_layer)
-		# layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
-		# layers.append(chords_layer)
 		layers.append(parse_analyses.parse_motives_file(piece_start_time, piece_end_time, motives_filepath))
 		layers.extend(parse_analyses.parse_harmony_file(piece_start_time, piece_end_time, harmony_filepath)) # contains key level and chords level
 		layers.append(parse_analyses.parse_melody_file(piece_start_time, piece_end_time, melody_filepath))
@@ -462,7 +488,7 @@ def process_graphs(midi_filepath):
 	segments_file = base_path + '_sf_fmc2d_segments.txt'
 	motives_file = base_path + '_motives3.txt'
 	harmony_file = base_path + '_functional_harmony.txt'
-	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv'
+	melody_file = base_path + '_vamp_mtg-melodia_melodia_melody_contour.csv' # use extension _TEST.pickle for generating the STGs for the RE exam slides figures beethoven 461
 	ablation_level = 2
 	graph_and_layers = generate_graph(piece_start_time, piece_end_time, segments_file, motives_file, harmony_file, melody_file, ablation_levels=ablation_level)
 	if graph_and_layers:
@@ -470,10 +496,11 @@ def process_graphs(midi_filepath):
 		augment_graph(G)
 		# G_c = compress_graph(G)
 		# layers_c = get_unsorted_layers_from_graph_by_index(G_c)
-		visualize([G], [layers])
+		visualize([G], [layers], augmented=False)
 		sys.exit(0)
+		
 		hierarchical_status = 'hier' if '_scluster_scluster_segments.txt' in segments_file else 'flat'
-		aug_graph_filepath = base_path + f"_augmented_graph_ablation_{ablation_level}level_{hierarchical_status}.pickle"
+		aug_graph_filepath = base_path + f"_augmented_graph_ablation_{ablation_level}level_{hierarchical_status}_RE.pickle" # use extension _RE.pickle for generating the STGs for the RE exam slides figures
 		if not os.path.exists(aug_graph_filepath):
 			with open(aug_graph_filepath, 'wb') as f:
 				pickle.dump(G, f)
@@ -497,6 +524,7 @@ if __name__ == "__main__":
 	# directory = DIRECTORY + '/chopin/classical_piano_midi_db/chpn-p7'
 	# directory = DIRECTORY + '/mozart/kunstderfuge/mozart-l_menuet_6_(nc)werths'
 	directory = DIRECTORY + '/beethoven/kunstderfuge/biamonti_461_(c)orlandi'
+	# directory = DIRECTORY + '/beethoven/kunstderfuge/biamonti_811_(c)orlandi'
 	# directory = DIRECTORY + '/chopin/classical_piano_midi_db/chpn-p7'
 
 	tasks = []

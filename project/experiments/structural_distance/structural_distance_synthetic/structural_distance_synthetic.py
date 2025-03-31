@@ -4,8 +4,8 @@ import networkx as nx
 import torch
 import matplotlib.pyplot as plt
 
-DIRECTORY = "/home/ubuntu/project"
-# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/home/ubuntu/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
 
 sys.path.append(f"{DIRECTORY}/centroid")
@@ -26,6 +26,7 @@ def plot_results():
 				1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 
 				2.9, 3.0
 		]
+		noise_vals = [x * 100 for x in noise_vals]
 
 		struct_dist_errors_bach = [
 				0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -80,7 +81,7 @@ def plot_results():
 		plt.plot(noise_vals, struct_dist_errors_beethoven360, marker='o', linestyle='--', color='c', label='Beethoven Biamonti No. 360, |E| = 160')
 		plt.legend(fontsize=12)
 
-		plt.xlabel('$p$', fontsize=20, labelpad=1)
+		plt.xlabel('$p$ (% added edits in size of |E|)', fontsize=20, labelpad=1)
 		plt.ylabel('Relative Error', fontsize=20, labelpad=1)
 		plt.tick_params(axis='both', which='major', labelsize=15)
 		
@@ -251,8 +252,8 @@ def generate_noisy_STGs(base_graph, percent_noise_max, percent_noise_increment, 
 	print(f"Saved graphs with noise up to {percent_noise_max*100}% percent in increments of {percent_noise_increment*100}% to {noisy_STGs_save_dir}")
 
 if __name__ == "__main__":
-	# plot_results()
-	# sys.exit(0)
+	plot_results()
+	sys.exit(0)
 	
 	base_graph_paths = [
 		DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_flat.pickle',

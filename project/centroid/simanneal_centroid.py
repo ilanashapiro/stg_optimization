@@ -4,7 +4,7 @@ import random
 import re 
 from anneal import Annealer
 from centroid_anneal import CustomCentroidAnnealer
-import sys
+import sys, os
 import json 
 import multiprocessing
 import pickle
@@ -160,63 +160,12 @@ class GraphAlignmentAnnealer(Annealer):
 		# print("ENERGY", e)
 		return e
 
-# ---------------------------------------- TEST CODE: --------------------------------------------------------------------------------
-# fp1 = DIRECTORY + '/project/datasets/chopin/classical_piano_midi_db/chpn-p9/chpn-p9_augmented_graph_flat.pickle'
-# fp2 = DIRECTORY + '/project/datasets/chopin/classical_piano_midi_db/chpn-p2/chpn-p2_augmented_graph_flat.pickle'
-
-# with open(fp1, 'rb') as f:
-# 	G1 = pickle.load(f)
-# with open(fp2, 'rb') as f:
-# 	G2 = pickle.load(f)
-
-# G1, G2 = tests.G1_test, tests.G2_test
-# padded_matrices, centroid_idx_node_mapping, node_metadata_dict = helpers.pad_adj_matrices([G1, G2])
-# A_G1, A_G2 = padded_matrices[0], padded_matrices[1]
-# print(A_G1, A_G2)
-# print(centroid_idx_node_mapping)
-# print()
-# print(nodes_metadata_dict)
-
-# list_G = [tests.G1, tests.G2]
-# listA_G, centroid_idx_node_mapping, nodes_metadata_dict = helpers.pad_adj_matrices(list_G)
-# initial_centroid = listA_G[0]
-# cp.savetxt("initial_centroid.txt", initial_centroid)
-
-# A_g_c = cp.loadtxt('centroid.txt')
-# with open("centroid_idx_node_mapping.txt", 'r') as file:
-#   centroid_idx_node_mapping = json.load(file)
-#   centroid_idx_node_mapping = {int(k): v for k, v in centroid_idx_node_mapping.items()}
-# layers1 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G1)
-# layers2 = build_graph.get_unsorted_layers_from_graph_by_index(tests.G2)
-# g_c = helpers.adj_matrix_to_graph(A_g_c, centroid_idx_node_mapping)
-# layers_g_c = build_graph.get_unsorted_layers_from_graph_by_index(g_c)
-# build_graph.visualize_p([g_c], [layers_g_c], augmented=True)
-
-# initial_state = cp.eye(cp.shape(A_G1)[0])
-# graph_aligner = GraphAlignmentAnnealer(initial_state, A_G1, A_G2, centroid_idx_node_mapping, node_metadata_dict)
-# graph_aligner.Tmax = 1.25
-# graph_aligner.Tmin = 0.01 
-# graph_aligner.steps = 2000 # 2000 
-# alignment, cost1 = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
-
-# print("Best cost1", cost1)
-# sys.exit(0)
-# graph_aligner = GraphAlignmentAnnealer(alignment, A_G1, A_G2, centroid_idx_node_mapping, node_metadata_dict)
-# graph_aligner.Tmax = 0.5 #1.25
-# graph_aligner.Tmin = 0.01 
-# graph_aligner.steps = 2000 #2000 
-# _, cost2 = graph_aligner.anneal()
-
-# print("Best cost2", cost2)
-# print("Difference", cost2 - cost1)
-# sys.exit(0)
-# ---------------------------------------- :TEST CODE --------------------------------------------------------------------------------
-
 '''
 For running the nested Graph Alignment Annealer at each step of the Centroid Annealing
 '''
 def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dict, device=None, Tmax=2, Tmin=0.01, steps=2000):
 	alignments = []
+	losses = []
 	for i, A_G in enumerate(listA_G): # for each graph in the corpus, find its best alignment with current centroid
 		# initial_state = cp.eye(cp.shape(A_G)[0]) # initial state is identity means we're doing the alignment with whatever A_G currently is
 		initial_state = torch.eye(A_G.shape[0], dtype=torch.float64, device=device)
@@ -227,10 +176,11 @@ def get_alignments_to_centroid(A_g, listA_G, idx_node_mapping, node_metadata_dic
 		graph_aligner.steps = steps
 		# each time we make the new alignment annealer at each step of the centroid annealer, we want to UPDATE THE TEMPERATURE PARAM (decrement it at each step)
 		# and can try decreasing number of iterations each time as well
-		alignment, _ = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
+		alignment, loss = graph_aligner.anneal() # don't do auto scheduling, it does not appear to work at all
 		alignments.append(alignment)
+		losses.append(loss.item())
 
-	return alignments
+	return alignments, np.mean(losses)
 
 '''
 The loss function for the centroid annealer (Equation 4a in paper) 
@@ -425,7 +375,7 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		alignment_steps = int(initial_steps * current_temp_ratio + final_steps * (1 - current_temp_ratio)) 
 		
 		# run the nested alignment annealer
-		alignments = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
+		alignments, _ = get_alignments_to_centroid(self.state, self.listA_G, self.centroid_idx_node_mapping, self.node_metadata_dict, device=self.device, Tmax=alignment_Tmax, Tmin=0.01, steps=alignment_steps)
 
 		# Align the corpus to the current centroid
 		self.listA_G = list(map(align_torch, alignments, self.listA_G))
@@ -434,62 +384,67 @@ class CentroidAnnealer(CustomCentroidAnnealer):
 		return l
 
 if __name__ == "__main__":
-	fp1 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'
-	fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_flat.pickle'
-	# fp1 = DIRECTORY + '/datasets/bach/kunstderfuge/bwv876frag/bwv876frag_augmented_graph_hier.pickle'
-	# fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_459_(c)orlandi/biamonti_459_(c)orlandi_augmented_graph_hier.pickle'
-
+	fp1 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_ablation_5level_flat_RE.pickle'
+	fp2 = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_811_(c)orlandi/biamonti_811_(c)orlandi_augmented_graph_ablation_5level_flat_RE.pickle'
+	
 	with open(fp1, 'rb') as f:
 		G1 = pickle.load(f)
 	with open(fp2, 'rb') as f:
 		G2 = pickle.load(f)
 
-	# list_G = [tests.G1_test, tests.G2_test]
 	list_G = [G1, G2]
-
 	listA_G, centroid_idx_node_mapping, node_metadata_dict = helpers.pad_adj_matrices(list_G)
+	gpu_id = 0
+	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
+	A_g, listA_G = torch.from_numpy(listA_G[0]).to(device), [torch.from_numpy(A_G).to(device) for A_G in listA_G[1:]] # A_g is initial centroid, at the front of the list
 	
-	# initial_centroid = listA_G[0] #random.choice(listA_G) # initial centroid. random for now, can improve later
+	test_dir = f"{DIRECTORY}/centroid/test_graph_output_files_beethoven_461_811"
+	os.makedirs(test_dir, exist_ok=True)
+
+	gen_centroid = False # FALSE FOR VISUALIZE EXISTING APPROX CENTORID ONLY, OTHERWISE TRUE TO GENERATE A NEW ONE
+	if gen_centroid:
+		alignments, _ = get_alignments_to_centroid(A_g, listA_G, centroid_idx_node_mapping, node_metadata_dict, device=device)
+		for i, alignment in enumerate(alignments):
+			file_name = f'{test_dir}/alignment_{i}.txt'
+			np.savetxt(file_name, alignment.to(torch.int).cpu().numpy(), fmt='%i', delimiter=",")
+			print(f'Saved: {file_name}')
+
+		alignments = []
+		for i in range(len(listA_G)):
+			alignments.append(np.loadtxt(f'{test_dir}/alignment_{i}.txt', dtype=int, delimiter=","))
+		alignments = [torch.tensor(alignment, device=device, dtype=torch.float64) for alignment in alignments]
+		aligned_listA_G = list(map(align_torch, alignments, listA_G))
+
+		centroid_annealer = CentroidAnnealer(A_g, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict, device=device)
+		centroid_annealer.Tmax = 2.5
+		centroid_annealer.Tmin = 0.05 
+		centroid_annealer.steps = 1000
+		centroid, min_loss = centroid_annealer.anneal()
+		centroid = centroid.to(torch.int).cpu().numpy()
+
+		centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
+		
+		np.savetxt(f"{test_dir}/approx_centroid_test.txt", centroid)
+		print(f'Saved: {test_dir}/approx_centroid_test.txt')
+		with open(f"{test_dir}/approx_centroid_idx_node_mapping_test.txt", 'w') as file:
+			json.dump(centroid_idx_node_mapping, file)
+		print(f'Saved: {test_dir}/approx_centroid_idx_node_mapping_test.txt')
+		with open(f"{test_dir}/approx_centroid_node_metadata_test.txt", 'w') as file:
+			json.dump(node_metadata_dict, file)
+		print(f'Saved: {test_dir}/approx_centroid_node_metadata_test.txt')
+		print(f"Best centroid", centroid)
+		print(f"Best loss", min_loss)
+		sys.exit(0)
+
+	centroid = np.loadtxt(test_dir + "/approx_centroid_test.txt")
 	
-	# alignments = get_alignments_to_centroid(initial_centroid, listA_G, centroid_idx_node_mapping, 2.5, 0.01, 10000, node_metadata_dict)
-	# for i, alignment in enumerate(alignments):
-	# 	file_name = f'test_graph_output_files/alignment_{i}.txt'
-	# 	cp.savetxt(file_name, alignment.astype(int), fmt='%i', delimiter=",")
-	# 	print(f'Saved: {file_name}')
-
-	# alignments = [cp.loadtxt('test_graph_output_files/alignment_0.txt', dtype=int, delimiter=","), cp.loadtxt('test_graph_output_files/alignment_1.txt', dtype=int, delimiter=",")]
-	# aligned_listA_G = list(map(align, alignments, listA_G))
-
-	# centroid_annealer = CentroidAnnealer(initial_centroid, aligned_listA_G, centroid_idx_node_mapping, node_metadata_dict)
-	# centroid_annealer.Tmax = 2.5
-	# centroid_annealer.Tmin = 0.05 
-	# centroid_annealer.steps = 500
-	# centroid, min_loss = centroid_annealer.anneal()
-
-	# centroid, centroid_idx_node_mapping = helpers.remove_unnecessary_dummy_nodes(centroid, centroid_idx_node_mapping, node_metadata_dict)
-	# cp.savetxt("test_graph_output_files/approx_centroid_test.txt", centroid)
-	# print('Saved: test_graph_output_files/approx_centroid_test.txt')
-	# with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'w') as file:
-	# 	json.dump(centroid_idx_node_mapping, file)
-	# print('Saved: test_graph_output_files/approx_centroid_idx_node_mapping_test.txt')
-	# with open("test_graph_output_files/approx_centroid_node_metadata_test.txt", 'w') as file:
-	# 	json.dump(node_metadata_dict, file)
-	# print('Saved: test_graph_output_files/approx_centroid_node_metadata_test.txt')
-	# print("Best centroid", centroid)
-	# print("Best loss", min_loss)
-	# sys.exit(0)
-
-	experiment_dir = "test_graph_output_files"
-	centroid = np.loadtxt(experiment_dir + "/final_centroid_test.txt")
-	
-	# with open("test_graph_output_files/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
-	with open(experiment_dir + "/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
+	with open(test_dir + "/approx_centroid_idx_node_mapping_test.txt", 'r') as file:
 		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
-	with open(experiment_dir + "/approx_centroid_node_metadata_test.txt", 'r') as file:
+	with open(test_dir + "/approx_centroid_node_metadata_test.txt", 'r') as file:
 		node_metadata_dict = json.load(file)
 	
-	# centroid, centroid_idx_node_mapping = helpers.remove_all_dummy_nodes(centroid, centroid_idx_node_mapping)
+	centroid, centroid_idx_node_mapping = helpers.remove_all_dummy_nodes(centroid, centroid_idx_node_mapping)
 
 	g = helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
@@ -497,4 +452,4 @@ if __name__ == "__main__":
 	# layers_G2 = build_graph.get_unsorted_layers_from_graph_by_index(G2)
 	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
 	# build_graph.visualize([G2], [layers_G2], augmented=True)
-	build_graph.visualize([g], [layers_g], augmented=True)
+	build_graph.visualize([g], [layers_g], augmented=True, compress_graph=False, ablation_level=2)

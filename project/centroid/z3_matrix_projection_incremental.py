@@ -1,3 +1,4 @@
+from sympy import comp
 import z3
 import numpy as np 
 import json
@@ -13,7 +14,7 @@ import time
 import pickle
 
 # DIRECTORY = "/home/ilshapiro/project"
-# DIRECTORY = "/home/ubuntu/project/"
+# DIRECTORY = "/home/ubuntu/project"
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 
 sys.path.append(DIRECTORY)
@@ -139,7 +140,7 @@ def add_prototype_to_prototype_constraints(idx_node_submap):
 				if z3_helpers.is_proto(node_id2) and node_id1 != node_id2: # Exclude self-loops
 						opt.add(A[node_idx_mapping[node_id1]][node_idx_mapping[node_id2]] == False)
 
-# Constraint: Every instance node must be the child of exactly one prototype node, no instance to proto edges, 
+# Constraint: Every instance node must be the child of exactly one prototype node per feature, no instance to proto edges, 
 # (every proto->instance edge needs to be between nodes of the same type but this is implicit bc of the staged computation)
 # submatrix consists of a single level with the possible prototypes for that level kind
 def add_prototype_to_instance_constraints(level, instance_proto_submatrix, idx_node_submap_instance_proto, node_metadata_dict):
@@ -722,28 +723,29 @@ def test_sat(verbose=False):
 			
 if __name__ == "__main__":
 	# NOTE: uncomment for viewing already repaired centroids
-	experiments_final_centroids_dir = "/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/final_centroids/final_centroid_50s_ablation3/beethoven/"
-	centroid = np.loadtxt(experiments_final_centroids_dir + "final_centroid.txt")
-	with open("/Users/ilanashapiro/Documents/constraints_project/project/experiments/centroid/approx_centroids/approx_centroid_50s_ablation3/beethoven/node_metadata_dict.txt", 'r') as file:
-		node_metadata_dict = json.load(file)
-	with open(experiments_final_centroids_dir + "final_idx_node_mapping.txt", 'r') as file:
-		centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
+	# test_dir = f"{DIRECTORY}/centroid/test_graph_output_files"
+	# centroid = np.loadtxt(f"{test_dir}/final_centroid_test.txt")
+	# with open(f"{test_dir}/approx_centroid_node_metadata_test.txt", 'r') as file:
+	# 	node_metadata_dict = json.load(file)
+	# with open(f"{test_dir}/final_centroid_idx_node_mapping_test.txt", 'r') as file:
+	# 	centroid_idx_node_mapping = {int(k): v for k, v in json.load(file).items()}
 	
-	g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
+	# g = simanneal_helpers.adj_matrix_to_graph(centroid, centroid_idx_node_mapping, node_metadata_dict)
 	
-	layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
-	build_graph.visualize([g], [layers_g], augmented=True)
-	sys.exit(0)
+	# layers_g = build_graph.get_unsorted_layers_from_graph_by_index(g)
+	# build_graph.visualize([g], [layers_g], augmented=True)
+	# sys.exit(0)
 	
 	# NOTE: IMPORTANT -- assuming all unnecessary dummys (i.e. all instance dummys and impoossible proto dummys) have been removed ALREADY
-	# approx_centroid = np.loadtxt(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_test.txt')
-	# with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
-	# 	idx_node_mapping = json.load(file)
-	# 	idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
-	# with open(DIRECTORY + '/centroid/test_graph_output_files/approx_centroid_node_metadata_test.txt', 'r') as file:
-	# 	node_metadata_dict = json.load(file)
+	test_dir = f"{DIRECTORY}/centroid/test_graph_output_files"
+	approx_centroid = np.loadtxt(f'{test_dir}/approx_centroid_test.txt')
+	with open(f'{test_dir}/approx_centroid_idx_node_mapping_test.txt', 'r') as file:
+		idx_node_mapping = json.load(file)
+		idx_node_mapping = {int(k): v for k, v in idx_node_mapping.items()}
+	with open(f'{test_dir}/approx_centroid_node_metadata_test.txt', 'r') as file:
+		node_metadata_dict = json.load(file)
 
-	# initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)
-	# final_centroid_filename = DIRECTORY + '/centroid/test_graph_output_files/final_centroid_test.txt'
-	# final_idx_node_mapping_filename = "final_centroid_idx_node_mapping_test.txt"
-	# run(final_centroid_filename, final_idx_node_mapping_filename)
+	initialize_globals(approx_centroid, idx_node_mapping, node_metadata_dict)
+	final_centroid_filename = f'{test_dir}/final_centroid_test.txt'
+	final_idx_node_mapping_filename = f'{test_dir}/final_centroid_idx_node_mapping_test.txt'
+	run(final_centroid_filename, final_idx_node_mapping_filename)

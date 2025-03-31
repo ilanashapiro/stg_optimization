@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from pulp import LpProblem, LpMinimize, LpVariable, lpSum
 from multiprocessing import Pool, current_process
 
-DIRECTORY = "/home/ubuntu/project"
-# DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
+# DIRECTORY = "/home/ubuntu/project"
+DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
 # DIRECTORY = "/home/ilshapiro/project"
 
 sys.path.append(f"{DIRECTORY}/centroid")
@@ -104,14 +104,14 @@ def plot_results():
 	plt.figure(figsize=(10, 6))
 	
 	# Plot the two sets of bars side by side
-	plt.bar(x - width/2, relative_errors_derived, width=width, color='r', edgecolor='black', label='Derived vs Ground Truth')
-	plt.bar(x + width/2, relative_errors_naive, width=width, color='skyblue', edgecolor='black', label='Naive vs Ground Truth')
+	plt.bar(x - width/2, relative_errors_derived, width=width, color='#eb3223', edgecolor='black', label='Derived vs Ground Truth')
+	plt.bar(x + width/2, relative_errors_naive, width=width, color='#4cafeb', edgecolor='black', label='Naive vs Ground Truth')
 
-	plt.xlabel('Corpus Size $k$', fontsize=15)
-	plt.ylabel('Relative Error in Loss', fontsize=15)
+	plt.xlabel('Corpus Size $k$', fontsize=20)
+	plt.ylabel('Relative Error in Loss', fontsize=20)
 	plt.xticks(x, k_values)  # Ensure all k values are shown on the x-axis
 	plt.tick_params(axis='both', which='major', labelsize=12)
-	plt.legend(fontsize=12)
+	plt.legend(fontsize=15)
 
 	plt.show()
 
@@ -410,7 +410,7 @@ def get_distances_from_centroid_to_corpus(noisy_corpus_graphs, centroid, gpu_id)
 	return np.array([simanneal_centroid.dist_torch(A_g, A_G).item() for A_G in list_alignedA_G])
 
 if __name__ == "__main__":
-	# plot_results()
+	plot_results()
 	# sys.exit(0)
 	
 	base_graph_path = DIRECTORY + '/datasets/beethoven/kunstderfuge/biamonti_461_(c)orlandi/biamonti_461_(c)orlandi_augmented_graph_flat.pickle'

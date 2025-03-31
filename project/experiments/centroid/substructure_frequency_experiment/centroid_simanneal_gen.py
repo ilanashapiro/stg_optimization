@@ -1,9 +1,9 @@
-import os, sys, shutil, glob, math
+import os, sys, glob, math
 import pickle, json
 import numpy as np, pandas as pd
 import torch
 # import cupy as cp
-from multiprocessing import Pool, current_process, Queue
+from multiprocessing import Pool, current_process
 
 # DIRECTORY = "/home/ubuntu/project"
 DIRECTORY = "/Users/ilanashapiro/Documents/constraints_project/project"
@@ -16,6 +16,7 @@ import build_graph
 import simanneal_centroid_run, simanneal_centroid_helpers, simanneal_centroid
 
 NUM_GPUS = 8 
+ANALYZE_NAIVE_CENTROID = False
 
 '''
 This file generates the approximate centroids for each composer corpus for the Musical Eval experiment in Section 6.2 of the paper (Alkan, Chopin, Haydn, Mozart) using the
@@ -142,6 +143,14 @@ def get_saved_initial_alignments_and_centroid(composer, STG_filepaths_list):
 def generate_centroid(composer, initial_centroid, initial_alignments, listA_G, idx_node_mapping, node_metadata_dict, gpu_id):
 	device = torch.device(f'cuda:{gpu_id}' if torch.cuda.is_available() else 'cpu')
 	print(f"Process {current_process().name} running on GPU {gpu_id} for centroid cluster {composer}")
+	
+	if ANALYZE_NAIVE_CENTROID:
+		listA_G = [torch.tensor(A_G, device=device, dtype=torch.float64) for A_G in listA_G]
+		initial_alignments = [torch.tensor(alignment, device=device, dtype=torch.float64) for alignment in initial_alignments]
+		initial_centroid = torch.tensor(initial_centroid, device=device, dtype=torch.float64)
+		aligned_listA_G = list(map(simanneal_centroid.align_torch, initial_alignments, listA_G))
+		print(f"NAIVE CENTROID LOSS FOR COMPOSER CORPUS {composer}: {simanneal_centroid.loss_torch(initial_centroid, aligned_listA_G, device).item()}")
+		return
 
 	# bc these are originally numpy and we can't convert to tensor till we get the device
 	listA_G = [torch.tensor(A_G, device=device, dtype=torch.float64) for A_G in listA_G]
@@ -243,3 +252,13 @@ if __name__ == "__main__":
 	pool.close()
 	pool.join()
 	# ----------------------------------------------------------------------------------------------------------------
+
+# NAIVE CENTROID LOSS FOR COMPOSER CORPUS bach: 26.02628112229173
+# NAIVE CENTROID LOSS FOR COMPOSER CORPUS beethoven: 15.485893558826112
+# NAIVE CENTROID LOSS FOR COMPOSER CORPUS mozart: 29.530639094388512
+# NAIVE CENTROID LOSS FOR COMPOSER CORPUS haydn: 30.789574551425495
+
+# FINAL CENTROID LOSS FOR COMPOSER CORPUS bach: 25.889138565858595
+# FINAL CENTROID LOSS FOR COMPOSER CORPUS beethoven: 14.947908216084402
+# FINAL CENTROID LOSS FOR COMPOSER CORPUS mozart: 27.933467568243167
+# FINAL CENTROID LOSS FOR COMPOSER CORPUS haydn: 29.864181099720284
