@@ -1,4 +1,4 @@
-## "Deriving Representative Structure From Music Corpora"
+## "Synthesizing Composite Hierarchical Structure from Symbolic Music Corpora"
 This is the repository for our [paper](https://hal.science/hal-04722377).
 
 ## Abstract:
