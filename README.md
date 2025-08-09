@@ -23,7 +23,7 @@ In the Centroids Experiment from Section 6.2, we do the mathematical evaluation 
 All the relevant material, including the generated/synthetic synthetic STGs used to get the results in the paper, are in these folders.
 
 ## Information about the dataset
-Our dataset, which is built on MIDI files from the Kunstderfuge (https://www.kunstderfuge.com/) and Classical Piano MIDI Database (http://www.piano-midi.de/midi_files.htm) datasets, is found in project/datasets. It has the structure:
+Our dataset, which is built on MIDI files from the Kunstderfuge (https://www.kunstderfuge.com/) and Classical Piano MIDI Database (http://www.piano-midi.de/midi_files.htm) datasets, would be found in project/datasets if we could upload it here. For now, it lives at https://huggingface.co/datasets/ilanashapiro/stg-paired-audio/tree/main. It has the structure:
 - datasets
   - composer
     - kunstderfuge
@@ -37,4 +37,4 @@ Our dataset, which is built on MIDI files from the Kunstderfuge (https://www.kun
 We generated the paired MP3 and CSV files, as well as the STGs.
 The full dataset was too large to include, so we just include one composer folder (Beethoven) along with 4 sample pieces, two of which are referenced in the paper. The full dataset would be made publicly available following publication.
 
-**NOTE:** We had to omit files from this repo due to size limitations. These do not include code files that we modified, but do include most of our dataset and several output files (only the relevant output files in the experiments are kept. The Harmony Transformer dataset and pretrained model checkpoints are not included in the analyses folder).
+**NOTE:** We had to omit files from this repo due to size limitations. These do not include code files that we modified, but do include most of our dataset and several output files (only the relevant output files in the experiments are kept. The Harmony Transformer dataset and pretrained model checkpoints are not included in the analyses folder). Please see https://huggingface.co/datasets/ilanashapiro/stg-paired-audio/tree/main for our full STG/paired audio dataset.
